@@ -1,194 +1,224 @@
 const express = require('express');
 const path = require('path');
-const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory order tracking for mock testing
-const mockOrders = {};
+// PRICING MATRIX
+const TIER_PRICES = {
+  '2-Wheeler': 100,
+  '3-Wheeler': 300,
+  '4-Wheeler+': 400
+};
 
-// Mock Database of Vehicles & DLs
+// MOCK VEHICLE & DL DATABASE
 const MOCK_DB = {
   vehicles: {
     'KA01AB1234': {
       regNo: 'KA 01 AB 1234',
-      vehicleClass: '2W / MOTORCYCLE',
-      is2W: true,
+      actualClass: '2-Wheeler',
+      standardPrice: 100,
       owner: 'RAHUL SHARMA',
       maker: 'HONDA MOTORCYCLE & SCOOTER INDIA',
       model: 'ACTIVA 6G',
-      regDate: '14-Mar-2021',
-      fitnessUpto: '13-Mar-2036',
-      insuranceUpto: '22-Feb-2027',
-      rto: 'KA-01 (KORAMANGALA RTO, BENGALURU)',
-      fuel: 'PETROL'
+      fuel: 'PETROL',
+      regDate: '12-Jan-2021',
+      insuranceUpto: '10-Jan-2027',
+      fitnessUpto: '11-Jan-2036',
+      rto: 'KA-01 (Koramangala, Bangalore Central)'
     },
     'KA04MC9999': {
       regNo: 'KA 04 MC 9999',
-      vehicleClass: 'LMV / MOTOR CAR (4-WHEELER)',
-      is2W: false,
-      owner: 'NAGESHA K****',
+      actualClass: '4-Wheeler+',
+      standardPrice: 400,
+      owner: 'NAGESHA KUMAR',
       maker: 'HYUNDAI MOTOR INDIA LTD',
-      model: 'CRETA SX (O)',
-      regDate: '19-Jan-2023',
-      fitnessUpto: '18-Jan-2038',
-      insuranceUpto: '15-Dec-2026',
-      rto: 'KA-04 (YESHWANTHPUR RTO, BENGALURU)',
-      fuel: 'DIESEL'
+      model: 'CRETA SX (O) 1.5 DIESEL',
+      fuel: 'DIESEL',
+      regDate: '18-Aug-2022',
+      insuranceUpto: '15-Aug-2026',
+      fitnessUpto: '17-Aug-2037',
+      rto: 'KA-04 (Yeshwanthpur, Bangalore North)'
+    },
+    'KA03TR5555': {
+      regNo: 'KA 03 TR 5555',
+      actualClass: '3-Wheeler',
+      standardPrice: 300,
+      owner: 'MOHAMMED ISMAIL',
+      maker: 'BAJAJ AUTO LTD',
+      model: 'COMPACT 4S AUTO RICKSHAW',
+      fuel: 'CNG',
+      regDate: '05-Mar-2020',
+      insuranceUpto: '02-Mar-2027',
+      fitnessUpto: '04-Mar-2035',
+      rto: 'KA-03 (Indiranagar, Bangalore East)'
     }
   },
   licenses: {
     'DL-1420110012345': {
       dlNo: 'DL-1420110012345',
-      name: 'ARJUN VERMA',
+      name: 'VIKRAM ADITYA SINGH',
       dob: '1995-05-12',
       status: 'ACTIVE / VALID',
-      cov: 'MCWG, LMV',
-      issueDate: '10-Apr-2011',
-      validUpto: '09-Apr-2031',
-      rto: 'DL-14 (JANAKPURI RTO, NEW DELHI)'
+      cov: 'MCWG, LMV (Motorcycle with Gear, Light Motor Vehicle)',
+      issueDate: '14-Apr-2011',
+      validUpto: '13-Apr-2035',
+      rto: 'DL-14 (Janakpuri, Delhi West)'
     }
   }
 };
 
-// Endpoint 1: Create Payment Session (Zero API cost)
+// IN-MEMORY ACTIVE SESSIONS
+const ACTIVE_ORDERS = new Map();
+
+// 1. CREATE ORDER ENDPOINT (With Pre-Payment Class Matching)
 app.post('/api/create-order', (req, res) => {
   const { docType, targetNumber, tier, amount, dob } = req.body;
-  const orderId = 'order_' + Math.random().toString(36).substring(2, 9).toUpperCase();
+  const cleanTarget = (targetNumber || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
-  mockOrders[orderId] = {
+  if (!cleanTarget) {
+    return res.status(400).json({ error: 'Target Number is required' });
+  }
+
+  const orderId = 'ORD_' + Math.random().toString(36).substring(2, 9).toUpperCase();
+
+  let finalAmount = amount;
+  let detectedActualClass = tier;
+  let priceAdjusted = false;
+
+  // IF RC: Check vehicle class before order creation to prevent overcharge
+  if (docType === 'RC') {
+    const knownVehicle = MOCK_DB.vehicles[cleanTarget];
+    
+    if (knownVehicle) {
+      detectedActualClass = knownVehicle.actualClass;
+      const truePrice = knownVehicle.standardPrice;
+
+      // Overpayment Correction: If user selected a higher tier for a cheaper vehicle, force true price
+      if (amount > truePrice) {
+        finalAmount = truePrice;
+        priceAdjusted = true;
+      }
+    }
+  }
+
+  ACTIVE_ORDERS.set(orderId, {
     orderId,
     docType,
-    targetNumber: targetNumber.toUpperCase().replace(/\s+/g, ''),
-    tier,
-    amount: Number(amount),
-    dob: dob || null,
-    status: 'PAYMENT_PENDING',
-    createdAt: new Date().toISOString()
-  };
+    targetNumber: cleanTarget,
+    selectedTier: tier,
+    actualClass: detectedActualClass,
+    amountBilled: finalAmount,
+    priceAdjusted,
+    paid: false,
+    dob
+  });
 
-  res.json({
+  return res.json({
     success: true,
     orderId,
-    amount: Number(amount),
-    targetNumber
+    amount: finalAmount,
+    priceAdjusted,
+    message: priceAdjusted ? `Vehicle auto-detected as ${detectedActualClass}. Price optimized to ₹${finalAmount}.` : 'Order created successfully'
   });
 });
 
-// Endpoint 2: Simulate Payment Settlement & Verification
+// 2. VERIFY PAYMENT ENDPOINT (Enforcing True Tier Protection)
 app.post('/api/verify-payment', (req, res) => {
   const { orderId } = req.body;
-  const order = mockOrders[orderId];
+  const order = ACTIVE_ORDERS.get(orderId);
 
   if (!order) {
-    return res.status(404).json({ success: false, message: 'Order not found' });
+    return res.status(404).json({ error: 'Order not found' });
   }
 
-  // RC FLOW
-  if (order.docType === 'RC') {
-    const reg = order.targetNumber;
-    const vehicle = MOCK_DB.vehicles[reg] || {
-      regNo: reg,
-      vehicleClass: order.tier === '2-Wheeler' ? '2W / MOTORCYCLE' : 'LMV / MOTOR CAR',
-      is2W: order.tier === '2-Wheeler',
-      owner: 'MOCK REGISTERED OWNER',
-      maker: 'TATA MOTORS / BAJAJ AUTO',
-      model: 'STANDARD EDITION',
-      regDate: '10-Aug-2022',
-      fitnessUpto: '09-Aug-2037',
-      insuranceUpto: '11-Nov-2026',
-      rto: reg.substring(0, 2) + ' RTO CENTRAL AUTHORITY',
-      fuel: 'PETROL / HYBRID'
-    };
+  order.paid = true;
 
-    // Mismatch detection: 2-Wheeler tier purchased for a 4-Wheeler vehicle
-    if (order.tier === '2-Wheeler' && !vehicle.is2W) {
-      order.status = 'MISMATCH_PAUSED';
-      return res.json({
-        success: true,
-        status: 'MISMATCH_PAUSED',
-        message: 'Vehicle category mismatch detected.',
-        maskedDetails: {
-          regNo: vehicle.regNo,
-          owner: vehicle.owner,
-          actualClass: vehicle.vehicleClass
-        },
-        deltaRequired: 300
-      });
-    }
-
-    // Success
-    order.status = 'COMPLETED';
-    return res.json({
-      success: true,
-      status: 'SUCCESS',
-      docType: 'RC',
-      report: vehicle
-    });
-  }
-
-  // DL FLOW
+  // DL VERIFICATION FLOW
   if (order.docType === 'DL') {
-    const dlNo = order.targetNumber;
-    const license = MOCK_DB.licenses[dlNo] || {
-      dlNo: dlNo,
-      name: 'VERIFIED CITIZEN',
-      dob: order.dob || '1995-01-01',
+    const dlData = MOCK_DB.licenses[order.targetNumber] || {
+      dlNo: order.targetNumber,
+      name: 'AUTHORIZED HOLDER',
+      dob: order.dob || '1990-01-01',
       status: 'ACTIVE / VALID',
       cov: 'MCWG, LMV',
-      issueDate: '15-May-2015',
-      validUpto: '14-May-2035',
-      rto: 'SARATHI CENTRAL TRANSPORT AUTH'
+      issueDate: '01-Jan-2015',
+      validUpto: '01-Jan-2035',
+      rto: 'Regional Transport Authority'
     };
 
-    order.status = 'COMPLETED';
-    return res.json({
-      success: true,
-      status: 'SUCCESS',
-      docType: 'DL',
-      report: license
-    });
-  }
-});
-
-// Endpoint 3: Settle Delta Difference for Mismatches
-app.post('/api/settle-delta', (req, res) => {
-  const { orderId } = req.body;
-  const order = mockOrders[orderId];
-
-  if (!order) {
-    return res.status(404).json({ success: false, message: 'Order not found' });
+    return res.json({ status: 'SUCCESS', docType: 'DL', report: dlData });
   }
 
+  // RC VERIFICATION FLOW
   const vehicle = MOCK_DB.vehicles[order.targetNumber] || {
     regNo: order.targetNumber,
-    vehicleClass: 'LMV / MOTOR CAR (4-WHEELER)',
-    owner: 'NAGESHA KUMAR',
-    maker: 'HYUNDAI MOTOR INDIA LTD',
-    model: 'CRETA SX (O)',
-    regDate: '19-Jan-2023',
-    fitnessUpto: '18-Jan-2038',
-    insuranceUpto: '15-Dec-2026',
-    rto: 'KA-04 (YESHWANTHPUR RTO)',
-    fuel: 'DIESEL'
+    actualClass: order.selectedTier,
+    standardPrice: TIER_PRICES[order.selectedTier] || 100,
+    owner: 'REGISTERED CITIZEN',
+    maker: 'BAJAJ / HERO / HONDA',
+    model: 'COMMUTER CLASS',
+    fuel: 'PETROL',
+    regDate: '10-Oct-2020',
+    insuranceUpto: '09-Oct-2027',
+    fitnessUpto: '09-Oct-2035',
+    rto: 'State Transport Department'
   };
 
-  order.status = 'COMPLETED';
-  order.amount += 300;
+  // CHECK FOR UNDERPAYMENT MISMATCH (e.g. Paid ₹100 for a 4-Wheeler Car)
+  if (order.amountBilled < vehicle.standardPrice) {
+    const deltaDue = vehicle.standardPrice - order.amountBilled;
+    
+    return res.json({
+      status: 'MISMATCH_PAUSED',
+      deltaDue,
+      maskedDetails: {
+        regNo: vehicle.regNo,
+        owner: maskName(vehicle.owner),
+        actualClass: vehicle.actualClass,
+        selectedClass: order.selectedTier
+      }
+    });
+  }
 
-  res.json({
-    success: true,
+  // COMPLETE SUCCESS
+  return res.json({
     status: 'SUCCESS',
     docType: 'RC',
     report: vehicle
   });
 });
 
+// 3. SETTLE DELTA BALANCE ENDPOINT
+app.post('/api/settle-delta', (req, res) => {
+  const { orderId } = req.body;
+  const order = ACTIVE_ORDERS.get(orderId);
+
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  const vehicle = MOCK_DB.vehicles[order.targetNumber];
+  order.amountBilled = vehicle.standardPrice;
+
+  return res.json({
+    status: 'SUCCESS',
+    docType: 'RC',
+    report: vehicle
+  });
+});
+
+function maskName(name) {
+  if (!name) return 'N/A';
+  return name.split(' ').map(part => {
+    if (part.length <= 2) return part;
+    return part[0] + '*'.repeat(part.length - 2) + part[part.length - 1];
+  }).join(' ');
+}
+
 app.listen(PORT, () => {
-  console.log(`⚡ RTO Boss Mock Server live on http://localhost:${PORT}`);
+  console.log(`RTO Boss Server running securely on http://localhost:${PORT}`);
 });

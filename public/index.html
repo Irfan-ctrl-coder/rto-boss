@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RTO Boss — Vehicle RC & DL Information Utility</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
       theme: {
@@ -33,12 +34,45 @@
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* PRINT ENGINE OVERRIDES */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 12mm;
+      }
+      body {
+        background: #FFFFFF !important;
+        color: #000000 !important;
+        font-size: 11pt;
+      }
+      header, footer, #view-input-state, #paymentModal, #mismatchModal, .no-print {
+        display: none !important;
+      }
+      #view-success-state {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .print-card {
+        border: 2px solid #0A1E3F !important;
+        box-shadow: none !important;
+        padding: 24px !important;
+        border-radius: 12px !important;
+      }
+      .print-accent {
+        background-color: #F8FAFC !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
   </style>
 </head>
 <body class="bg-brand-canvas text-slate-800 min-h-screen flex flex-col justify-between selection:bg-brand-primary selection:text-white">
 
-  <!-- HEADER -->
-  <header class="w-full border-b border-brand-cardBorder bg-white sticky top-0 z-40 shadow-[0_2px_8px_rgba(29,78,216,0.04)]">
+  <!-- HEADER (Screen Only) -->
+  <header class="w-full border-b border-brand-cardBorder bg-white sticky top-0 z-40 shadow-[0_2px_8px_rgba(29,78,216,0.04)] no-print">
     <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-brand-primary text-base">
@@ -314,49 +348,83 @@
       </div>
     </div>
 
-    <!-- STATE 4: SUCCESS / REPORT DOWNLOAD VIEW -->
-    <div id="view-success-state" class="hidden max-w-2xl mx-auto space-y-6">
+    <!-- STATE 4: PRINTABLE VERIFIED DOCUMENT CARD -->
+    <div id="view-success-state" class="hidden max-w-3xl mx-auto space-y-6">
       
-      <div class="bg-white border-2 border-emerald-200 rounded-3xl p-6 md:p-8 shadow-xl text-center space-y-4">
-        <div class="w-16 h-16 bg-emerald-50 border border-emerald-200 text-brand-success rounded-full flex items-center justify-center text-2xl mx-auto">
-          ✓
-        </div>
-        <div>
-          <span class="text-xs font-bold uppercase tracking-wider text-brand-success bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">Verified Database Record</span>
-          <h2 class="text-2xl font-black text-brand-navy mt-2" id="reportTitle">KA 01 AB 1234</h2>
-          <p class="text-xs text-slate-400" id="reportTimestamp">Report Generated</p>
+      <!-- CERTIFICATE CONTAINER (A4 Styled on Print) -->
+      <div class="print-card bg-white border-2 border-brand-navy rounded-3xl p-6 md:p-8 shadow-xl space-y-6 relative overflow-hidden">
+        
+        <!-- TOP BRANDING & QR ROW -->
+        <div class="flex items-start justify-between border-b-2 border-slate-900 pb-5">
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-brand-primary inline-block"></span>
+              <h2 class="text-2xl font-black text-brand-navy tracking-tight uppercase">RTO<span class="text-brand-primary font-black">BOSS</span></h2>
+              <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-300 ml-2">VERIFIED COPY</span>
+            </div>
+            <p class="text-xs font-bold text-slate-500" id="docTypeSubtitle">DIGITAL VEHICLE RECORD CERTIFICATE</p>
+            <p class="text-[10px] font-mono text-slate-400 tracking-wider">DOC HASH: <span id="docHash" class="text-slate-700 font-bold">---</span></p>
+          </div>
+
+          <!-- DYNAMIC VERIFICATION QR -->
+          <div class="flex flex-col items-center bg-white p-2 border border-slate-300 rounded-xl shadow-sm">
+            <div id="qrcode" class="w-20 h-20"></div>
+            <span class="text-[8px] font-mono text-slate-500 font-bold mt-1">SCAN TO VERIFY</span>
+          </div>
         </div>
 
-        <!-- Dynamic Data Card -->
-        <div id="reportDetailsGrid" class="text-left bg-slate-50 border border-slate-200 rounded-2xl p-5 grid grid-cols-2 gap-4 text-xs">
+        <!-- MAIN IDENTIFIER HIGHLIGHT BOX -->
+        <div class="print-accent bg-blue-50/60 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div>
+            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 block">Registration / Record Identifier</span>
+            <div class="text-3xl font-black mono text-brand-navy tracking-wider" id="reportTitle">KA 01 AB 1234</div>
+          </div>
+          <div class="text-left sm:text-right">
+            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 block">Generated Timestamp</span>
+            <span class="text-xs font-bold text-slate-800" id="reportTimestamp">20-Aug-2026</span>
+          </div>
+        </div>
+
+        <!-- TWO-COLUMN DATA GRID -->
+        <div id="reportDetailsGrid" class="grid grid-cols-2 gap-4 text-xs">
           <!-- Filled dynamically via JS -->
         </div>
 
-        <!-- Action Buttons -->
-        <div class="space-y-3 pt-2">
-          <button 
-            onclick="window.print()"
-            class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-sm transition-all">
-            <span>📥</span> Download Printable PDF Report
-          </button>
-          
-          <button 
-            onclick="resetToSearch()"
-            class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-xs transition-all">
-            ← Check Another Registration / License
-          </button>
+        <!-- BOTTOM STATUTORY NOTE IN PRINT -->
+        <div class="border-t border-slate-200 pt-4 text-[10px] text-slate-500 space-y-1">
+          <p><strong>Verification Notice:</strong> This digital summary report was generated via RTO Boss independently aggregated database endpoints. This document is provided for informational purposes only.</p>
+          <div class="flex justify-between items-center font-mono text-[9px] text-slate-400 pt-1">
+            <span>ISSUED BY: RTOBOSS.IN</span>
+            <span>ENCRYPTION: 256-BIT SHA</span>
+          </div>
         </div>
+
+      </div>
+
+      <!-- ON-SCREEN ACTION BUTTONS (Hidden in Print) -->
+      <div class="space-y-3 no-print">
+        <button 
+          onclick="window.print()"
+          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-4 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-sm transition-all active:scale-[0.99]">
+          <span>📥</span> Download Printable PDF Report
+        </button>
+        
+        <button 
+          onclick="resetToSearch()"
+          class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
+          ← Check Another Registration / License
+        </button>
       </div>
 
     </div>
 
   </main>
 
-  <!-- FOOTER WITH STATUTORY DISCLAIMER -->
-  <footer class="w-full border-t border-brand-cardBorder bg-white py-6 mt-8">
+  <!-- FOOTER (Screen Only) -->
+  <footer class="w-full border-t border-brand-cardBorder bg-white py-6 mt-8 no-print">
     <div class="max-w-4xl mx-auto px-4 space-y-3 text-center">
       <p class="text-[11px] text-slate-400 leading-relaxed">
-        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup utility. We are not affiliated with, endorsed by, or associated with the Ministry of Road Transport and Highways (MoRTH), Parivahan, Vahan, Sarathi, or any state Regional Transport Office (RTO) in India. Information is aggregated from publicly accessible APIs for convenience purposes.
+        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup utility. We are not affiliated with, endorsed by, or associated with the Ministry of Road Transport and Highways (MoRTH), Parivahan, Vahan, Sarathi, or any state Regional Transport Office (RTO) in India. Information is aggregated from public APIs for convenience purposes.
       </p>
       <div class="flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-2 pt-2 border-t border-slate-100">
         <span>rtoboss.in • 256-bit SSL Encrypted</span>
@@ -365,17 +433,15 @@
     </div>
   </footer>
 
-  <!-- APPLICATION LOGIC & BROWSER HISTORY MANAGEMENT -->
+  <!-- APPLICATION LOGIC & PRINT CONTROLLER -->
   <script>
     let currentService = 'RC';
     let currentPrice = 100;
     let selectedTierLabel = '2-Wheeler';
     let activeOrderId = null;
 
-    // Initialize clean base entry in browser history
     window.history.replaceState({ view: 'home' }, '');
 
-    // Intercept mobile hardware / browser Back button
     window.addEventListener('popstate', (e) => {
       const paymentModal = document.getElementById('paymentModal');
       const mismatchModal = document.getElementById('mismatchModal');
@@ -575,33 +641,54 @@
       const grid = document.getElementById('reportDetailsGrid');
       grid.innerHTML = '';
 
+      // Generate random mock SHA-256 hash for document
+      const randomHash = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join('').toUpperCase();
+      document.getElementById('docHash').innerText = randomHash.substring(0, 16) + '...';
+
+      // Render Dynamic QR Code
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+      const qrData = window.location.origin + '/?verify=' + (data.docType === 'RC' ? data.report.regNo : data.report.dlNo);
+      new QRCode(qrContainer, {
+        text: qrData,
+        width: 80,
+        height: 80,
+        colorDark: "#0A1E3F",
+        colorLight: "#FFFFFF",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
       if (data.docType === 'RC') {
         const r = data.report;
+        document.getElementById('docTypeSubtitle').innerText = 'DIGITAL VEHICLE RECORD CERTIFICATE';
         document.getElementById('reportTitle').innerText = r.regNo;
-        document.getElementById('reportTimestamp').innerText = 'Vehicle Details Report • ' + new Date().toLocaleDateString();
+        document.getElementById('reportTimestamp').innerText = new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
 
         grid.innerHTML = `
-          <div><span class="text-slate-400 block">Registered Owner</span><strong class="text-slate-900">${r.owner}</strong></div>
-          <div><span class="text-slate-400 block">Vehicle Class</span><strong class="text-brand-primary">${r.vehicleClass}</strong></div>
-          <div><span class="text-slate-400 block">Maker & Model</span><strong class="text-slate-900">${r.maker} - ${r.model}</strong></div>
-          <div><span class="text-slate-400 block">Fuel Type</span><strong class="text-slate-900">${r.fuel}</strong></div>
-          <div><span class="text-slate-400 block">Registration Date</span><strong class="text-slate-900">${r.regDate}</strong></div>
-          <div><span class="text-slate-400 block">Insurance Validity</span><strong class="text-brand-success">${r.insuranceUpto}</strong></div>
-          <div class="col-span-2"><span class="text-slate-400 block">Registering Office</span><strong class="text-slate-900">${r.rto}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Registered Owner</span><strong class="text-slate-900 text-sm">${r.owner}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Vehicle Class</span><strong class="text-brand-primary text-sm">${r.vehicleClass}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Maker / Brand</span><strong class="text-slate-900 text-sm">${r.maker}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Model Name</span><strong class="text-slate-900 text-sm">${r.model}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Fuel Type</span><strong class="text-slate-900 text-sm">${r.fuel}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Registration Date</span><strong class="text-slate-900 text-sm">${r.regDate}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Insurance Validity</span><strong class="text-brand-success text-sm">${r.insuranceUpto}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Fitness Validity</span><strong class="text-brand-success text-sm">${r.fitnessUpto}</strong></div>
+          <div class="col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Registering Office</span><strong class="text-slate-900 text-sm">${r.rto}</strong></div>
         `;
       } else {
         const l = data.report;
+        document.getElementById('docTypeSubtitle').innerText = 'DIGITAL DRIVING LICENSE VERIFICATION RECORD';
         document.getElementById('reportTitle').innerText = l.dlNo;
-        document.getElementById('reportTimestamp').innerText = 'License Details Report • ' + new Date().toLocaleDateString();
+        document.getElementById('reportTimestamp').innerText = new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
 
         grid.innerHTML = `
-          <div><span class="text-slate-400 block">License Holder</span><strong class="text-slate-900">${l.name}</strong></div>
-          <div><span class="text-slate-400 block">Status</span><strong class="text-brand-success">${l.status}</strong></div>
-          <div><span class="text-slate-400 block">Date of Birth</span><strong class="text-slate-900">${l.dob}</strong></div>
-          <div><span class="text-slate-400 block">Authorized Classes</span><strong class="text-brand-primary">${l.cov}</strong></div>
-          <div><span class="text-slate-400 block">Issue Date</span><strong class="text-slate-900">${l.issueDate}</strong></div>
-          <div><span class="text-slate-400 block">Valid Upto</span><strong class="text-slate-900">${l.validUpto}</strong></div>
-          <div class="col-span-2"><span class="text-slate-400 block">Issuing Authority</span><strong class="text-slate-900">${l.rto}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">License Holder</span><strong class="text-slate-900 text-sm">${l.name}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">License Status</span><strong class="text-brand-success text-sm">${l.status}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Date of Birth</span><strong class="text-slate-900 text-sm">${l.dob}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Authorized Classes</span><strong class="text-brand-primary text-sm">${l.cov}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Issue Date</span><strong class="text-slate-900 text-sm">${l.issueDate}</strong></div>
+          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Valid Upto</span><strong class="text-slate-900 text-sm">${l.validUpto}</strong></div>
+          <div class="col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Issuing Authority</span><strong class="text-slate-900 text-sm">${l.rto}</strong></div>
         `;
       }
     }
