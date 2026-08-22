@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RC Card</title>
+
+    <style>
+        /* PDF typography: Canva identified the source text as Arial MT Pro Bold. */
+        /* Arial/Helvetica remain fallbacks when Arial MT Pro is unavailable. */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px;
+            background: #ffffff;
+
+            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
+            color: #000000;
+        }
+
+        /* ==============================
+           RC CONTAINER
+        ============================== */
+
+        .rc-card {
+            width: 1000px;
+            min-height: 690px;
+
+            border: 2px solid #777;
+            border-radius: 28px;
+
+            padding: 20px 38px 18px;
+
+            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
+            font-weight: 700;
+        }
+
+
+        /* ==============================
+           REGISTRATION NUMBER
+        ============================== */
+
+        .reg-no {
+            text-align: center;
+
+            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
+            font-size: 52px;
+            font-weight: 700;
+
+            line-height: 1;
+            margin-bottom: 22px;
+
+            white-space: nowrap;
+        }
+
+
+        /* ==============================
+           GENERAL FIELD
+        ============================== */
+
+        .field {
+            display: grid;
+
+            /*
+                LABEL | COLON | VALUE
+            */
+            grid-template-columns: 170px 20px 1fr;
+
+            align-items: baseline;
+
+            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+
+            line-height: 1.42;
+
+            white-space: nowrap;
+        }
+
+        .label {
+            font-weight: 700;
+        }
+
+        .colon {
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .value {
+            font-weight: 700;
+        }
+
+
+        /* ==============================
+           TOP TWO-COLUMN SECTION
+        ============================== */
+
+        .top-section {
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            column-gap: 25px;
+        }
+
+        /* Right-side top fields align their colon/value independently,
+           matching the reference document. */
+        .top-section > div:nth-child(2) .field {
+            grid-template-columns: 105px 20px 1fr;
+        }
+
+
+        /* ==============================
+           FULL WIDTH INFORMATION
+        ============================== */
+
+        .full-field {
+            display: grid;
+
+            grid-template-columns: 170px 20px 1fr;
+
+            align-items: baseline;
+
+            font-size: 22px;
+            font-weight: 700;
+
+            line-height: 1.42;
+
+            white-space: nowrap;
+        }
+
+
+        /* ==============================
+           ADDRESS
+        ============================== */
+
+        .address {
+            display: grid;
+
+            grid-template-columns: 170px 20px 1fr;
+
+            font-size: 22px;
+            font-weight: 700;
+
+            line-height: 1.42;
+
+            margin-top: 1px;
+        }
+
+        .address-value {
+            white-space: nowrap;
+        }
+
+
+        /* ==============================
+           VEHICLE DETAILS
+        ============================== */
+
+        .vehicle-section {
+            margin-top: 36px;
+
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            column-gap: 25px;
+        }
+
+        .vehicle-field {
+            display: grid;
+
+            grid-template-columns: 170px 20px 1fr;
+            
+
+            align-items: baseline;
+
+            font-size: 22px;
+            font-weight: 700;
+
+            line-height: 1.42;
+
+            white-space: nowrap;
+        }
+
+
+        /* ==============================
+           AUTHORITY
+        ============================== */
+
+        .authority {
+            margin-top: 4px;
+
+            text-align: right;
+
+            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
+            font-size: 21px;
+            font-weight: 700;
+
+            line-height: 1.25;
+        }
+
+
+        /* ==============================
+           PRINT
+        ============================== */
+
+        @media print {
+
+            body {
+                padding: 0;
+            }
+
+            .rc-card {
+                border: 2px solid #777;
+            }
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+<div class="rc-card">
+
+
+    <!-- =================================
+         REGISTRATION NUMBER
+    ================================== -->
+
+    <div class="reg-no">
+        REG NO : KA09HJ1161
+    </div>
+
+
+    <!-- =================================
+         TOP INFORMATION
+    ================================== -->
+
+    <div class="top-section">
+
+
+        <!-- LEFT -->
+
+        <div>
+
+            <div class="field">
+                <span class="label">REG.DATE</span>
+                <span class="colon">:</span>
+                <span class="value">06-07-2016</span>
+            </div>
+
+            <div class="field">
+                <span class="label">CHASSIS.NO</span>
+                <span class="colon">:</span>
+                <span class="value">ME4JF505FGT539299</span>
+            </div>
+
+            <div class="field">
+                <span class="label">ENGINE.NO</span>
+                <span class="colon">:</span>
+                <span class="value">JF50ET3541017</span>
+            </div>
+
+        </div>
+
+
+        <!-- RIGHT -->
+
+        <div>
+
+            <div class="field">
+                <span class="label">O SLNO</span>
+                <span class="colon">:</span>
+                <span class="value">01</span>
+            </div>
+
+            <div class="field">
+                <span class="label">CLASS</span>
+                <span class="colon">:</span>
+                <span class="value">M-Cycle/Scooter</span>
+            </div>
+
+            <div class="field">
+                <span class="label">COLOUR</span>
+                <span class="colon">:</span>
+                <span class="value">WHITE</span>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =================================
+         MANUFACTURER
+    ================================== -->
+
+    <div class="full-field">
+
+        <span class="label">MFR</span>
+
+        <span class="colon">:</span>
+
+        <span class="value">
+            HONDA MOTORCYCLE AND SCOOTER INDIA (P) LTD
+        </span>
+
+    </div>
+
+
+    <!-- =================================
+         OWNER
+    ================================== -->
+
+    <div class="full-field">
+
+        <span class="label">OWNERNAME</span>
+
+        <span class="colon">:</span>
+
+        <span class="value">
+            JYOTHI M
+        </span>
+
+    </div>
+
+
+    <!-- =================================
+         S/W/D
+    ================================== -->
+
+    <div class="full-field">
+
+        <span class="label">S/W/D OF</span>
+
+        <span class="colon">:</span>
+
+        <span class="value">
+            NAGAVENI
+        </span>
+
+    </div>
+
+
+    <!-- =================================
+         ADDRESS
+    ================================== -->
+
+    <div class="address">
+
+        <span class="label">ADDRESS</span>
+
+        <span class="colon">:</span>
+
+        <div class="address-value">
+
+            # 956, BEML LAYOUT, 2ND STAGE, RAJARAJESHWARI<br>
+
+            NAGAR,, MYSORE, -570022
+
+        </div>
+
+    </div>
+
+
+    <!-- =================================
+         VEHICLE INFORMATION
+    ================================== -->
+
+    <div class="vehicle-section">
+
+
+        <!-- LEFT SIDE -->
+
+        <div>
+
+            <div class="vehicle-field">
+
+                <span class="label">MODEL</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    H ACTIVA 3G CBS BS3
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">BODY</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    U BONE
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">WHEEL BASE</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    0
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">MFG.DATE</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    7/2016
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">FUEL</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    PETROL
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">REF/RC UPTO</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    05-07-2031
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">TAX UPTO</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <!-- RIGHT SIDE -->
+
+        <div>
+
+            <div class="vehicle-field">
+
+                <span class="label">NO.OF CYL</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    1
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">UNLADEN WT</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    108
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">SEATING</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    2
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">STDG/SLPR</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    0/0
+                </span>
+
+            </div>
+
+
+            <div class="vehicle-field">
+
+                <span class="label">CC</span>
+
+                <span class="colon">:</span>
+
+                <span class="value">
+                    109.00
+                </span>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- =================================
+         REGISTERING AUTHORITY
+    ================================== -->
+
+    <div class="authority">
+
+        Registering Authority<br>
+
+        MYSURU WEST RTO, Karnataka
+
+    </div>
+
+
+</div>
+
+</body>
+</html>

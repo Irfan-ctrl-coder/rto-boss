@@ -3,20 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RTO Boss — Vehicle RC & DL Information Utility</title>
+  <title>RTO Boss — Instant RC &amp; DL Format Utility</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
             brand: {
-              canvas: '#F0F7FF',
-              surface: '#FFFFFF',
-              cardBorder: '#DBEAFE',
-              navy: '#0A1E3F',
+              canvas: '#F1F5F9',
+              navy: '#0B192C',
               primary: '#1D4ED8',
               primaryHover: '#1E40AF',
               success: '#059669',
@@ -32,102 +30,144 @@
     }
   </script>
   <style>
+    * { box-sizing: border-box; }
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
 
-    /* PRINT ENGINE OVERRIDES */
+    /* Matching Light Border on Both Cards */
+    .card-preview-box {
+      width: 480px;
+      height: 304px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1.2px solid #94A3B8;
+      background-color: #FFFFFF;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .smartcard-container {
+      width: 480px;
+      height: 304px;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      border: 1.2px solid #94A3B8;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      background-color: #FFFFFF;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    /* Print styling - Exact A4 Landscape Side-by-Side */
     @media print {
-      @page {
-        size: A4 portrait;
-        margin: 12mm;
+      @page { 
+        size: A4 landscape; 
+        margin: 0; 
       }
-      body {
-        background: #FFFFFF !important;
-        color: #000000 !important;
-        font-size: 11pt;
-      }
-      header, footer, #view-input-state, #paymentModal, #mismatchModal, .no-print {
-        display: none !important;
-      }
-      #view-success-state {
-        display: block !important;
-        width: 100% !important;
+      html, body { 
+        background: #FFFFFF !important; 
+        color: #000000 !important; 
         margin: 0 !important;
         padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
       }
-      .print-card {
-        border: 2px solid #0A1E3F !important;
+      header, footer, #view-input-state, #formatChooserModal, #paymentModal, .no-print {
+        display: none !important;
+      }
+      #view-success-state { 
+        display: flex !important; 
+        justify-content: center !important; 
+        align-items: center !important; 
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0 auto !important; 
+        padding: 0 !important;
+      }
+      #certificateContainer {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 16px !important;
+        width: 100% !important;
+        border: none !important;
         box-shadow: none !important;
-        padding: 24px !important;
-        border-radius: 12px !important;
+        padding: 0 !important;
+        margin: auto !important;
       }
-      .print-accent {
-        background-color: #F8FAFC !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+      .card-preview-box, .smartcard-container {
+        width: 470px !important;
+        height: 297px !important;
+        box-shadow: none !important;
+        border: 1.2px solid #94A3B8 !important;
+        border-radius: 12px !important;
+        page-break-inside: avoid !important;
       }
     }
   </style>
 </head>
 <body class="bg-brand-canvas text-slate-800 min-h-screen flex flex-col justify-between selection:bg-brand-primary selection:text-white">
 
-  <!-- HEADER (Screen Only) -->
-  <header class="w-full border-b border-brand-cardBorder bg-white sticky top-0 z-40 shadow-[0_2px_8px_rgba(29,78,216,0.04)] no-print">
-    <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+  <!-- HEADER -->
+  <header class="w-full border-b border-slate-200 bg-white sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center gap-2.5">
         <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-brand-primary text-base">
           ⚡
         </div>
         <div>
           <span class="font-extrabold text-xl tracking-tight text-brand-navy">RTO<span class="text-brand-primary font-black">Boss</span></span>
-          <span class="text-[9px] text-slate-400 block -mt-1 font-bold tracking-wider">INSTANT VEHICLE & DL INFORMATION</span>
+          <span class="text-[9px] text-slate-400 block -mt-1 font-bold tracking-wider">OFFICIAL FORMAT ENGINE</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold text-brand-primary">
-        <span class="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></span>
-        Fast Lookup Active
+      <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        Vector Grid Engine Active
       </div>
     </div>
   </header>
 
   <!-- MAIN WRAPPER -->
-  <main class="w-full max-w-4xl mx-auto px-4 py-8 md:py-10 flex-1">
+  <main class="w-full max-w-7xl mx-auto px-4 py-8 flex-1">
 
-    <!-- STATE 1: INPUT & SELECTION CONTAINER -->
-    <div id="view-input-state" class="space-y-8">
+    <!-- STATE 1: SEARCH & INPUT VIEW -->
+    <div id="view-input-state" class="space-y-8 max-w-5xl mx-auto">
       
-      <!-- HERO TEXT -->
       <div class="text-center">
         <h1 class="text-3xl md:text-4xl font-black text-brand-navy tracking-tight leading-tight mb-2">
-          Fast Vehicle RC & Driving License Search
+          Vehicle RC &amp; Driving Licence Formatter
         </h1>
         <p class="text-sm md:text-base text-slate-500 max-w-lg mx-auto font-medium">
-          Get structured vehicle specs and license validity reports delivered instantly. No login or account required.
+          Generate pixel-exact documents with locked vector layout engine.
         </p>
       </div>
 
-      <!-- TWO-COLUMN FORM LAYOUT -->
       <div class="grid md:grid-cols-12 gap-6 items-start">
         
-        <!-- LEFT: INPUT VIEW (7 Cols) -->
+        <!-- LEFT: INPUTS -->
         <div class="md:col-span-7 space-y-5">
-          <div class="bg-brand-surface border border-brand-cardBorder rounded-2xl p-5 md:p-6 shadow-[0_4px_20px_rgba(29,78,216,0.06)]">
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm">
             
-            <!-- SERVICE TOGGLE TABS -->
             <div class="mb-5">
-              <div class="flex rounded-xl bg-blue-50/70 p-1 border border-blue-100">
+              <div class="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
                 <button 
                   id="rcTabBtn" 
                   onclick="switchService('RC')"
-                  class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm border border-blue-100 transition-all flex items-center justify-center gap-2">
+                  class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2">
                   <span>🚗</span> Vehicle RC Lookup
                 </button>
                 <button 
                   id="dlTabBtn" 
                   onclick="switchService('DL')"
                   class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2">
-                  <span>🪪</span> Driving License Lookup
+                  <span>🪪</span> Driving Licence Lookup
                 </button>
               </div>
             </div>
@@ -137,7 +177,7 @@
               <div>
                 <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Vehicle Registration Number</label>
                 
-                <div class="flex items-stretch rounded-xl border-2 border-slate-300 bg-white focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-blue-100 transition-all overflow-hidden shadow-inner">
+                <div class="flex items-stretch rounded-xl border-2 border-slate-300 bg-white focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-blue-100 transition-all overflow-hidden">
                   <div class="w-10 bg-[#002B7F] flex flex-col items-center justify-between py-2 border-r border-blue-900/40 select-none">
                     <span class="text-[8px] font-black text-white tracking-tighter">IND</span>
                     <div class="w-3.5 h-3.5 rounded-full border border-yellow-400 flex items-center justify-center">
@@ -149,16 +189,16 @@
                   <input 
                     type="text" 
                     id="rcInput" 
-                    placeholder="KA 01 AB 1234" 
+                    placeholder="KA09HJ1161" 
                     maxlength="13" 
-                    value="KA01AB1234"
+                    value="KA09HJ1161"
                     oninput="handleRcInput(this)"
-                    class="w-full bg-transparent mono text-2xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none placeholder:font-sans placeholder:text-slate-300 placeholder:text-lg" 
+                    class="w-full bg-transparent mono text-2xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none" 
                   />
                 </div>
 
                 <div id="rtoBadge" class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> vehicle detected
+                  📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available
                 </div>
               </div>
 
@@ -176,13 +216,13 @@
                     <div class="text-xs font-black text-brand-primary">₹100</div>
                   </button>
 
-                  <button type="button" onclick="selectRcTier(300, '3-Wheeler', this)" class="tier-btn p-3 rounded-xl border border-brand-cardBorder bg-white text-left transition-all hover:border-blue-300">
+                  <button type="button" onclick="selectRcTier(300, '3-Wheeler', this)" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
                     <div class="text-xl">🛺</div>
                     <div class="text-xs font-bold text-slate-700 mt-1">3-Wheeler</div>
                     <div class="text-xs font-black text-slate-500">₹300</div>
                   </button>
 
-                  <button type="button" onclick="selectRcTier(400, '4-Wheeler+', this)" class="tier-btn p-3 rounded-xl border border-brand-cardBorder bg-white text-left transition-all hover:border-blue-300">
+                  <button type="button" onclick="selectRcTier(400, '4-Wheeler+', this)" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
                     <div class="text-xl">🚗</div>
                     <div class="text-xs font-bold text-slate-700 mt-1">4-Wheeler+</div>
                     <div class="text-xs font-black text-slate-500">₹400</div>
@@ -190,25 +230,26 @@
                 </div>
               </div>
 
-              <!-- TEST HINTS -->
-              <div class="p-3 bg-blue-50/50 rounded-xl border border-blue-100 text-[11px] text-slate-600 space-y-1">
-                <div class="font-bold text-brand-navy">🧪 Quick Test Numbers:</div>
-                <div>• <span class="mono font-bold text-blue-700">KA01AB1234</span> (Bike — Normal ₹100 Success)</div>
-                <div>• <span class="mono font-bold text-amber-700">KA04MC9999</span> (Car — Select ₹100 to test Mismatch Modal)</div>
+              <!-- TEST DATA -->
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div class="font-bold text-slate-800">🧪 Exact Test Reference Records:</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Vidhana Soudha Format)</div>
+                <div>• <span class="mono font-bold text-blue-700">KA03HZ2486</span> (Karnataka Old Format Reference 2)</div>
+                <div>• <span class="mono font-bold text-indigo-700">KA40Y5748</span> (Karnataka New Smart Card RC)</div>
               </div>
             </div>
 
             <!-- DL FORM -->
             <div id="dlInputView" class="hidden space-y-4">
               <div>
-                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Driving License Number</label>
+                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Driving Licence Number</label>
                 <input 
                   type="text" 
                   id="dlInput" 
-                  placeholder="DL-1420110012345" 
-                  value="DL-1420110012345"
+                  placeholder="KA1120140002551" 
+                  value="KA1120140002551"
                   maxlength="16" 
-                  class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary focus:ring-2 focus:ring-blue-100 transition-all placeholder:font-sans placeholder:text-slate-300 placeholder:text-sm"
+                  class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary"
                 />
               </div>
               <div>
@@ -216,31 +257,18 @@
                 <input 
                   type="date" 
                   id="dlDob" 
-                  value="1995-05-12"
-                  class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary focus:ring-2 focus:ring-blue-100 transition-all"
+                  value="1982-02-06"
+                  class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary"
                 />
               </div>
             </div>
 
           </div>
-
-          <div class="grid grid-cols-3 gap-3 text-center text-slate-600 text-xs">
-            <div class="bg-white p-2.5 rounded-xl border border-brand-cardBorder shadow-sm">
-              <span class="text-base block mb-0.5">⚡</span> Instant PDF
-            </div>
-            <div class="bg-white p-2.5 rounded-xl border border-brand-cardBorder shadow-sm">
-              <span class="text-base block mb-0.5">🔒</span> 256-bit Secure
-            </div>
-            <div class="bg-white p-2.5 rounded-xl border border-brand-cardBorder shadow-sm">
-              <span class="text-base block mb-0.5">📱</span> Zero Passwords
-            </div>
-          </div>
         </div>
 
-        <!-- RIGHT: SUMMARY & CHECKOUT (5 Cols) -->
+        <!-- RIGHT: SUMMARY & PAY ACTION -->
         <div class="md:col-span-5">
-          <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 md:p-6 shadow-[0_6px_24px_rgba(29,78,216,0.08)] sticky top-20 space-y-5">
-            
+          <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 md:p-6 shadow-sm sticky top-20 space-y-5">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 class="text-base font-extrabold text-brand-navy">Order Summary</h3>
               <span class="text-xs bg-blue-50 text-brand-primary font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="summaryServiceTag">RC Verification</span>
@@ -248,16 +276,16 @@
 
             <div class="space-y-2 text-xs">
               <div class="flex justify-between text-slate-600">
-                <span id="summaryItemLabel">2-Wheeler RC Verification Report</span>
+                <span id="summaryItemLabel">2-Wheeler RC Document</span>
                 <span class="font-bold text-slate-900" id="summaryBasePrice">₹100.00</span>
               </div>
               <div class="flex justify-between text-slate-600">
-                <span>Public Registry Search Fee</span>
+                <span>Vector Grid Exact Match</span>
                 <span class="font-bold text-brand-success">INCLUDED</span>
               </div>
               <div class="flex justify-between text-slate-600">
-                <span>PDF Generation & Format</span>
-                <span class="font-bold text-brand-success">FREE</span>
+                <span>Side-by-Side Landscape Print</span>
+                <span class="font-bold text-brand-success">LOCKED</span>
               </div>
             </div>
 
@@ -268,31 +296,59 @@
 
             <button 
               id="payBtn" 
-              onclick="initiatePayment()"
+              onclick="handleProceedClick()"
               class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
-              <span>🔒</span>
-              <span id="btnText">Pay ₹100 via UPI</span>
+              <span>⚡</span>
+              <span id="btnText">Proceed to Format (₹100)</span>
             </button>
-
-            <p class="text-[11px] text-slate-400 text-center leading-tight">
-              *One-time convenience fee. No recurring subscriptions.
-            </p>
-
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-center gap-3 text-slate-400 text-xs font-bold">
-              <span>GPay</span><span>•</span><span>PhonePe</span><span>•</span><span>Paytm UPI</span>
-            </div>
           </div>
         </div>
 
       </div>
     </div>
 
-    <!-- STATE 2: SIMULATED UPI MODAL -->
-    <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white border border-blue-200 rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
-          ₹
+    <!-- FORMAT CHOOSER MODAL -->
+    <div id="formatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
+        <div class="text-left">
+          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA VEHICLE</span>
+          <h3 class="text-xl font-black text-brand-navy mt-2">Select Preferred RC Layout</h3>
         </div>
+
+        <div class="grid grid-cols-2 gap-3 text-left">
+          <button 
+            type="button" 
+            onclick="confirmFormatSelection('OLD')"
+            class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
+            <div>
+              <div class="text-2xl">🏛️</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old Book / Paper RC</h4>
+              <p class="text-[10px] text-slate-500 mt-1 leading-tight">Vidhana Soudha template rendered via vector alignment.</p>
+            </div>
+            <span class="text-xs font-bold text-brand-primary">Choose Old RC →</span>
+          </button>
+
+          <button 
+            type="button" 
+            onclick="confirmFormatSelection('NEW')"
+            class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
+            <div>
+              <div class="text-2xl">💳</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New Smart Card RC</h4>
+              <p class="text-[10px] text-slate-500 mt-1 leading-tight">National Union standard card with Gold Chip &amp; QR.</p>
+            </div>
+            <span class="text-xs font-bold text-brand-primary">Choose Smart RC →</span>
+          </button>
+        </div>
+
+        <button onclick="closeFormatModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+      </div>
+    </div>
+
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">₹</div>
         <div>
           <h3 class="text-lg font-black text-brand-navy">Simulated UPI Gateway</h3>
           <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
@@ -300,11 +356,11 @@
 
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2">
           <div class="flex justify-between text-slate-500">
-            <span>Query Target:</span>
+            <span>Target:</span>
             <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
           </div>
           <div class="flex justify-between text-slate-500">
-            <span>Amount Due:</span>
+            <span>Amount:</span>
             <span class="font-black text-brand-primary text-sm" id="modalAmount">---</span>
           </div>
         </div>
@@ -315,104 +371,35 @@
           <span>✓</span> Simulate Payment Success
         </button>
 
-        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">
-          Cancel & Close
-        </button>
+        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
       </div>
     </div>
 
-    <!-- STATE 3: LOOPHOLE / MISMATCH DELTA MODAL -->
-    <div id="mismatchModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white border border-amber-300 rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-brand-warning text-xl mx-auto">
-          ⚠️
-        </div>
-        <div>
-          <h3 class="text-lg font-black text-brand-navy">Category Mismatch Detected</h3>
-          <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-            Vehicle <span class="mono text-brand-warning font-bold" id="mismatchReg">KA 04 MC 9999</span> was identified as a <strong class="text-slate-900" id="mismatchActualClass">4-Wheeler</strong>, but the 2-Wheeler tier was selected.
-          </p>
-        </div>
-
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2">
-          <div class="text-slate-500">Owner: <span class="text-slate-900 font-bold" id="mismatchOwner">NAGESHA K****</span></div>
-          <div class="text-slate-500">Status: <span class="text-brand-warning font-bold">Report Locked (Delta Balance Due)</span></div>
-        </div>
-
-        <button 
-          onclick="settleDeltaFee()"
-          class="w-full bg-brand-warning hover:bg-amber-600 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md">
-          Pay ₹300 Balance & Unlock Full Report
-        </button>
-        <button onclick="closeMismatchModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
-      </div>
-    </div>
-
-    <!-- STATE 4: PRINTABLE VERIFIED DOCUMENT CARD -->
-    <div id="view-success-state" class="hidden max-w-3xl mx-auto space-y-6">
+    <!-- SUCCESS VIEW: OUTPUT CONTAINER -->
+    <div id="view-success-state" class="hidden max-w-6xl mx-auto space-y-6">
       
-      <!-- CERTIFICATE CONTAINER (A4 Styled on Print) -->
-      <div class="print-card bg-white border-2 border-brand-navy rounded-3xl p-6 md:p-8 shadow-xl space-y-6 relative overflow-hidden">
-        
-        <!-- TOP BRANDING & QR ROW -->
-        <div class="flex items-start justify-between border-b-2 border-slate-900 pb-5">
-          <div class="space-y-1">
-            <div class="flex items-center gap-2">
-              <span class="w-3 h-3 rounded-full bg-brand-primary inline-block"></span>
-              <h2 class="text-2xl font-black text-brand-navy tracking-tight uppercase">RTO<span class="text-brand-primary font-black">BOSS</span></h2>
-              <span class="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-300 ml-2">VERIFIED COPY</span>
-            </div>
-            <p class="text-xs font-bold text-slate-500" id="docTypeSubtitle">DIGITAL VEHICLE RECORD CERTIFICATE</p>
-            <p class="text-[10px] font-mono text-slate-400 tracking-wider">DOC HASH: <span id="docHash" class="text-slate-700 font-bold">---</span></p>
-          </div>
-
-          <!-- DYNAMIC VERIFICATION QR -->
-          <div class="flex flex-col items-center bg-white p-2 border border-slate-300 rounded-xl shadow-sm">
-            <div id="qrcode" class="w-20 h-20"></div>
-            <span class="text-[8px] font-mono text-slate-500 font-bold mt-1">SCAN TO VERIFY</span>
-          </div>
-        </div>
-
-        <!-- MAIN IDENTIFIER HIGHLIGHT BOX -->
-        <div class="print-accent bg-blue-50/60 border border-blue-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div>
-            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 block">Registration / Record Identifier</span>
-            <div class="text-3xl font-black mono text-brand-navy tracking-wider" id="reportTitle">KA 01 AB 1234</div>
-          </div>
-          <div class="text-left sm:text-right">
-            <span class="text-[10px] uppercase font-bold tracking-widest text-slate-500 block">Generated Timestamp</span>
-            <span class="text-xs font-bold text-slate-800" id="reportTimestamp">20-Aug-2026</span>
-          </div>
-        </div>
-
-        <!-- TWO-COLUMN DATA GRID -->
-        <div id="reportDetailsGrid" class="grid grid-cols-2 gap-4 text-xs">
-          <!-- Filled dynamically via JS -->
-        </div>
-
-        <!-- BOTTOM STATUTORY NOTE IN PRINT -->
-        <div class="border-t border-slate-200 pt-4 text-[10px] text-slate-500 space-y-1">
-          <p><strong>Verification Notice:</strong> This digital summary report was generated via RTO Boss independently aggregated database endpoints. This document is provided for informational purposes only.</p>
-          <div class="flex justify-between items-center font-mono text-[9px] text-slate-400 pt-1">
-            <span>ISSUED BY: RTOBOSS.IN</span>
-            <span>ENCRYPTION: 256-BIT SHA</span>
-          </div>
-        </div>
-
+      <div id="certificateContainer" class="flex flex-row items-center justify-center gap-4 p-4 md:p-6 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
+        <!-- RENDERED DOCUMENT INJECTED HERE -->
       </div>
 
-      <!-- ON-SCREEN ACTION BUTTONS (Hidden in Print) -->
-      <div class="space-y-3 no-print">
+      <!-- ACTION BUTTONS -->
+      <div class="max-w-md mx-auto space-y-3 no-print">
+        <button 
+          onclick="downloadBackCardSvgAsPng()"
+          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
+          <span>💾</span> Download High-Res RC Image (PNG)
+        </button>
+
         <button 
           onclick="window.print()"
-          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-4 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-sm transition-all active:scale-[0.99]">
-          <span>📥</span> Download Printable PDF Report
+          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-sm transition-all active:scale-[0.99]">
+          <span>📥</span> Print / Save to PDF
         </button>
         
         <button 
           onclick="resetToSearch()"
           class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
-          ← Check Another Registration / License
+          ← Format Another Document
         </button>
       </div>
 
@@ -420,48 +407,59 @@
 
   </main>
 
-  <!-- FOOTER (Screen Only) -->
-  <footer class="w-full border-t border-brand-cardBorder bg-white py-6 mt-8 no-print">
+  <!-- FOOTER -->
+  <footer class="w-full border-t border-slate-200 bg-white py-6 mt-8 no-print">
     <div class="max-w-4xl mx-auto px-4 space-y-3 text-center">
       <p class="text-[11px] text-slate-400 leading-relaxed">
-        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup utility. We are not affiliated with, endorsed by, or associated with the Ministry of Road Transport and Highways (MoRTH), Parivahan, Vahan, Sarathi, or any state Regional Transport Office (RTO) in India. Information is aggregated from public APIs for convenience purposes.
+        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup utility. We are not affiliated with, endorsed by, or associated with MoRTH, Parivahan, or any State Transport Department.
       </p>
-      <div class="flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-2 pt-2 border-t border-slate-100">
-        <span>rtoboss.in • 256-bit SSL Encrypted</span>
-        <span>Independent Vehicle Data Provider</span>
-      </div>
     </div>
   </footer>
 
-  <!-- APPLICATION LOGIC & PRINT CONTROLLER -->
   <script>
     let currentService = 'RC';
     let currentPrice = 100;
     let selectedTierLabel = '2-Wheeler';
+    let detectedState = 'KA';
+    let chosenFormat = 'OLD';
     let activeOrderId = null;
 
-    window.history.replaceState({ view: 'home' }, '');
+    const SVG_CHIP = `
+      <div class="w-[52px] h-[40px] rounded bg-[#EAB308] border border-[#CA8A04] relative overflow-hidden flex-shrink-0 shadow-inner flex items-center justify-center">
+        <div class="absolute inset-x-0 top-1/2 h-[1px] bg-[#854D0E]"></div>
+        <div class="absolute inset-y-0 left-1/3 w-[1px] bg-[#854D0E]"></div>
+        <div class="absolute inset-y-0 right-1/3 w-[1px] bg-[#854D0E]"></div>
+        <div class="w-[20px] h-[16px] rounded bg-[#FACC15] border border-[#A16207] z-10"></div>
+      </div>
+    `;
 
-    window.addEventListener('popstate', (e) => {
-      const paymentModal = document.getElementById('paymentModal');
-      const mismatchModal = document.getElementById('mismatchModal');
-      const successState = document.getElementById('view-success-state');
+    const SVG_EMBLEM = `
+      <svg class="w-6 h-8 text-[#1E3A8A] flex-shrink-0" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C9.5 2 8 3.5 8 5C8 6.5 9 7.5 12 7.5C15 7.5 16 6.5 16 5C16 3.5 14.5 2 12 2Z" fill="currentColor"/>
+        <path d="M5 6C4 6 3 7 3 8.5C3 10 4 11 5 11C6 11 7 10 7 8.5C7 7 6 6 5 6Z" fill="currentColor"/>
+        <path d="M19 6C18 6 17 7 17 8.5C17 10 18 11 19 11C20 11 21 10 21 8.5C21 7 20 6 19 6Z" fill="currentColor"/>
+        <rect x="4" y="13" width="16" height="5" rx="1" fill="currentColor"/>
+        <circle cx="12" cy="15.5" r="1.5" fill="#FFFFFF"/>
+        <path d="M7 19L6 27H18L17 19H7Z" fill="currentColor"/>
+        <rect x="3" y="27" width="18" height="3" rx="1" fill="currentColor"/>
+      </svg>
+    `;
 
-      if (!paymentModal.classList.contains('hidden')) {
-        paymentModal.classList.add('hidden');
-        return;
+    function handleRcInput(elem) {
+      let val = elem.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      elem.value = val;
+
+      const badge = document.getElementById('rtoBadge');
+      detectedState = val.substring(0, 2);
+
+      if (detectedState === 'KA') {
+        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available';
+      } else if (detectedState === 'TN') {
+        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Tamil Nadu (TN)</span> — New Smart RC Card format active';
+      } else if (val.length >= 2) {
+        badge.innerHTML = `📍 <span class="text-blue-700 font-bold">${detectedState}</span> vehicle detected — Standard All-India Smart RC`;
       }
-
-      if (!mismatchModal.classList.contains('hidden')) {
-        mismatchModal.classList.add('hidden');
-        return;
-      }
-
-      if (!successState.classList.contains('hidden')) {
-        document.getElementById('view-success-state').classList.add('hidden');
-        document.getElementById('view-input-state').classList.remove('hidden');
-      }
-    });
+    }
 
     function switchService(service) {
       currentService = service;
@@ -476,43 +474,25 @@
       const btnText = document.getElementById('btnText');
 
       if (service === 'RC') {
-        rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm border border-blue-100 transition-all flex items-center justify-center gap-2";
+        rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
         dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
         rcView.classList.remove('hidden');
         dlView.classList.add('hidden');
         serviceTag.innerText = "RC Verification";
-        itemLabel.innerText = `${selectedTierLabel} RC Verification Report`;
+        itemLabel.innerText = `${selectedTierLabel} RC Document`;
         basePrice.innerText = `₹${currentPrice}.00`;
         totalPrice.innerText = `₹${currentPrice}`;
-        btnText.innerText = `Pay ₹${currentPrice} via UPI`;
+        btnText.innerText = `Proceed to Format (₹${currentPrice})`;
       } else {
-        dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm border border-blue-100 transition-all flex items-center justify-center gap-2";
+        dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
         rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
         dlView.classList.remove('hidden');
         rcView.classList.add('hidden');
         serviceTag.innerText = "DL Verification";
-        itemLabel.innerText = "Driving License Verification Report";
+        itemLabel.innerText = "Driving Licence Smart Card";
         basePrice.innerText = "₹100.00";
         totalPrice.innerText = "₹100";
-        btnText.innerText = "Pay ₹100 via UPI";
-      }
-    }
-
-    function handleRcInput(elem) {
-      let val = elem.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-      elem.value = val;
-
-      const badge = document.getElementById('rtoBadge');
-      if (val.startsWith('KA')) {
-        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> vehicle detected';
-      } else if (val.startsWith('DL')) {
-        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Delhi (DL)</span> vehicle detected';
-      } else if (val.startsWith('MH')) {
-        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Maharashtra (MH)</span> vehicle detected';
-      } else if (val.length >= 2) {
-        badge.innerHTML = '📍 State Code: <span class="text-brand-navy font-bold">' + val.substring(0, 2) + '</span>';
-      } else {
-        badge.innerHTML = '<span>📍</span> Enter standard Indian registration number';
+        btnText.innerText = "Proceed to Format (₹100)";
       }
     }
 
@@ -522,41 +502,62 @@
 
       document.querySelectorAll('.tier-btn').forEach(b => {
         b.classList.remove('border-2', 'border-brand-primary', 'bg-blue-50/80');
-        b.classList.add('border', 'border-brand-cardBorder', 'bg-white');
+        b.classList.add('border', 'border-slate-200', 'bg-white');
         const p = b.querySelector('.font-black');
         if (p) p.className = "text-xs font-black text-slate-500";
       });
 
-      btn.classList.remove('border', 'border-brand-cardBorder', 'bg-white');
+      btn.classList.remove('border', 'border-slate-200', 'bg-white');
       btn.classList.add('border-2', 'border-brand-primary', 'bg-blue-50/80');
       const priceElem = btn.querySelector('.font-black');
       if (priceElem) priceElem.className = "text-xs font-black text-brand-primary";
 
-      document.getElementById('summaryItemLabel').innerText = `${label} RC Verification Report`;
+      document.getElementById('summaryItemLabel').innerText = `${label} RC Document`;
       document.getElementById('summaryBasePrice').innerText = `₹${price}.00`;
       document.getElementById('summaryTotalPrice').innerText = `₹${price}`;
-      document.getElementById('btnText').innerText = `Pay ₹${price} via UPI`;
+      document.getElementById('btnText').innerText = `Proceed to Format (₹${price})`;
     }
 
-    async function initiatePayment() {
+    function handleProceedClick() {
+      if (currentService === 'DL') {
+        chosenFormat = 'NEW';
+        startOrderCreation();
+        return;
+      }
+
+      const reg = document.getElementById('rcInput').value.trim().toUpperCase();
+      if (!reg || reg.length < 5) {
+        alert('Please enter a valid Registration Number');
+        return;
+      }
+
+      const state = reg.substring(0, 2);
+      if (state === 'KA') {
+        document.getElementById('formatChooserBadge').innerText = 'KARNATAKA (KA) VEHICLE';
+        document.getElementById('formatChooserModal').classList.remove('hidden');
+      } else {
+        chosenFormat = 'NEW';
+        startOrderCreation();
+      }
+    }
+
+    function confirmFormatSelection(format) {
+      chosenFormat = format;
+      closeFormatModal();
+      startOrderCreation();
+    }
+
+    async function startOrderCreation() {
       let targetNumber = '';
       let dob = null;
       let amount = currentPrice;
 
       if (currentService === 'RC') {
-        targetNumber = document.getElementById('rcInput').value.trim();
-        if (!targetNumber || targetNumber.length < 5) {
-          alert('Please enter a valid Registration Number');
-          return;
-        }
+        targetNumber = document.getElementById('rcInput').value.trim().toUpperCase();
       } else {
-        targetNumber = document.getElementById('dlInput').value.trim();
+        targetNumber = document.getElementById('dlInput').value.trim().toUpperCase();
         dob = document.getElementById('dlDob').value;
         amount = 100;
-        if (!targetNumber || !dob) {
-          alert('Please enter both DL Number and Date of Birth');
-          return;
-        }
       }
 
       try {
@@ -568,7 +569,8 @@
             targetNumber,
             tier: selectedTierLabel,
             amount,
-            dob
+            dob,
+            rcFormat: chosenFormat
           })
         });
         const data = await res.json();
@@ -577,18 +579,15 @@
           document.getElementById('modalOrderId').innerText = data.orderId;
           document.getElementById('modalTarget').innerText = targetNumber;
           document.getElementById('modalAmount').innerText = '₹' + data.amount;
-          
-          window.history.pushState({ view: 'payment' }, '');
           document.getElementById('paymentModal').classList.remove('hidden');
         }
       } catch (e) {
-        alert('Could not initiate order. Is server.js running?');
+        alert('Could not initiate order.');
       }
     }
 
     async function simulatePaymentSuccess() {
       closePaymentModal();
-      
       try {
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
@@ -597,18 +596,7 @@
         });
         const data = await res.json();
 
-        if (data.status === 'MISMATCH_PAUSED') {
-          document.getElementById('mismatchReg').innerText = data.maskedDetails.regNo;
-          document.getElementById('mismatchOwner').innerText = data.maskedDetails.owner;
-          document.getElementById('mismatchActualClass').innerText = data.maskedDetails.actualClass;
-          
-          window.history.pushState({ view: 'mismatch' }, '');
-          document.getElementById('mismatchModal').classList.remove('hidden');
-          return;
-        }
-
         if (data.status === 'SUCCESS') {
-          window.history.pushState({ view: 'report' }, '');
           renderSuccessReport(data);
         }
       } catch (e) {
@@ -616,95 +604,313 @@
       }
     }
 
-    async function settleDeltaFee() {
-      try {
-        const res = await fetch('/api/settle-delta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: activeOrderId })
-        });
-        const data = await res.json();
-        closeMismatchModal();
-        if (data.status === 'SUCCESS') {
-          window.history.pushState({ view: 'report' }, '');
-          renderSuccessReport(data);
-        }
-      } catch (e) {
-        alert('Error processing delta fee');
-      }
-    }
-
+    // =========================================================================
+    // EXACT CANVA PAGE 7/8 SVG RENDER ENGINE (SIDE-BY-SIDE + LIGHT BORDERS)
+    // =========================================================================
     function renderSuccessReport(data) {
       document.getElementById('view-input-state').classList.add('hidden');
       document.getElementById('view-success-state').classList.remove('hidden');
       
-      const grid = document.getElementById('reportDetailsGrid');
-      grid.innerHTML = '';
+      const container = document.getElementById('certificateContainer');
+      container.innerHTML = '';
 
-      // Generate random mock SHA-256 hash for document
-      const randomHash = Array.from({length: 32}, () => Math.floor(Math.random()*16).toString(16)).join('').toUpperCase();
-      document.getElementById('docHash').innerText = randomHash.substring(0, 16) + '...';
-
-      // Render Dynamic QR Code
-      const qrContainer = document.getElementById('qrcode');
-      qrContainer.innerHTML = '';
-      const qrData = window.location.origin + '/?verify=' + (data.docType === 'RC' ? data.report.regNo : data.report.dlNo);
-      new QRCode(qrContainer, {
-        text: qrData,
-        width: 80,
-        height: 80,
-        colorDark: "#0A1E3F",
-        colorLight: "#FFFFFF",
-        correctLevel: QRCode.CorrectLevel.M
-      });
-
-      if (data.docType === 'RC') {
+      if (data.docType === 'RC' && data.rcFormat === 'OLD') {
         const r = data.report;
-        document.getElementById('docTypeSubtitle').innerText = 'DIGITAL VEHICLE RECORD CERTIFICATE';
-        document.getElementById('reportTitle').innerText = r.regNo;
-        document.getElementById('reportTimestamp').innerText = new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
+        const slNo = (r.ownerSerial || '1').toString().padStart(2, '0');
+        const makerShort = r.maker.length > 36 ? r.maker.substring(0, 34) + '...' : r.maker;
+        const modelShort = r.model.length > 24 ? r.model.substring(0, 22) + '...' : r.model;
 
-        grid.innerHTML = `
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Registered Owner</span><strong class="text-slate-900 text-sm">${r.owner}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Vehicle Class</span><strong class="text-brand-primary text-sm">${r.vehicleClass}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Maker / Brand</span><strong class="text-slate-900 text-sm">${r.maker}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Model Name</span><strong class="text-slate-900 text-sm">${r.model}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Fuel Type</span><strong class="text-slate-900 text-sm">${r.fuel}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Registration Date</span><strong class="text-slate-900 text-sm">${r.regDate}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Insurance Validity</span><strong class="text-brand-success text-sm">${r.insuranceUpto}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Fitness Validity</span><strong class="text-brand-success text-sm">${r.fitnessUpto}</strong></div>
-          <div class="col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Registering Office</span><strong class="text-slate-900 text-sm">${r.rto}</strong></div>
+        // Address word wrap
+        let addrL1 = r.address || '';
+        let addrL2 = '';
+        if (addrL1.length > 44) {
+          const cut = addrL1.lastIndexOf(' ', 44);
+          addrL2 = addrL1.substring(cut > 0 ? cut + 1 : 44);
+          addrL1 = addrL1.substring(0, cut > 0 ? cut : 44);
+        }
+
+        container.innerHTML = `
+          <!-- 1. FRONT CARD (HD VIDHANA SOUDHA BANNER WITH MATCHING LIGHT BORDER) -->
+          <div class="card-preview-box">
+            <img 
+              src="/assets/templates/ka_front_hd.png" 
+              alt="Karnataka RC Front" 
+              class="w-full h-full object-cover select-none pointer-events-none"
+            />
+          </div>
+
+          <!-- 2. BACK CARD (MATCHING LIGHT BORDER + VECTOR GRID) -->
+          <div class="card-preview-box">
+            <svg id="rcBackSvg" viewBox="0 0 324 204" class="w-full h-full block select-none p-1" style="font-family: Arial, Helvetica, sans-serif;">
+              
+              <!-- HEADER -->
+              <text x="162" y="16" font-size="10.5" font-weight="bold" fill="#000000" text-anchor="middle">
+                REG NO : <tspan font-weight="bold">${r.regNo}</tspan>
+              </text>
+              <text x="312" y="11.5" font-size="6.5" font-weight="bold" fill="#000000" text-anchor="end">FORM-23A</text>
+              <text x="312" y="18.5" font-size="6" font-weight="bold" fill="#000000" text-anchor="end">(See Rule 48)</text>
+
+              <!-- ======================================================= -->
+              <!-- TOP BLOCK LABELS & COLONS (X: 13, Colons: 69)           -->
+              <!-- ======================================================= -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="13" y="32">REG DATE</text><text x="69" y="32">:</text>
+                <text x="13" y="41">CHASSIS NO</text><text x="69" y="41">:</text>
+                <text x="13" y="50">ENGINE NO</text><text x="69" y="50">:</text>
+                <text x="13" y="59">MFR</text><text x="69" y="59">:</text>
+                <text x="13" y="68">OWNERNAME</text><text x="69" y="68">:</text>
+                <text x="13" y="77">S/W/D OF</text><text x="69" y="77">:</text>
+                <text x="13" y="86">ADDRESS</text><text x="69" y="86">:</text>
+              </g>
+
+              <!-- TOP-LEFT DYNAMIC VALUES (X: 75) -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="75" y="32">${r.regDate}</text>
+                <text x="75" y="41">${r.chassisNo}</text>
+                <text x="75" y="50">${r.engineNo}</text>
+                <text x="75" y="59">${makerShort}</text>
+                <text x="75" y="68">${r.owner}</text>
+                <text x="75" y="77">${r.swd}</text>
+                <text x="75" y="86">${addrL1}</text>
+                ${addrL2 ? `<text x="75" y="93.5">${addrL2}</text>` : ''}
+              </g>
+
+              <!-- TOP-RIGHT LABELS & COLONS (X: 205, Colons: 247) -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="205" y="32">O SLNO</text><text x="247" y="32">:</text>
+                <text x="205" y="41">CLASS</text><text x="247" y="41">:</text>
+                <text x="205" y="50">COLOUR</text><text x="247" y="50">:</text>
+              </g>
+
+              <!-- TOP-RIGHT DYNAMIC VALUES (X: 252) -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="252" y="32">${slNo}</text>
+                <text x="252" y="41">${r.vehicleClassFull}</text>
+                <text x="252" y="50">${r.color}</text>
+              </g>
+
+              <!-- ======================================================= -->
+              <!-- BOTTOM BLOCK LABELS & COLONS (X: 13, Colons: 69)        -->
+              <!-- ======================================================= -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="13" y="118">MODEL</text><text x="69" y="118">:</text>
+                <text x="13" y="127">BODY</text><text x="69" y="127">:</text>
+                <text x="13" y="136">WHEEL BASE</text><text x="69" y="136">:</text>
+                <text x="13" y="145">MFG DATE</text><text x="69" y="145">:</text>
+                <text x="13" y="154">FUEL</text><text x="69" y="154">:</text>
+                <text x="13" y="163">REG/FC UPTO</text><text x="69" y="163">:</text>
+                <text x="13" y="172">TAX UPTO</text><text x="69" y="172">:</text>
+              </g>
+
+              <!-- BOTTOM-LEFT DYNAMIC VALUES (X: 75) -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="75" y="118">${modelShort}</text>
+                <text x="75" y="127">${r.bodyType}</text>
+                <text x="75" y="136">${r.wheelBase}</text>
+                <text x="75" y="145">${r.mfgDate}</text>
+                <text x="75" y="154">${r.fuel}</text>
+                <text x="75" y="163">${r.validUpto}</text>
+                <text x="75" y="172">${r.taxUpto || 'LTT'}</text>
+              </g>
+
+              <!-- BOTTOM-RIGHT LABELS & COLONS (X: 136, Colons: 194) -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="136" y="125">NO OF CYL</text><text x="194" y="125">:</text>
+                <text x="136" y="134">UNLADEN WT</text><text x="194" y="134">:</text>
+                <text x="136" y="143">SEATING</text><text x="194" y="143">:</text>
+                <text x="136" y="152">STDG/SLPR</text><text x="194" y="152">:</text>
+                <text x="136" y="161">CC</text><text x="194" y="161">:</text>
+              </g>
+
+              <!-- BOTTOM-RIGHT DYNAMIC VALUES (X: 200) -->
+              <g font-size="6.8" font-weight="bold" fill="#000000">
+                <text x="200" y="125">${r.cylinders}</text>
+                <text x="200" y="134">${r.unladenWt}</text>
+                <text x="200" y="143">${r.seating}</text>
+                <text x="200" y="152">${r.stdgSlpr || '0 / 0'}</text>
+                <text x="200" y="161">${r.cubicCap}</text>
+              </g>
+
+              <!-- FOOTER -->
+              <text x="312" y="184" font-size="6.8" font-weight="bold" fill="#000000" text-anchor="end">Registering Authority</text>
+              <text x="312" y="193" font-size="6.8" font-weight="bold" fill="#000000" text-anchor="end">${r.rto}</text>
+
+            </svg>
+          </div>
         `;
-      } else {
+        return;
+      }
+
+      // =======================================================================
+      // 2. SMART CARD DL / RC (DUAL CARD PVC DECK)
+      // =======================================================================
+      if (data.docType === 'DL') {
         const l = data.report;
-        document.getElementById('docTypeSubtitle').innerText = 'DIGITAL DRIVING LICENSE VERIFICATION RECORD';
-        document.getElementById('reportTitle').innerText = l.dlNo;
-        document.getElementById('reportTimestamp').innerText = new Date().toLocaleDateString('en-GB') + ' ' + new Date().toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'});
+        container.innerHTML = `
+          <!-- DL FRONT CARD -->
+          <div class="smartcard-container p-2.5 flex flex-col justify-between text-slate-900 bg-white">
+            
+            <div class="bg-[#B9E6FE] -mx-2.5 -mt-2.5 px-3 py-1.5 flex items-center justify-between border-b border-slate-300">
+              <div class="flex items-center gap-2">
+                ${SVG_EMBLEM}
+                <div class="leading-tight">
+                  <h2 class="text-[11px] font-black tracking-wide text-slate-900 uppercase">INDIAN UNION DRIVING LICENCE</h2>
+                  <div class="text-[9px] font-bold text-slate-800 uppercase">ISSUED BY GOVERNMENT OF ${data.stateName}</div>
+                </div>
+              </div>
+              <div class="w-6 h-6 rounded-full border border-slate-900 bg-[#F97316] text-black font-black text-[9px] flex items-center justify-center">
+                ${l.state || 'KA'}
+              </div>
+            </div>
 
-        grid.innerHTML = `
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">License Holder</span><strong class="text-slate-900 text-sm">${l.name}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">License Status</span><strong class="text-brand-success text-sm">${l.status}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Date of Birth</span><strong class="text-slate-900 text-sm">${l.dob}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Authorized Classes</span><strong class="text-brand-primary text-sm">${l.cov}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Issue Date</span><strong class="text-slate-900 text-sm">${l.issueDate}</strong></div>
-          <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Valid Upto</span><strong class="text-slate-900 text-sm">${l.validUpto}</strong></div>
-          <div class="col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl"><span class="text-slate-400 block text-[10px] font-bold uppercase">Issuing Authority</span><strong class="text-slate-900 text-sm">${l.rto}</strong></div>
+            <div class="mt-1">
+              <div class="flex items-center justify-between pl-8">
+                <div class="mono text-base font-black text-slate-900 tracking-wider">${l.dlNo}</div>
+              </div>
+
+              <div class="flex items-center justify-between mt-1">
+                <div class="flex items-center gap-1">
+                  <div class="text-pink-500 font-bold text-xs select-none">❖</div>
+                  ${SVG_CHIP}
+                </div>
+
+                <div class="text-[8px] font-bold text-slate-600 space-y-0.5 flex-1 pl-4">
+                  <div>Issue Date &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Validity ( NT ) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Validity ( TR )</div>
+                  <div class="mono text-slate-950 text-[9.5px]">
+                    ${l.issueDate} &nbsp;&nbsp;&nbsp;&nbsp; ${l.validityNT} &nbsp;&nbsp;&nbsp;&nbsp; ${l.validityTR || ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-end justify-between text-[8px] leading-tight pt-1">
+              <div class="space-y-0.5 max-w-[310px]">
+                <div>Name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong class="text-slate-950 font-black text-[9.5px]">${l.name}</strong></div>
+                <div>Date Of Birth &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong class="text-slate-950 mono font-bold text-[9px]">${l.dob}</strong> &nbsp;&nbsp; Blood Group: <strong>${l.bloodGroup || ''}</strong> &nbsp;&nbsp; Organ Donor: <strong>${l.organDonor || ''}</strong></div>
+                <div>Son/Daughter/Wife of : <strong class="text-slate-950 font-bold">${l.swd}</strong></div>
+                <div class="text-[7.5px] leading-tight">Address : <strong>${l.address}</strong></div>
+              </div>
+
+              <div class="flex items-center gap-1">
+                <div class="flex flex-col items-center">
+                  <div class="w-16 h-18 bg-amber-50 border border-slate-400 rounded overflow-hidden flex flex-col items-center justify-center text-slate-400 text-[8px] font-bold shadow-inner">
+                    <span class="text-lg">👤</span>
+                  </div>
+                  <div class="text-[8px] italic font-serif text-slate-900 border-t border-slate-400 w-16 text-center mt-0.5 leading-none">Holder's Signature</div>
+                </div>
+                <div class="text-[6.5px] font-mono text-slate-500 [writing-mode:vertical-lr] rotate-180 select-none">
+                  Date of First Issue : ${l.firstIssue}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- DL BACK CARD -->
+          <div class="smartcard-container p-2.5 flex flex-col justify-between text-slate-900 bg-white">
+            
+            <div class="bg-[#B9E6FE] -mx-2.5 -mt-2.5 px-3 py-1.5 flex items-center justify-between border-b border-slate-300">
+              <div class="mono text-xs font-black text-slate-900">DL No. ${l.dlNo}</div>
+              <div class="text-[8px] font-mono text-slate-700 font-bold">ADPVEH No.(Regn.Numbers)</div>
+            </div>
+
+            <div class="flex items-start gap-4 mt-1.5">
+              <div id="dlBackQr" class="w-16 h-16 bg-white p-0.5 border border-slate-300 rounded flex-shrink-0"></div>
+              <div class="text-[8px] flex justify-between flex-1 pr-6 pt-1 font-bold text-slate-700">
+                <div>Hazardous validity</div>
+                <div>Hill Validity</div>
+              </div>
+            </div>
+
+            <div class="border border-slate-400 text-[7px] -mt-1">
+              <div class="grid grid-cols-8 bg-[#B9E6FE] text-center font-bold border-b border-slate-400 py-0.5">
+                <div>Class of<br/>Vehicle</div>
+                <div>Code</div>
+                <div>Issued by</div>
+                <div>Date of<br/>Issue</div>
+                <div>Vehicle<br/>Category</div>
+                <div>Badge<br/>Number</div>
+                <div>Badge<br/>Issued Date</div>
+                <div>Badge<br/>Issued by</div>
+              </div>
+              ${l.covs.map(c => `
+                <div class="grid grid-cols-8 text-center py-0.5 border-b border-slate-300 font-medium items-center">
+                  <div class="text-base leading-none">${c.type === 'bike' ? '🏍️' : '🚗'}</div>
+                  <div class="font-bold">${c.code}</div>
+                  <div>${c.issuedBy}</div>
+                  <div class="mono">${c.date}</div>
+                  <div>${c.category}</div>
+                  <div></div>
+                  <div></div>
+                  <div></div>
+                </div>
+              `).join('')}
+              <div class="grid grid-cols-8 text-center py-1.5 border-b border-slate-200"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+              <div class="grid grid-cols-8 text-center py-1.5"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
+            </div>
+
+            <div class="flex justify-between items-end text-[8px] relative">
+              <div class="text-slate-700">Mobile Number:</div>
+              <div class="text-right">
+                <div class="font-bold text-slate-900">Licencing Authority</div>
+                <div class="font-bold text-[8.5px] uppercase">${l.rto}</div>
+              </div>
+              <div class="absolute -right-2 bottom-8 text-[6.5px] text-slate-500 font-mono [writing-mode:vertical-lr] rotate-180">
+                Form 7 Rule 16 (2)
+              </div>
+            </div>
+
+          </div>
         `;
+
+        new QRCode(document.getElementById('dlBackQr'), {
+          text: window.location.origin + '/?dl=' + l.dlNo,
+          width: 60,
+          height: 60
+        });
       }
     }
 
+    // HIGH-RES PNG EXPORTER FROM SVG
+    function downloadBackCardSvgAsPng() {
+      const svg = document.getElementById('rcBackSvg');
+      if (!svg) {
+        window.print();
+        return;
+      }
+
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      // High-res export multiplier (4x scale)
+      canvas.width = 1296;
+      canvas.height = 816;
+
+      img.onload = function() {
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, 1296, 816);
+        const link = document.createElement('a');
+        link.download = 'RC_Card_Back.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      };
+
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    }
+
     function resetToSearch() {
-      window.history.pushState({ view: 'home' }, '');
       document.getElementById('view-success-state').classList.add('hidden');
       document.getElementById('view-input-state').classList.remove('hidden');
     }
 
+    function closeFormatModal() {
+      document.getElementById('formatChooserModal').classList.add('hidden');
+    }
     function closePaymentModal() {
       document.getElementById('paymentModal').classList.add('hidden');
-    }
-
-    function closeMismatchModal() {
-      document.getElementById('mismatchModal').classList.add('hidden');
     }
   </script>
 </body>

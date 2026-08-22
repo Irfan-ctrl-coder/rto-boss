@@ -14,90 +14,195 @@ const TIER_PRICES = {
   '4-Wheeler+': 400
 };
 
-// MOCK VEHICLE & DL DATABASE
+// FULL STATE NAME MAP
+const STATE_NAMES = {
+  'KA': 'KARNATAKA',
+  'TN': 'TAMIL NADU',
+  'MH': 'MAHARASHTRA',
+  'DL': 'DELHI',
+  'KL': 'KERALA',
+  'AP': 'ANDHRA PRADESH',
+  'TS': 'TELANGANA',
+  'UP': 'UTTAR PRADESH',
+  'GJ': 'GUJARAT',
+  'RJ': 'RAJASTHAN',
+  'WB': 'WEST BENGAL',
+  'MP': 'MADHYA PRADESH',
+  'HR': 'HARYANA',
+  'PB': 'PUNJAB'
+};
+
+// VEHICLE DATABASE (HARDCODED REFERENCE & EXTENSIBLE FOR API)
 const MOCK_DB = {
   vehicles: {
-    'KA01AB1234': {
-      regNo: 'KA 01 AB 1234',
+    // 1. Karnataka Old RC Sample
+    'KA09HJ1161': {
+      regNo: 'KA09HJ1161',
+      state: 'KA',
       actualClass: '2-Wheeler',
+      vehicleClassFull: 'M-Cycle/Scooter(2WN)',
       standardPrice: 100,
-      owner: 'RAHUL SHARMA',
-      maker: 'HONDA MOTORCYCLE & SCOOTER INDIA',
-      model: 'ACTIVA 6G',
+      owner: 'JYOTHI M',
+      swd: 'NAGAVENI',
+      address: '# 956, BEML LAYOUT,, 2ND STAGE, RAJARAJESHWARI NAGAR,, MYSORE, -570022',
+      maker: 'HONDA MOTORCYCLE AND SCOOTER INDIA (P) LTD',
+      model: 'H ACTIVA 3G CBS BS3',
+      color: 'WHITE',
+      bodyType: 'U BONE',
       fuel: 'PETROL',
-      regDate: '12-Jan-2021',
-      insuranceUpto: '10-Jan-2027',
-      fitnessUpto: '11-Jan-2036',
-      rto: 'KA-01 (Koramangala, Bangalore Central)'
+      norms: 'BHARAT STAGE III',
+      regDate: '06-07-2016',
+      validUpto: '05-07-2031',
+      cardIssueDate: '06-07-2016',
+      ownerSerial: '01',
+      chassisNo: 'ME4JF505FGT539299',
+      engineNo: 'JF50ET3541017',
+      seating: '2',
+      standing: '0',
+      sleeper: '0',
+      unladenWt: '108',
+      ladenWt: '240',
+      grossWt: '240',
+      cubicCap: '109.00',
+      hp: '',
+      wheelBase: '0',
+      mfgDate: '7/2016',
+      cylinders: '1',
+      axles: '1',
+      stdgSlpr: '0 / 0',
+      taxUpto: 'LTT',
+      financer: '',
+      rtaRef: '',
+      rto: 'MYSURU WEST RTO'
     },
-    'KA04MC9999': {
-      regNo: 'KA 04 MC 9999',
-      actualClass: '4-Wheeler+',
-      standardPrice: 400,
-      owner: 'NAGESHA KUMAR',
-      maker: 'HYUNDAI MOTOR INDIA LTD',
-      model: 'CRETA SX (O) 1.5 DIESEL',
-      fuel: 'DIESEL',
-      regDate: '18-Aug-2022',
-      insuranceUpto: '15-Aug-2026',
-      fitnessUpto: '17-Aug-2037',
-      rto: 'KA-04 (Yeshwanthpur, Bangalore North)'
-    },
-    'KA03TR5555': {
-      regNo: 'KA 03 TR 5555',
-      actualClass: '3-Wheeler',
-      standardPrice: 300,
-      owner: 'MOHAMMED ISMAIL',
+    // 2. Karnataka Old Reference Sample 2
+    'KA03HZ2486': {
+      regNo: 'KA03HZ2486',
+      state: 'KA',
+      actualClass: '2-Wheeler',
+      vehicleClassFull: 'M-Cycle/Scooter',
+      standardPrice: 100,
+      owner: 'RAJU B',
+      swd: 'BYATA VENKATAPPA',
+      address: '# 20-A ULLITHIGALARA BEEDI,ANEKAL TOWN,BENGALURU WEF-2-2-16,Karnataka,562106',
       maker: 'BAJAJ AUTO LTD',
-      model: 'COMPACT 4S AUTO RICKSHAW',
-      fuel: 'CNG',
-      regDate: '05-Mar-2020',
-      insuranceUpto: '02-Mar-2027',
-      fitnessUpto: '04-Mar-2035',
-      rto: 'KA-03 (Indiranagar, Bangalore East)'
+      model: 'PULSAR 150 DTS I (UG 4.5)',
+      color: 'C WINE RED',
+      bodyType: 'SOLO WITH PI',
+      fuel: 'PETROL',
+      norms: 'BHARAT STAGE III',
+      regDate: '23-Apr-2015',
+      validUpto: '22-Apr-2030',
+      cardIssueDate: '23-Apr-2015',
+      ownerSerial: '02',
+      chassisNo: 'MD2A11CZ3FWM15704',
+      engineNo: 'DHZWFM93243',
+      seating: '02',
+      standing: '0',
+      sleeper: '0',
+      unladenWt: '143',
+      ladenWt: '',
+      grossWt: '',
+      cubicCap: '149.00',
+      hp: '',
+      wheelBase: '1320',
+      mfgDate: '3 / 2015',
+      cylinders: '01',
+      axles: '1',
+      stdgSlpr: '0/0',
+      taxUpto: 'LTT',
+      financer: '',
+      rtaRef: '',
+      rto: 'BENGALURU WEST RTO'
+    },
+    // 3. Karnataka Smart Card Sample
+    'KA40Y5748': {
+      regNo: 'KA40Y5748',
+      state: 'KA',
+      actualClass: '2-Wheeler',
+      vehicleClassFull: 'M-Cycle/Scooter (2WN)',
+      standardPrice: 100,
+      owner: 'MUNIRATNA M',
+      swd: 'MANJUNATHA H',
+      address: '#53 KODIHALLI KONAGHATTA POST, DODDABALLAPUR TALUK,, Bangalore Rural, KA, 561203',
+      maker: 'HERO MOTOCORP LTD',
+      model: 'MAESTRO EDGE',
+      color: 'PSM',
+      bodyType: 'SOLO',
+      fuel: 'PETROL',
+      norms: 'BHARAT STAGE III',
+      regDate: '08-08-2016',
+      validUpto: '07-08-2031',
+      cardIssueDate: '06-06-2026',
+      ownerSerial: '02',
+      chassisNo: 'MBLJF33AAG4C00889',
+      engineNo: 'JF33AAG4C00962',
+      seating: '2',
+      standing: '1',
+      sleeper: '',
+      unladenWt: '110',
+      ladenWt: '240',
+      grossWt: '240',
+      cubicCap: '111',
+      hp: '',
+      wheelBase: '1261',
+      mfgDate: '03-2016',
+      cylinders: '1',
+      axles: '1',
+      stdgSlpr: '0 / 0',
+      taxUpto: 'LTT',
+      financer: '',
+      rtaRef: 'RTA11313983',
+      rto: 'CHICKABALLAPUR RTO'
     }
   },
   licenses: {
-    'DL-1420110012345': {
-      dlNo: 'DL-1420110012345',
-      name: 'VIKRAM ADITYA SINGH',
-      dob: '1995-05-12',
+    'KA1120140002551': {
+      dlNo: 'KA11 20140002551',
+      state: 'KA',
+      name: 'VIJAYAKUMAR K J',
+      dob: '06-02-1982',
+      bloodGroup: '',
+      organDonor: '',
+      swd: 'JAVAREGOWDA',
+      address: '#47,KALENAHALLI, P PURA TQ, MANDYA DT, 571401',
+      issueDate: '03-03-2014',
+      validityNT: '05-02-2032',
+      validityTR: '',
+      firstIssue: '03-03-2014',
       status: 'ACTIVE / VALID',
-      cov: 'MCWG, LMV (Motorcycle with Gear, Light Motor Vehicle)',
-      issueDate: '14-Apr-2011',
-      validUpto: '13-Apr-2035',
-      rto: 'DL-14 (Janakpuri, Delhi West)'
+      rto: 'RTO,MANDYA',
+      covs: [
+        { code: 'MCWG', issuedBy: 'KA11', date: '03-03-2014', category: 'NT', type: 'bike' },
+        { code: 'LMV', issuedBy: 'KA11', date: '03-03-2014', category: 'NT', type: 'car' }
+      ]
     }
   }
 };
 
-// IN-MEMORY ACTIVE SESSIONS
 const ACTIVE_ORDERS = new Map();
 
-// 1. CREATE ORDER ENDPOINT (With Pre-Payment Class Matching)
+// 1. CREATE ORDER ENDPOINT
 app.post('/api/create-order', (req, res) => {
-  const { docType, targetNumber, tier, amount, dob } = req.body;
+  const { docType, targetNumber, tier, amount, dob, rcFormat } = req.body;
   const cleanTarget = (targetNumber || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 
   if (!cleanTarget) {
-    return res.status(400).json({ error: 'Target Number is required' });
+    return res.status(400).json({ error: 'Identifier is required' });
   }
 
+  const stateCode = cleanTarget.substring(0, 2);
   const orderId = 'ORD_' + Math.random().toString(36).substring(2, 9).toUpperCase();
 
   let finalAmount = amount;
   let detectedActualClass = tier;
   let priceAdjusted = false;
 
-  // IF RC: Check vehicle class before order creation to prevent overcharge
   if (docType === 'RC') {
     const knownVehicle = MOCK_DB.vehicles[cleanTarget];
-    
     if (knownVehicle) {
       detectedActualClass = knownVehicle.actualClass;
       const truePrice = knownVehicle.standardPrice;
-
-      // Overpayment Correction: If user selected a higher tier for a cheaper vehicle, force true price
       if (amount > truePrice) {
         finalAmount = truePrice;
         priceAdjusted = true;
@@ -112,6 +217,8 @@ app.post('/api/create-order', (req, res) => {
     selectedTier: tier,
     actualClass: detectedActualClass,
     amountBilled: finalAmount,
+    stateCode,
+    rcFormat: rcFormat || 'OLD',
     priceAdjusted,
     paid: false,
     dob
@@ -121,12 +228,13 @@ app.post('/api/create-order', (req, res) => {
     success: true,
     orderId,
     amount: finalAmount,
-    priceAdjusted,
-    message: priceAdjusted ? `Vehicle auto-detected as ${detectedActualClass}. Price optimized to ₹${finalAmount}.` : 'Order created successfully'
+    stateCode,
+    rcFormat: rcFormat || 'OLD',
+    priceAdjusted
   });
 });
 
-// 2. VERIFY PAYMENT ENDPOINT (Enforcing True Tier Protection)
+// 2. VERIFY PAYMENT & RETURN VEHICLE RECORD
 app.post('/api/verify-payment', (req, res) => {
   const { orderId } = req.body;
   const order = ACTIVE_ORDERS.get(orderId);
@@ -137,88 +245,90 @@ app.post('/api/verify-payment', (req, res) => {
 
   order.paid = true;
 
-  // DL VERIFICATION FLOW
+  // DL FLOW
   if (order.docType === 'DL') {
     const dlData = MOCK_DB.licenses[order.targetNumber] || {
       dlNo: order.targetNumber,
-      name: 'AUTHORIZED HOLDER',
-      dob: order.dob || '1990-01-01',
+      state: order.stateCode,
+      name: 'AUTHORISED CITIZEN HOLDER',
+      dob: order.dob || '01-01-1990',
+      bloodGroup: '',
+      organDonor: '',
+      swd: 'GUARDIAN NAME',
+      address: `RESIDENTIAL RECORD ADDRESS, ${order.stateCode}, INDIA`,
+      issueDate: '01-01-2015',
+      validityNT: '01-01-2035',
+      validityTR: '',
+      firstIssue: '01-01-2015',
       status: 'ACTIVE / VALID',
-      cov: 'MCWG, LMV',
-      issueDate: '01-Jan-2015',
-      validUpto: '01-Jan-2035',
-      rto: 'Regional Transport Authority'
+      rto: `RTO, ${STATE_NAMES[order.stateCode] || 'CENTRAL'}`,
+      covs: [
+        { code: 'MCWG', issuedBy: order.stateCode + '01', date: '01-01-2015', category: 'NT', type: 'bike' },
+        { code: 'LMV', issuedBy: order.stateCode + '01', date: '01-01-2015', category: 'NT', type: 'car' }
+      ]
     };
 
-    return res.json({ status: 'SUCCESS', docType: 'DL', report: dlData });
-  }
-
-  // RC VERIFICATION FLOW
-  const vehicle = MOCK_DB.vehicles[order.targetNumber] || {
-    regNo: order.targetNumber,
-    actualClass: order.selectedTier,
-    standardPrice: TIER_PRICES[order.selectedTier] || 100,
-    owner: 'REGISTERED CITIZEN',
-    maker: 'BAJAJ / HERO / HONDA',
-    model: 'COMMUTER CLASS',
-    fuel: 'PETROL',
-    regDate: '10-Oct-2020',
-    insuranceUpto: '09-Oct-2027',
-    fitnessUpto: '09-Oct-2035',
-    rto: 'State Transport Department'
-  };
-
-  // CHECK FOR UNDERPAYMENT MISMATCH (e.g. Paid ₹100 for a 4-Wheeler Car)
-  if (order.amountBilled < vehicle.standardPrice) {
-    const deltaDue = vehicle.standardPrice - order.amountBilled;
-    
     return res.json({
-      status: 'MISMATCH_PAUSED',
-      deltaDue,
-      maskedDetails: {
-        regNo: vehicle.regNo,
-        owner: maskName(vehicle.owner),
-        actualClass: vehicle.actualClass,
-        selectedClass: order.selectedTier
-      }
+      status: 'SUCCESS',
+      docType: 'DL',
+      stateCode: order.stateCode,
+      stateName: STATE_NAMES[order.stateCode] || 'KARNATAKA',
+      report: dlData
     });
   }
 
-  // COMPLETE SUCCESS
+  // RC FLOW
+  const state = order.targetNumber.substring(0, 2);
+  const vehicle = MOCK_DB.vehicles[order.targetNumber] || {
+    regNo: order.targetNumber,
+    state: state,
+    actualClass: order.selectedTier,
+    vehicleClassFull: order.selectedTier === '2-Wheeler' ? 'M-Cycle/Scooter(2WN)' : 'LMV (Motor Car)',
+    standardPrice: TIER_PRICES[order.selectedTier] || 100,
+    owner: 'REGISTERED CITIZEN',
+    swd: 'GUARDIAN / SPOUSE',
+    address: `#100, 1ST MAIN ROAD, RAJAJINAGAR, BANGALORE, -560010`,
+    maker: 'HONDA MOTORCYCLE AND SCOOTER INDIA (P) LTD',
+    model: 'H ACTIVA 3G CBS BS3',
+    color: 'WHITE',
+    bodyType: 'U BONE',
+    fuel: 'PETROL',
+    norms: 'BHARAT STAGE III',
+    regDate: '06-07-2016',
+    validUpto: '05-07-2031',
+    cardIssueDate: '06-07-2016',
+    ownerSerial: '01',
+    chassisNo: 'ME4JF505FGT' + Math.floor(100000 + Math.random() * 900000),
+    engineNo: 'JF50ET' + Math.floor(1000000 + Math.random() * 9000000),
+    seating: '2',
+    standing: '0',
+    sleeper: '0',
+    unladenWt: '108',
+    ladenWt: '240',
+    grossWt: '240',
+    cubicCap: '109.00',
+    hp: '',
+    wheelBase: '0',
+    mfgDate: '7/2016',
+    cylinders: '1',
+    axles: '1',
+    stdgSlpr: '0 / 0',
+    taxUpto: 'LTT',
+    financer: '',
+    rtaRef: '',
+    rto: `${state} RTO OFFICE`
+  };
+
   return res.json({
     status: 'SUCCESS',
     docType: 'RC',
+    rcFormat: order.rcFormat,
+    stateCode: order.stateCode,
+    stateName: STATE_NAMES[order.stateCode] || 'KARNATAKA',
     report: vehicle
   });
 });
-
-// 3. SETTLE DELTA BALANCE ENDPOINT
-app.post('/api/settle-delta', (req, res) => {
-  const { orderId } = req.body;
-  const order = ACTIVE_ORDERS.get(orderId);
-
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
-
-  const vehicle = MOCK_DB.vehicles[order.targetNumber];
-  order.amountBilled = vehicle.standardPrice;
-
-  return res.json({
-    status: 'SUCCESS',
-    docType: 'RC',
-    report: vehicle
-  });
-});
-
-function maskName(name) {
-  if (!name) return 'N/A';
-  return name.split(' ').map(part => {
-    if (part.length <= 2) return part;
-    return part[0] + '*'.repeat(part.length - 2) + part[part.length - 1];
-  }).join(' ');
-}
 
 app.listen(PORT, () => {
-  console.log(`RTO Boss Server running securely on http://localhost:${PORT}`);
+  console.log(`Server live on http://localhost:${PORT}`);
 });
