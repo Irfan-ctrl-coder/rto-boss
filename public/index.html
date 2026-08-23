@@ -34,39 +34,24 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
 
-    /* Matching Light Border on Both Cards */
+    /* Side-by-Side Cards (486px x 307.5px = 1.5x of 324x205) */
     .card-preview-box {
-      width: 480px;
-      height: 304px;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1.2px solid #94A3B8;
+      width: 486px;
+      height: 307.5px;
+      border: 1.2px solid #64748B;
+      border-radius: 4px;
       background-color: #FFFFFF;
       flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .smartcard-container {
-      width: 480px;
-      height: 304px;
-      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
       position: relative;
       overflow: hidden;
-      border: 1.2px solid #94A3B8;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-      background-color: #FFFFFF;
-      flex-shrink: 0;
       user-select: none;
     }
 
-    /* Print styling - Exact A4 Landscape Side-by-Side */
     @media print {
       @page { 
         size: A4 landscape; 
-        margin: 0; 
+        margin: 10mm; 
       }
       html, body { 
         background: #FFFFFF !important; 
@@ -83,8 +68,8 @@
         display: flex !important; 
         justify-content: center !important; 
         align-items: center !important; 
-        width: 100vw !important;
-        height: 100vh !important;
+        width: 100% !important;
+        height: 100% !important;
         margin: 0 auto !important; 
         padding: 0 !important;
       }
@@ -101,12 +86,11 @@
         padding: 0 !important;
         margin: auto !important;
       }
-      .card-preview-box, .smartcard-container {
-        width: 470px !important;
-        height: 297px !important;
+      .card-preview-box {
+        width: 486px !important;
+        height: 307.5px !important;
         box-shadow: none !important;
-        border: 1.2px solid #94A3B8 !important;
-        border-radius: 12px !important;
+        border: 1.2px solid #64748B !important;
         page-break-inside: avoid !important;
       }
     }
@@ -123,13 +107,13 @@
         </div>
         <div>
           <span class="font-extrabold text-xl tracking-tight text-brand-navy">RTO<span class="text-brand-primary font-black">Boss</span></span>
-          <span class="text-[9px] text-slate-400 block -mt-1 font-bold tracking-wider">OFFICIAL FORMAT ENGINE</span>
+          <span class="text-[9px] text-slate-400 block -mt-1 font-bold tracking-wider">CANVA EXACT MASTER ENGINE</span>
         </div>
       </div>
 
       <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        Vector Grid Engine Active
+        Page 2 Vector Coords Synced
       </div>
     </div>
   </header>
@@ -145,7 +129,7 @@
           Vehicle RC &amp; Driving Licence Formatter
         </h1>
         <p class="text-sm md:text-base text-slate-500 max-w-lg mx-auto font-medium">
-          Generate pixel-exact documents with locked vector layout engine.
+          Generate pixel-exact documents directly on your Canva master template.
         </p>
       </div>
 
@@ -280,11 +264,11 @@
                 <span class="font-bold text-slate-900" id="summaryBasePrice">₹100.00</span>
               </div>
               <div class="flex justify-between text-slate-600">
-                <span>Vector Grid Exact Match</span>
-                <span class="font-bold text-brand-success">INCLUDED</span>
+                <span>Unified Vector PDF Engine</span>
+                <span class="font-bold text-brand-success">ACTIVE</span>
               </div>
               <div class="flex justify-between text-slate-600">
-                <span>Side-by-Side Landscape Print</span>
+                <span>Page 2 Layout Lock</span>
                 <span class="font-bold text-brand-success">LOCKED</span>
               </div>
             </div>
@@ -323,7 +307,7 @@
             <div>
               <div class="text-2xl">🏛️</div>
               <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old Book / Paper RC</h4>
-              <p class="text-[10px] text-slate-500 mt-1 leading-tight">Vidhana Soudha template rendered via vector alignment.</p>
+              <p class="text-[10px] text-slate-500 mt-1 leading-tight">Vidhana Soudha template rendered on Canva Master.</p>
             </div>
             <span class="text-xs font-bold text-brand-primary">Choose Old RC →</span>
           </button>
@@ -385,15 +369,9 @@
       <!-- ACTION BUTTONS -->
       <div class="max-w-md mx-auto space-y-3 no-print">
         <button 
-          onclick="downloadBackCardSvgAsPng()"
+          onclick="downloadOfficialVectorPdf()"
           class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
-          <span>💾</span> Download High-Res RC Image (PNG)
-        </button>
-
-        <button 
-          onclick="window.print()"
-          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 text-sm transition-all active:scale-[0.99]">
-          <span>📥</span> Print / Save to PDF
+          <span>📥</span> Download Official Vector PDF (Zero Drift)
         </button>
         
         <button 
@@ -423,27 +401,7 @@
     let detectedState = 'KA';
     let chosenFormat = 'OLD';
     let activeOrderId = null;
-
-    const SVG_CHIP = `
-      <div class="w-[52px] h-[40px] rounded bg-[#EAB308] border border-[#CA8A04] relative overflow-hidden flex-shrink-0 shadow-inner flex items-center justify-center">
-        <div class="absolute inset-x-0 top-1/2 h-[1px] bg-[#854D0E]"></div>
-        <div class="absolute inset-y-0 left-1/3 w-[1px] bg-[#854D0E]"></div>
-        <div class="absolute inset-y-0 right-1/3 w-[1px] bg-[#854D0E]"></div>
-        <div class="w-[20px] h-[16px] rounded bg-[#FACC15] border border-[#A16207] z-10"></div>
-      </div>
-    `;
-
-    const SVG_EMBLEM = `
-      <svg class="w-6 h-8 text-[#1E3A8A] flex-shrink-0" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2C9.5 2 8 3.5 8 5C8 6.5 9 7.5 12 7.5C15 7.5 16 6.5 16 5C16 3.5 14.5 2 12 2Z" fill="currentColor"/>
-        <path d="M5 6C4 6 3 7 3 8.5C3 10 4 11 5 11C6 11 7 10 7 8.5C7 7 6 6 5 6Z" fill="currentColor"/>
-        <path d="M19 6C18 6 17 7 17 8.5C17 10 18 11 19 11C20 11 21 10 21 8.5C21 7 20 6 19 6Z" fill="currentColor"/>
-        <rect x="4" y="13" width="16" height="5" rx="1" fill="currentColor"/>
-        <circle cx="12" cy="15.5" r="1.5" fill="#FFFFFF"/>
-        <path d="M7 19L6 27H18L17 19H7Z" fill="currentColor"/>
-        <rect x="3" y="27" width="18" height="3" rx="1" fill="currentColor"/>
-      </svg>
-    `;
+    let activeReportData = null;
 
     function handleRcInput(elem) {
       let val = elem.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -597,6 +555,7 @@
         const data = await res.json();
 
         if (data.status === 'SUCCESS') {
+          activeReportData = data.report;
           renderSuccessReport(data);
         }
       } catch (e) {
@@ -605,7 +564,7 @@
     }
 
     // =========================================================================
-    // EXACT CANVA PAGE 7/8 SVG RENDER ENGINE (SIDE-BY-SIDE + LIGHT BORDERS)
+    // EXACT PROPORTIONAL VECTOR PREVIEW (242.88 x 153.0 PT BLUEPRINT)
     // =========================================================================
     function renderSuccessReport(data) {
       document.getElementById('view-input-state').classList.add('hidden');
@@ -616,21 +575,19 @@
 
       if (data.docType === 'RC' && data.rcFormat === 'OLD') {
         const r = data.report;
-        const slNo = (r.ownerSerial || '1').toString().padStart(2, '0');
-        const makerShort = r.maker.length > 36 ? r.maker.substring(0, 34) + '...' : r.maker;
-        const modelShort = r.model.length > 24 ? r.model.substring(0, 22) + '...' : r.model;
+        const slNo = String(r.ownerSerial || '1').padStart(2, '0');
 
-        // Address word wrap
-        let addrL1 = r.address || '';
-        let addrL2 = '';
-        if (addrL1.length > 44) {
-          const cut = addrL1.lastIndexOf(' ', 44);
-          addrL2 = addrL1.substring(cut > 0 ? cut + 1 : 44);
-          addrL1 = addrL1.substring(0, cut > 0 ? cut : 44);
+        // Address Multi-Line
+        const addr = r.address || '';
+        let a1 = addr, a2 = '';
+        if (addr.length > 42) {
+          const cut = addr.lastIndexOf(' ', 42);
+          a2 = addr.substring(cut > 0 ? cut + 1 : 42);
+          a1 = addr.substring(0, cut > 0 ? cut : 42);
         }
 
         container.innerHTML = `
-          <!-- 1. FRONT CARD (HD VIDHANA SOUDHA BANNER WITH MATCHING LIGHT BORDER) -->
+          <!-- 1. FRONT CARD (HD VIDHANA SOUDHA BANNER) -->
           <div class="card-preview-box">
             <img 
               src="/assets/templates/ka_front_hd.png" 
@@ -639,266 +596,174 @@
             />
           </div>
 
-          <!-- 2. BACK CARD (MATCHING LIGHT BORDER + VECTOR GRID) -->
+          <!-- 2. BACK CARD (EXACT ALIGNED VECTOR SVG) -->
           <div class="card-preview-box">
-            <svg id="rcBackSvg" viewBox="0 0 324 204" class="w-full h-full block select-none p-1" style="font-family: Arial, Helvetica, sans-serif;">
+            <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none" style="font-family: Helvetica, Arial, sans-serif;">
               
+              <!-- BACKGROUND -->
+              <rect x="0" y="0" width="242.88" height="153.0" fill="#FFFFFF" />
+
               <!-- HEADER -->
-              <text x="162" y="16" font-size="10.5" font-weight="bold" fill="#000000" text-anchor="middle">
-                REG NO : <tspan font-weight="bold">${r.regNo}</tspan>
-              </text>
-              <text x="312" y="11.5" font-size="6.5" font-weight="bold" fill="#000000" text-anchor="end">FORM-23A</text>
-              <text x="312" y="18.5" font-size="6" font-weight="bold" fill="#000000" text-anchor="end">(See Rule 48)</text>
+              <text x="55" y="14.0" font-size="9.5" font-weight="bold" fill="#000000">REG NO : <tspan font-weight="bold">${r.regNo}</tspan></text>
+              <text x="200" y="13.0" font-size="6.5" font-weight="bold" fill="#000000">FORM-23A</text>
+              <text x="195" y="19.0" font-size="5.5" font-weight="bold" fill="#000000">(See Rule 48)</text>
 
-              <!-- ======================================================= -->
-              <!-- TOP BLOCK LABELS & COLONS (X: 13, Colons: 69)           -->
-              <!-- ======================================================= -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="13" y="32">REG DATE</text><text x="69" y="32">:</text>
-                <text x="13" y="41">CHASSIS NO</text><text x="69" y="41">:</text>
-                <text x="13" y="50">ENGINE NO</text><text x="69" y="50">:</text>
-                <text x="13" y="59">MFR</text><text x="69" y="59">:</text>
-                <text x="13" y="68">OWNERNAME</text><text x="69" y="68">:</text>
-                <text x="13" y="77">S/W/D OF</text><text x="69" y="77">:</text>
-                <text x="13" y="86">ADDRESS</text><text x="69" y="86">:</text>
-              </g>
+              <!-- TOP-LEFT SECTION -->
+              <!-- REG.DATE -->
+              <text x="6" y="28.0" font-size="6.8" font-weight="bold">REG.DATE</text>
+              <text x="42" y="28.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="58" y="28.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="28.0" font-size="6.8" font-weight="bold">${r.regDate}</text>
 
-              <!-- TOP-LEFT DYNAMIC VALUES (X: 75) -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="75" y="32">${r.regDate}</text>
-                <text x="75" y="41">${r.chassisNo}</text>
-                <text x="75" y="50">${r.engineNo}</text>
-                <text x="75" y="59">${makerShort}</text>
-                <text x="75" y="68">${r.owner}</text>
-                <text x="75" y="77">${r.swd}</text>
-                <text x="75" y="86">${addrL1}</text>
-                ${addrL2 ? `<text x="75" y="93.5">${addrL2}</text>` : ''}
-              </g>
+              <!-- CHASSIS NO. -->
+              <text x="6" y="35.0" font-size="6.8" font-weight="bold">CHASSIS NO.</text>
+              <text x="46" y="35.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="58" y="35.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="35.0" font-size="6.8" font-weight="bold">${r.chassisNo}</text>
 
-              <!-- TOP-RIGHT LABELS & COLONS (X: 205, Colons: 247) -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="205" y="32">O SLNO</text><text x="247" y="32">:</text>
-                <text x="205" y="41">CLASS</text><text x="247" y="41">:</text>
-                <text x="205" y="50">COLOUR</text><text x="247" y="50">:</text>
-              </g>
+              <!-- ENGINE NO -->
+              <text x="6" y="42.0" font-size="6.8" font-weight="bold">ENGINE NO</text>
+              <text x="44" y="42.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="58" y="42.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="42.0" font-size="6.8" font-weight="bold">${r.engineNo}</text>
 
-              <!-- TOP-RIGHT DYNAMIC VALUES (X: 252) -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="252" y="32">${slNo}</text>
-                <text x="252" y="41">${r.vehicleClassFull}</text>
-                <text x="252" y="50">${r.color}</text>
-              </g>
+              <!-- MFR -->
+              <text x="6" y="49.0" font-size="6.8" font-weight="bold">MFR</text>
+              <text x="58" y="49.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="49.0" font-size="6.8" font-weight="bold">${r.maker}</text>
 
-              <!-- ======================================================= -->
-              <!-- BOTTOM BLOCK LABELS & COLONS (X: 13, Colons: 69)        -->
-              <!-- ======================================================= -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="13" y="118">MODEL</text><text x="69" y="118">:</text>
-                <text x="13" y="127">BODY</text><text x="69" y="127">:</text>
-                <text x="13" y="136">WHEEL BASE</text><text x="69" y="136">:</text>
-                <text x="13" y="145">MFG DATE</text><text x="69" y="145">:</text>
-                <text x="13" y="154">FUEL</text><text x="69" y="154">:</text>
-                <text x="13" y="163">REG/FC UPTO</text><text x="69" y="163">:</text>
-                <text x="13" y="172">TAX UPTO</text><text x="69" y="172">:</text>
-              </g>
+              <!-- TOP-RIGHT SECTION -->
+              <!-- O SLNO -->
+              <text x="160" y="28.0" font-size="6.8" font-weight="bold">O SLNO</text>
+              <text x="190" y="28.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="195" y="28.0" font-size="6.8" font-weight="bold">${slNo}</text>
 
-              <!-- BOTTOM-LEFT DYNAMIC VALUES (X: 75) -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="75" y="118">${modelShort}</text>
-                <text x="75" y="127">${r.bodyType}</text>
-                <text x="75" y="136">${r.wheelBase}</text>
-                <text x="75" y="145">${r.mfgDate}</text>
-                <text x="75" y="154">${r.fuel}</text>
-                <text x="75" y="163">${r.validUpto}</text>
-                <text x="75" y="172">${r.taxUpto || 'LTT'}</text>
-              </g>
+              <!-- CLASS -->
+              <text x="160" y="35.0" font-size="6.8" font-weight="bold">CLASS</text>
+              <text x="190" y="35.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="195" y="35.0" font-size="6.8" font-weight="bold">${r.vehicleClassFull}</text>
 
-              <!-- BOTTOM-RIGHT LABELS & COLONS (X: 136, Colons: 194) -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="136" y="125">NO OF CYL</text><text x="194" y="125">:</text>
-                <text x="136" y="134">UNLADEN WT</text><text x="194" y="134">:</text>
-                <text x="136" y="143">SEATING</text><text x="194" y="143">:</text>
-                <text x="136" y="152">STDG/SLPR</text><text x="194" y="152">:</text>
-                <text x="136" y="161">CC</text><text x="194" y="161">:</text>
-              </g>
+              <!-- COLOUR -->
+              <text x="160" y="42.0" font-size="6.8" font-weight="bold">COLOUR</text>
+              <text x="190" y="42.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="195" y="42.0" font-size="6.8" font-weight="bold">${r.color}</text>
 
-              <!-- BOTTOM-RIGHT DYNAMIC VALUES (X: 200) -->
-              <g font-size="6.8" font-weight="bold" fill="#000000">
-                <text x="200" y="125">${r.cylinders}</text>
-                <text x="200" y="134">${r.unladenWt}</text>
-                <text x="200" y="143">${r.seating}</text>
-                <text x="200" y="152">${r.stdgSlpr || '0 / 0'}</text>
-                <text x="200" y="161">${r.cubicCap}</text>
-              </g>
+              <!-- MIDDLE SECTION (OWNER & ADDRESS) -->
+              <!-- OWNERNAME -->
+              <text x="6" y="61.0" font-size="6.8" font-weight="bold">OWNERNAME</text>
+              <text x="58" y="61.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="61.0" font-size="6.8" font-weight="bold">${r.owner}</text>
+
+              <!-- S/W/D OF -->
+              <text x="6" y="68.0" font-size="6.8" font-weight="bold">S/W/D OF</text>
+              <text x="58" y="68.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="68.0" font-size="6.8" font-weight="bold">${r.swd}</text>
+
+              <!-- ADDRESS -->
+              <text x="6" y="75.0" font-size="6.8" font-weight="bold">ADDRESS</text>
+              <text x="58" y="75.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="75.0" font-size="5.6" font-weight="bold">${a1}</text>
+              ${a2 ? `<text x="63" y="81.5" font-size="5.6" font-weight="bold">${a2}</text>` : ''}
+
+              <!-- BOTTOM-LEFT SECTION (SPECS) -->
+              <!-- MODEL -->
+              <text x="6" y="97.0" font-size="6.8" font-weight="bold">MODEL</text>
+              <text x="58" y="97.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="97.0" font-size="6.8" font-weight="bold">${r.model}</text>
+
+              <!-- BODY -->
+              <text x="6" y="104.0" font-size="6.8" font-weight="bold">BODY</text>
+              <text x="58" y="104.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="104.0" font-size="6.8" font-weight="bold">${r.bodyType}</text>
+
+              <!-- WHEEL BASE -->
+              <text x="6" y="111.0" font-size="6.8" font-weight="bold">WHEEL BASE</text>
+              <text x="58" y="111.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="111.0" font-size="6.8" font-weight="bold">${r.wheelBase}</text>
+
+              <!-- MFG DATE -->
+              <text x="6" y="118.0" font-size="6.8" font-weight="bold">MFG DATE</text>
+              <text x="58" y="118.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="118.0" font-size="6.8" font-weight="bold">${r.mfgDate}</text>
+
+              <!-- FUEL -->
+              <text x="6" y="125.0" font-size="6.8" font-weight="bold">FUEL</text>
+              <text x="58" y="125.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="125.0" font-size="6.8" font-weight="bold">${r.fuel}</text>
+
+              <!-- REG/FC UPTO -->
+              <text x="6" y="132.0" font-size="6.8" font-weight="bold">REG/FC UPTO</text>
+              <text x="58" y="132.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="132.0" font-size="6.8" font-weight="bold">${r.validUpto}</text>
+
+              <!-- TAX UPTO -->
+              <text x="6" y="139.0" font-size="6.8" font-weight="bold">TAX UPTO</text>
+              <text x="58" y="139.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="63" y="139.0" font-size="6.8" font-weight="bold">${r.taxUpto || 'LTT'}</text>
+
+              <!-- BOTTOM-RIGHT SECTION (SPECS) -->
+              <!-- NO.OF CYL -->
+              <text x="140" y="97.0" font-size="6.8" font-weight="bold">NO.OF CYL</text>
+              <text x="170" y="97.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="188" y="97.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="194" y="97.0" font-size="6.8" font-weight="bold">${r.cylinders}</text>
+
+              <!-- UNLADEN WT -->
+              <text x="140" y="104.0" font-size="6.8" font-weight="bold">UNLADEN WT</text>
+              <text x="188" y="104.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="194" y="104.0" font-size="6.8" font-weight="bold">${r.unladenWt}</text>
+
+              <!-- SEATING -->
+              <text x="140" y="111.0" font-size="6.8" font-weight="bold">SEATING</text>
+              <text x="188" y="111.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="194" y="111.0" font-size="6.8" font-weight="bold">${r.seating}</text>
+
+              <!-- STDG/SLPR -->
+              <text x="140" y="118.0" font-size="6.8" font-weight="bold">STDG/SLPR</text>
+              <text x="188" y="118.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="194" y="118.0" font-size="6.8" font-weight="bold">${r.stdgSlpr || '0 / 0'}</text>
+
+              <!-- CC -->
+              <text x="140" y="125.0" font-size="6.8" font-weight="bold">CC</text>
+              <text x="188" y="125.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="194" y="125.0" font-size="6.8" font-weight="bold">${r.cubicCap}</text>
 
               <!-- FOOTER -->
-              <text x="312" y="184" font-size="6.8" font-weight="bold" fill="#000000" text-anchor="end">Registering Authority</text>
-              <text x="312" y="193" font-size="6.8" font-weight="bold" fill="#000000" text-anchor="end">${r.rto}</text>
+              <text x="165" y="139.0" font-size="6.5" font-weight="bold">Registering Authority</text>
+              <text x="165" y="146.0" font-size="6.8" font-weight="bold" fill="#000000">${r.rto}</text>
 
             </svg>
           </div>
         `;
         return;
       }
-
-      // =======================================================================
-      // 2. SMART CARD DL / RC (DUAL CARD PVC DECK)
-      // =======================================================================
-      if (data.docType === 'DL') {
-        const l = data.report;
-        container.innerHTML = `
-          <!-- DL FRONT CARD -->
-          <div class="smartcard-container p-2.5 flex flex-col justify-between text-slate-900 bg-white">
-            
-            <div class="bg-[#B9E6FE] -mx-2.5 -mt-2.5 px-3 py-1.5 flex items-center justify-between border-b border-slate-300">
-              <div class="flex items-center gap-2">
-                ${SVG_EMBLEM}
-                <div class="leading-tight">
-                  <h2 class="text-[11px] font-black tracking-wide text-slate-900 uppercase">INDIAN UNION DRIVING LICENCE</h2>
-                  <div class="text-[9px] font-bold text-slate-800 uppercase">ISSUED BY GOVERNMENT OF ${data.stateName}</div>
-                </div>
-              </div>
-              <div class="w-6 h-6 rounded-full border border-slate-900 bg-[#F97316] text-black font-black text-[9px] flex items-center justify-center">
-                ${l.state || 'KA'}
-              </div>
-            </div>
-
-            <div class="mt-1">
-              <div class="flex items-center justify-between pl-8">
-                <div class="mono text-base font-black text-slate-900 tracking-wider">${l.dlNo}</div>
-              </div>
-
-              <div class="flex items-center justify-between mt-1">
-                <div class="flex items-center gap-1">
-                  <div class="text-pink-500 font-bold text-xs select-none">❖</div>
-                  ${SVG_CHIP}
-                </div>
-
-                <div class="text-[8px] font-bold text-slate-600 space-y-0.5 flex-1 pl-4">
-                  <div>Issue Date &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Validity ( NT ) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Validity ( TR )</div>
-                  <div class="mono text-slate-950 text-[9.5px]">
-                    ${l.issueDate} &nbsp;&nbsp;&nbsp;&nbsp; ${l.validityNT} &nbsp;&nbsp;&nbsp;&nbsp; ${l.validityTR || ''}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="flex items-end justify-between text-[8px] leading-tight pt-1">
-              <div class="space-y-0.5 max-w-[310px]">
-                <div>Name &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong class="text-slate-950 font-black text-[9.5px]">${l.name}</strong></div>
-                <div>Date Of Birth &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: <strong class="text-slate-950 mono font-bold text-[9px]">${l.dob}</strong> &nbsp;&nbsp; Blood Group: <strong>${l.bloodGroup || ''}</strong> &nbsp;&nbsp; Organ Donor: <strong>${l.organDonor || ''}</strong></div>
-                <div>Son/Daughter/Wife of : <strong class="text-slate-950 font-bold">${l.swd}</strong></div>
-                <div class="text-[7.5px] leading-tight">Address : <strong>${l.address}</strong></div>
-              </div>
-
-              <div class="flex items-center gap-1">
-                <div class="flex flex-col items-center">
-                  <div class="w-16 h-18 bg-amber-50 border border-slate-400 rounded overflow-hidden flex flex-col items-center justify-center text-slate-400 text-[8px] font-bold shadow-inner">
-                    <span class="text-lg">👤</span>
-                  </div>
-                  <div class="text-[8px] italic font-serif text-slate-900 border-t border-slate-400 w-16 text-center mt-0.5 leading-none">Holder's Signature</div>
-                </div>
-                <div class="text-[6.5px] font-mono text-slate-500 [writing-mode:vertical-lr] rotate-180 select-none">
-                  Date of First Issue : ${l.firstIssue}
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- DL BACK CARD -->
-          <div class="smartcard-container p-2.5 flex flex-col justify-between text-slate-900 bg-white">
-            
-            <div class="bg-[#B9E6FE] -mx-2.5 -mt-2.5 px-3 py-1.5 flex items-center justify-between border-b border-slate-300">
-              <div class="mono text-xs font-black text-slate-900">DL No. ${l.dlNo}</div>
-              <div class="text-[8px] font-mono text-slate-700 font-bold">ADPVEH No.(Regn.Numbers)</div>
-            </div>
-
-            <div class="flex items-start gap-4 mt-1.5">
-              <div id="dlBackQr" class="w-16 h-16 bg-white p-0.5 border border-slate-300 rounded flex-shrink-0"></div>
-              <div class="text-[8px] flex justify-between flex-1 pr-6 pt-1 font-bold text-slate-700">
-                <div>Hazardous validity</div>
-                <div>Hill Validity</div>
-              </div>
-            </div>
-
-            <div class="border border-slate-400 text-[7px] -mt-1">
-              <div class="grid grid-cols-8 bg-[#B9E6FE] text-center font-bold border-b border-slate-400 py-0.5">
-                <div>Class of<br/>Vehicle</div>
-                <div>Code</div>
-                <div>Issued by</div>
-                <div>Date of<br/>Issue</div>
-                <div>Vehicle<br/>Category</div>
-                <div>Badge<br/>Number</div>
-                <div>Badge<br/>Issued Date</div>
-                <div>Badge<br/>Issued by</div>
-              </div>
-              ${l.covs.map(c => `
-                <div class="grid grid-cols-8 text-center py-0.5 border-b border-slate-300 font-medium items-center">
-                  <div class="text-base leading-none">${c.type === 'bike' ? '🏍️' : '🚗'}</div>
-                  <div class="font-bold">${c.code}</div>
-                  <div>${c.issuedBy}</div>
-                  <div class="mono">${c.date}</div>
-                  <div>${c.category}</div>
-                  <div></div>
-                  <div></div>
-                  <div></div>
-                </div>
-              `).join('')}
-              <div class="grid grid-cols-8 text-center py-1.5 border-b border-slate-200"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
-              <div class="grid grid-cols-8 text-center py-1.5"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>
-            </div>
-
-            <div class="flex justify-between items-end text-[8px] relative">
-              <div class="text-slate-700">Mobile Number:</div>
-              <div class="text-right">
-                <div class="font-bold text-slate-900">Licencing Authority</div>
-                <div class="font-bold text-[8.5px] uppercase">${l.rto}</div>
-              </div>
-              <div class="absolute -right-2 bottom-8 text-[6.5px] text-slate-500 font-mono [writing-mode:vertical-lr] rotate-180">
-                Form 7 Rule 16 (2)
-              </div>
-            </div>
-
-          </div>
-        `;
-
-        new QRCode(document.getElementById('dlBackQr'), {
-          text: window.location.origin + '/?dl=' + l.dlNo,
-          width: 60,
-          height: 60
-        });
-      }
     }
 
-    // HIGH-RES PNG EXPORTER FROM SVG
-    function downloadBackCardSvgAsPng() {
-      const svg = document.getElementById('rcBackSvg');
-      if (!svg) {
-        window.print();
-        return;
+    // SERVER-SIDE VECTOR PDF DOWNLOAD (pdf-lib)
+    async function downloadOfficialVectorPdf() {
+      if (!activeReportData) return;
+
+      try {
+        const res = await fetch('/api/download-rc-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ report: activeReportData })
+        });
+
+        if (!res.ok) throw new Error('PDF download failed');
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `RC_${activeReportData.regNo || 'Document'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Failed to generate PDF: ' + err.message);
       }
-
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-
-      // High-res export multiplier (4x scale)
-      canvas.width = 1296;
-      canvas.height = 816;
-
-      img.onload = function() {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, 1296, 816);
-        const link = document.createElement('a');
-        link.download = 'RC_Card_Back.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      };
-
-      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
     }
 
     function resetToSearch() {
