@@ -147,21 +147,21 @@ const fieldLayout = {
   // BOTTOM-LEFT BLOCK (Specs)
   bottomLeft: [
     { label: 'MODEL', labelX: 6, colonX: 57, valueX: 62, y: 56, fontSize: 6.8, maxW: 120 },
-    { label: 'BODY', labelX: 6, colonX: 57, valueX: 62, y: 49, fontSize: 6.8, maxW: 45 },
-    { label: 'WHEEL BASE', labelX: 6, colonX: 57, valueX: 62, y: 42, fontSize: 6.8, maxW: 45 },
-    { label: 'MFG DATE', labelX: 6, colonX: 57, valueX: 62, y: 35, fontSize: 6.8, maxW: 45 },
-    { label: 'FUEL', labelX: 6, colonX: 57, valueX: 62, y: 28, fontSize: 6.8, maxW: 45 },
-    { label: 'REG/FC UPTO', labelX: 6, colonX: 57, valueX: 62, y: 21, fontSize: 6.8, maxW: 45 },
-    { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 45 }
+    { label: 'BODY', labelX: 6, colonX: 57, valueX: 62, y: 49, fontSize: 6.8, maxW: 36 },
+    { label: 'WHEEL BASE', labelX: 6, colonX: 57, valueX: 62, y: 42, fontSize: 6.8, maxW: 36 },
+    { label: 'MFG DATE', labelX: 6, colonX: 57, valueX: 62, y: 35, fontSize: 6.8, maxW: 36 },
+    { label: 'FUEL', labelX: 6, colonX: 57, valueX: 62, y: 28, fontSize: 6.8, maxW: 36 },
+    { label: 'REG/FC UPTO', labelX: 6, colonX: 57, valueX: 62, y: 21, fontSize: 6.8, maxW: 36 },
+    { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 36 }
   ],
 
-  // BOTTOM-RIGHT BLOCK (Shifted horizontally closer to left specs: X = 96)
+  // BOTTOM-RIGHT BLOCK (Ends at X=162 to provide the gap before Registering Authority)
   bottomRight: [
-    { label: 'NO.OF CYL', labelX: 96, dotX: 126, colonX: 139, valueX: 144, y: 49, fontSize: 6.8, isDot: true, maxW: 30 },
-    { label: 'UNLADEN WT', labelX: 96, colonX: 139, valueX: 144, y: 42, fontSize: 6.8, maxW: 30 },
-    { label: 'SEATING', labelX: 96, colonX: 139, valueX: 144, y: 35, fontSize: 6.8, maxW: 30 },
-    { label: 'STDG/SLPR', labelX: 96, colonX: 139, valueX: 144, y: 28, fontSize: 6.8, maxW: 30 },
-    { label: 'CC', labelX: 96, colonX: 139, valueX: 144, y: 21, fontSize: 6.8, maxW: 30 }
+    { label: 'NO.OF CYL', labelX: 98, dotX: 128, colonX: 138, valueX: 143, y: 49, fontSize: 6.8, isDot: true, maxW: 35 },
+    { label: 'UNLADEN WT', labelX: 98, colonX: 138, valueX: 143, y: 42, fontSize: 6.8, maxW: 35 },
+    { label: 'SEATING', labelX: 98, colonX: 138, valueX: 143, y: 35, fontSize: 6.8, maxW: 35 },
+    { label: 'STDG/SLPR', labelX: 98, colonX: 138, valueX: 143, y: 28, fontSize: 6.8, maxW: 35 },
+    { label: 'CC', labelX: 98, colonX: 138, valueX: 143, y: 21, fontSize: 6.8, maxW: 35 }
   ],
 
   // FOOTER (Right-Anchored at bottom)
@@ -416,13 +416,13 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
     });
 
-    // BOTTOM-RIGHT BLOCK
+    // BOTTOM-RIGHT BLOCK (Full bold label width: 48)
     fieldLayout.bottomRight.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, 42);
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 30);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 35);
     });
 
     // FOOTER (Right-Anchored directly to right boundary)
