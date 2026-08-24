@@ -155,13 +155,13 @@ const fieldLayout = {
     { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 36 }
   ],
 
-  // BOTTOM-RIGHT BLOCK (Ends at X=162 to provide the gap before Registering Authority)
+  // BOTTOM-RIGHT BLOCK (Colon at X: 146, value at X: 151)
   bottomRight: [
-    { label: 'NO.OF CYL', labelX: 98, dotX: 128, colonX: 138, valueX: 143, y: 49, fontSize: 6.8, isDot: true, maxW: 35 },
-    { label: 'UNLADEN WT', labelX: 98, colonX: 138, valueX: 143, y: 42, fontSize: 6.8, maxW: 35 },
-    { label: 'SEATING', labelX: 98, colonX: 138, valueX: 143, y: 35, fontSize: 6.8, maxW: 35 },
-    { label: 'STDG/SLPR', labelX: 98, colonX: 138, valueX: 143, y: 28, fontSize: 6.8, maxW: 35 },
-    { label: 'CC', labelX: 98, colonX: 138, valueX: 143, y: 21, fontSize: 6.8, maxW: 35 }
+    { label: 'NO.OF CYL', labelX: 98, dotX: 132, colonX: 146, valueX: 151, y: 49, fontSize: 6.8, isDot: true, maxW: 48 },
+    { label: 'UNLADEN WT', labelX: 98, colonX: 146, valueX: 151, y: 42, fontSize: 6.8, maxW: 48 },
+    { label: 'SEATING', labelX: 98, colonX: 146, valueX: 151, y: 35, fontSize: 6.8, maxW: 48 },
+    { label: 'STDG/SLPR', labelX: 98, colonX: 146, valueX: 151, y: 28, fontSize: 6.8, maxW: 48 },
+    { label: 'CC', labelX: 98, colonX: 146, valueX: 151, y: 21, fontSize: 6.8, maxW: 48 }
   ],
 
   // FOOTER (Right-Anchored at bottom)
@@ -416,13 +416,13 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
     });
 
-    // BOTTOM-RIGHT BLOCK (Full bold label width: 48)
+    // BOTTOM-RIGHT BLOCK
     fieldLayout.bottomRight.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      drawText(field.label, field.labelX, field.y, field.fontSize, field.maxW || 48);
       if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 35);
+      drawText(value, field.valueX, field.y, field.fontSize, 35);
     });
 
     // FOOTER (Right-Anchored directly to right boundary)
