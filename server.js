@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 const app = express();
@@ -108,7 +109,7 @@ const mockDatabase = {
 };
 
 // =====================================================================
-// EXACT ALIGNED LAYOUT COORDINATES
+// EXACT ALIGNED LAYOUT COORDINATES (CANVA MASTER MATCH)
 // =====================================================================
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
@@ -224,7 +225,7 @@ app.post('/api/verify-payment', (req, res) => {
 });
 
 // =====================================================================
-// A4 PORTRAIT TOP-CENTERED VECTOR PDF ENGINE (ROUNDED CORNERS)
+// A4 PORTRAIT TOP-CENTERED VECTOR PDF ENGINE (CLEAN MASKED CORNERS)
 // =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
@@ -244,7 +245,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     const S = cardW / CARD_WIDTH; // 1.07048
     const cardH = CARD_HEIGHT * S; // 163.78 pt
     const gap = 14.0;
-    const cornerRadius = 7.0; // Standard CR-80 card radius
 
     const totalW = (cardW * 2) + gap;
     const startX = (width - totalW) / 2;
@@ -255,24 +255,22 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     const rightCardX = startX + cardW + gap;
     const cardY = startY;
 
-    // Helper: Build SVG Path string for rounded rectangle
-    function getRoundedRectPath(x, y, w, h, r) {
-      return `M ${x + r} ${y} 
-              L ${x + w - r} ${y} 
-              Q ${x + w} ${y} ${x + w} ${y + r} 
-              L ${x + w} ${y + h - r} 
-              Q ${x + w} ${y + h} ${x + w - r} ${y + h} 
-              L ${x + r} ${y + h} 
-              Q ${x} ${y + h} ${x} ${y + h - r} 
-              L ${x} ${y + r} 
-              Q ${x} ${y} ${x + r} ${y} Z`;
-    }
-
-    // 1. LEFT CARD: FRONT BANNER & ROUNDED BORDER
+    // 1. LEFT CARD: MASK BANNER WITH SMOOTH ROUNDED CORNERS
     const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
     if (fs.existsSync(frontImgPath)) {
-      const frontImgBytes = fs.readFileSync(frontImgPath);
-      const frontImg = await pdfDoc.embedPng(frontImgBytes);
+      const roundedMask = Buffer.from(`
+        <svg width="1040" height="655">
+          <rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/>
+        </svg>
+      `);
+
+      const roundedFrontPng = await sharp(frontImgPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+
+      const frontImg = await pdfDoc.embedPng(roundedFrontPng);
       page.drawImage(frontImg, {
         x: leftCardX,
         y: cardY,
@@ -281,16 +279,13 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       });
     }
 
-    page.drawSvgPath(getRoundedRectPath(leftCardX, cardY, cardW, cardH, cornerRadius), {
-      borderColor: rgb(0.39, 0.45, 0.55),
-      borderWidth: 0.9,
-    });
-
-    // 2. RIGHT CARD: WHITE BACKGROUND & ROUNDED BORDER
-    page.drawSvgPath(getRoundedRectPath(rightCardX, cardY, cardW, cardH, cornerRadius), {
+    // 2. RIGHT CARD: WHITE BACKGROUND BASE
+    page.drawRectangle({
+      x: rightCardX,
+      y: cardY,
+      width: cardW,
+      height: cardH,
       color: rgb(1, 1, 1),
-      borderColor: rgb(0.39, 0.45, 0.55),
-      borderWidth: 0.9,
     });
 
     // Standard Left-Anchored Text Drawer
@@ -424,7 +419,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     // BOTTOM-RIGHT BLOCK
     fieldLayout.bottomRight.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, field.maxW || 48);
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, 35);
@@ -433,6 +428,34 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     // FOOTER
     drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
     drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
+
+    // -----------------------------------------------------------------
+    // 3. IN-MEMORY ROUNDED BORDER OVERLAY
+    // -----------------------------------------------------------------
+    const roundedSvg = Buffer.from(`
+      <svg width="1040" height="655" viewBox="0 0 1040 655" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="5"/>
+      </svg>
+    `);
+    
+    const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
+    const borderImg = await pdfDoc.embedPng(borderPngBuffer);
+
+    // Overlay on Left Card
+    page.drawImage(borderImg, {
+      x: leftCardX,
+      y: cardY,
+      width: cardW,
+      height: cardH,
+    });
+
+    // Overlay on Right Card
+    page.drawImage(borderImg, {
+      x: rightCardX,
+      y: cardY,
+      width: cardW,
+      height: cardH,
+    });
 
     // Save PDF
     const pdfBytes = await pdfDoc.save();
