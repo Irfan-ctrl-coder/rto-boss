@@ -34,7 +34,7 @@ const mockDatabase = {
     address: '# 956, BEML LAYOUT, 2ND STAGE, RAJARAJESHWARI NAGAR, MYSORE, Karnataka, 570022',
     ownerSerial: '01',
     color: 'WHITE',
-    vehicleClassFull: 'M-Cycle/Scooter(2WN)',
+    vehicleClassFull: 'M-Cycle/Scooter',
     cylinders: '1',
     unladenWt: '108',
     seating: '2',
@@ -60,7 +60,7 @@ const mockDatabase = {
     address: '# 20-A ULLITHIGALARA BEEDI,ANEKAL TOWN,BENGALURU WEF-2-2-16,Karnataka,562106',
     ownerSerial: '02',
     color: 'C WINE RED',
-    vehicleClassFull: 'M-Cycle/Scooter(2WN)',
+    vehicleClassFull: 'M-Cycle/Scooter',
     cylinders: '01',
     unladenWt: '143',
     seating: '02',
@@ -86,7 +86,7 @@ const mockDatabase = {
     address: '186 GERATIGINBELE, ANEKAL TALUK, BANGALORE, Karnataka, 562106',
     ownerSerial: '01',
     color: 'RED',
-    vehicleClassFull: 'M-Cycle/Scooter(2WN)',
+    vehicleClassFull: 'M-Cycle/Scooter',
     cylinders: '01',
     unladenWt: '108',
     seating: '02',
@@ -108,7 +108,7 @@ const mockDatabase = {
 };
 
 // =====================================================================
-// EXACT ALIGNED LAYOUT COORDINATES (CR80 ID CARD RATIO: 242.88 x 153.0)
+// EXACT ALIGNED LAYOUT COORDINATES (CANVA MASTER MATCH)
 // =====================================================================
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
@@ -116,57 +116,58 @@ const CARD_HEIGHT = 153.0;
 const fieldLayout = {
   // HEADER
   header: {
-    regNo: { label: 'REG NO :', labelX: 55, valueX: 102, y: 139, fontSize: 9.5 },
-    form: { label: 'FORM-23A', x: 200, y: 140, fontSize: 6.5 },
-    formNote: { label: '(See Rule 48)', x: 195, y: 134, fontSize: 5.5 }
+    regNoY: 140.5,
+    regNoFontSize: 9.5,
+    form: { label: 'FORM-23A', rightAnchorX: 236.0, y: 141.0, fontSize: 6.5 },
+    formNote: { label: '(See Rule 48)', rightAnchorX: 236.0, y: 135.0, fontSize: 5.5 }
   },
 
   // TOP-LEFT BLOCK (Column 1)
   topLeft: [
-    { label: 'REG.DATE', labelX: 6, dotX: 42, colonX: 58, valueX: 63, y: 125, fontSize: 6.8, isDot: true },
-    { label: 'CHASSIS NO.', labelX: 6, dotX: 46, colonX: 58, valueX: 63, y: 118, fontSize: 6.8, isDot: true },
-    { label: 'ENGINE NO', labelX: 6, dotX: 44, colonX: 58, valueX: 63, y: 111, fontSize: 6.8, isDot: true },
-    { label: 'MFR', labelX: 6, colonX: 58, valueX: 63, y: 104, fontSize: 6.8, isDot: false, maxW: 175 }
+    { label: 'REG.DATE', labelX: 6, dotX: 42, colonX: 57, valueX: 62, y: 126, fontSize: 6.8, isDot: true },
+    { label: 'CHASSIS NO.', labelX: 6, dotX: 46, colonX: 57, valueX: 62, y: 119, fontSize: 6.8, isDot: true },
+    { label: 'ENGINE NO', labelX: 6, dotX: 44, colonX: 57, valueX: 62, y: 112, fontSize: 6.8, isDot: true },
+    { label: 'MFR', labelX: 6, colonX: 57, valueX: 62, y: 105, fontSize: 6.8, isDot: false, maxW: 175 }
   ],
 
   // TOP-RIGHT BLOCK (Column 2)
   topRight: [
-    { label: 'O SLNO', labelX: 160, colonX: 190, valueX: 195, y: 125, fontSize: 6.8, maxW: 44 },
-    { label: 'CLASS', labelX: 160, colonX: 190, valueX: 195, y: 118, fontSize: 6.8, maxW: 65 },
-    { label: 'COLOUR', labelX: 160, colonX: 190, valueX: 195, y: 111, fontSize: 6.8, maxW: 44 }
+    { label: 'O SLNO', labelX: 148, colonX: 176, valueX: 181, y: 126, fontSize: 6.8, maxW: 44 },
+    { label: 'CLASS', labelX: 148, colonX: 176, valueX: 181, y: 119, fontSize: 6.8, maxW: 65 },
+    { label: 'COLOUR', labelX: 148, colonX: 176, valueX: 181, y: 112, fontSize: 6.8, maxW: 44 }
   ],
 
   // MIDDLE: OWNER & ADDRESS
   middle: [
-    { label: 'OWNERNAME', labelX: 6, colonX: 58, valueX: 63, y: 92, fontSize: 6.8, maxW: 175 },
-    { label: 'S/W/D OF', labelX: 6, colonX: 58, valueX: 63, y: 85, fontSize: 6.8, maxW: 175 },
-    { label: 'ADDRESS', labelX: 6, colonX: 58, valueX: 63, y: 78, fontSize: 6.8, multiLine: true, maxLines: 2, lineHeight: 6.5, maxW: 175 }
+    { label: 'OWNERNAME', labelX: 6, colonX: 57, valueX: 62, y: 93, fontSize: 6.8, maxW: 175 },
+    { label: 'S/W/D OF', labelX: 6, colonX: 57, valueX: 62, y: 86, fontSize: 6.8, maxW: 175 },
+    { label: 'ADDRESS', labelX: 6, colonX: 57, valueX: 62, y: 79, fontSize: 6.8, multiLine: true, maxLines: 2, lineHeight: 6.5, maxW: 175 }
   ],
 
   // BOTTOM-LEFT BLOCK (Specs)
   bottomLeft: [
-    { label: 'MODEL', labelX: 6, colonX: 58, valueX: 63, y: 56, fontSize: 6.8, maxW: 75 },
-    { label: 'BODY', labelX: 6, colonX: 58, valueX: 63, y: 49, fontSize: 6.8, maxW: 75 },
-    { label: 'WHEEL BASE', labelX: 6, colonX: 58, valueX: 63, y: 42, fontSize: 6.8, maxW: 75 },
-    { label: 'MFG DATE', labelX: 6, colonX: 58, valueX: 63, y: 35, fontSize: 6.8, maxW: 75 },
-    { label: 'FUEL', labelX: 6, colonX: 58, valueX: 63, y: 28, fontSize: 6.8, maxW: 75 },
-    { label: 'REG/FC UPTO', labelX: 6, colonX: 58, valueX: 63, y: 21, fontSize: 6.8, maxW: 75 },
-    { label: 'TAX UPTO', labelX: 6, colonX: 58, valueX: 63, y: 14, fontSize: 6.8, maxW: 75 }
+    { label: 'MODEL', labelX: 6, colonX: 57, valueX: 62, y: 56, fontSize: 6.8, maxW: 120 },
+    { label: 'BODY', labelX: 6, colonX: 57, valueX: 62, y: 49, fontSize: 6.8, maxW: 45 },
+    { label: 'WHEEL BASE', labelX: 6, colonX: 57, valueX: 62, y: 42, fontSize: 6.8, maxW: 45 },
+    { label: 'MFG DATE', labelX: 6, colonX: 57, valueX: 62, y: 35, fontSize: 6.8, maxW: 45 },
+    { label: 'FUEL', labelX: 6, colonX: 57, valueX: 62, y: 28, fontSize: 6.8, maxW: 45 },
+    { label: 'REG/FC UPTO', labelX: 6, colonX: 57, valueX: 62, y: 21, fontSize: 6.8, maxW: 45 },
+    { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 45 }
   ],
 
-  // BOTTOM-RIGHT BLOCK (Specs - Synchronized with Page 2 Grid)
+  // BOTTOM-RIGHT BLOCK (Shifted horizontally closer to left specs: X = 96)
   bottomRight: [
-    { label: 'NO.OF CYL', labelX: 140, dotX: 170, colonX: 188, valueX: 194, y: 56, fontSize: 6.8, isDot: true, maxW: 45 },
-    { label: 'UNLADEN WT', labelX: 140, colonX: 188, valueX: 194, y: 49, fontSize: 6.8, maxW: 45 },
-    { label: 'SEATING', labelX: 140, colonX: 188, valueX: 194, y: 42, fontSize: 6.8, maxW: 45 },
-    { label: 'STDG/SLPR', labelX: 140, colonX: 188, valueX: 194, y: 35, fontSize: 6.8, maxW: 45 },
-    { label: 'CC', labelX: 140, colonX: 188, valueX: 194, y: 28, fontSize: 6.8, maxW: 45 }
+    { label: 'NO.OF CYL', labelX: 96, dotX: 126, colonX: 139, valueX: 144, y: 49, fontSize: 6.8, isDot: true, maxW: 30 },
+    { label: 'UNLADEN WT', labelX: 96, colonX: 139, valueX: 144, y: 42, fontSize: 6.8, maxW: 30 },
+    { label: 'SEATING', labelX: 96, colonX: 139, valueX: 144, y: 35, fontSize: 6.8, maxW: 30 },
+    { label: 'STDG/SLPR', labelX: 96, colonX: 139, valueX: 144, y: 28, fontSize: 6.8, maxW: 30 },
+    { label: 'CC', labelX: 96, colonX: 139, valueX: 144, y: 21, fontSize: 6.8, maxW: 30 }
   ],
 
-  // FOOTER
+  // FOOTER (Right-Anchored at bottom)
   footer: {
-    authority: { label: 'Registering Authority', x: 165, y: 14, fontSize: 6.5 },
-    rto: { x: 165, y: 7, fontSize: 6.8 }
+    authority: { label: 'Registering Authority', rightAnchorX: 236.0, y: 11.5, fontSize: 6.5 },
+    rto: { rightAnchorX: 236.0, y: 4.0, fontSize: 6.8 }
   }
 };
 
@@ -238,7 +239,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // Scale Factor: Card rendered at 370 x 233 pt
+    // Scale Factor
     const S = 370 / CARD_WIDTH; // 1.5234
     const cardW = 370;
     const cardH = CARD_HEIGHT * S;
@@ -284,7 +285,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       borderWidth: 1,
     });
 
-    // Text Drawer with automatic scale-down for overflow
+    // Standard Left-Anchored Text Drawer
     function drawText(text, x, y, size, maxWidth = 170) {
       if (!text) return;
       
@@ -297,6 +298,40 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
       page.drawText(displayText, {
         x: rightCardX + (x * S),
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    // Right-Anchored Text Drawer
+    function drawTextRightAnchor(text, rightAnchorX, y, size) {
+      if (!text) return;
+      const fontSize = size * S;
+      const displayText = String(text).trim();
+      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+      const calculatedX = (rightAnchorX * S) - textWidth;
+
+      page.drawText(displayText, {
+        x: rightCardX + calculatedX,
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    // Centered Text Drawer
+    function drawTextCenter(text, y, size) {
+      if (!text) return;
+      const fontSize = size * S;
+      const displayText = String(text).trim();
+      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+      const calculatedX = (cardW - textWidth) / 2;
+
+      page.drawText(displayText, {
+        x: rightCardX + calculatedX,
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
@@ -328,11 +363,13 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
     // ===== DRAW LAYOUT FIELDS =====
 
-    // HEADER
-    drawText(fieldLayout.header.regNo.label, fieldLayout.header.regNo.labelX, fieldLayout.header.regNo.y, fieldLayout.header.regNo.fontSize, 45);
-    drawText(report.regNo, fieldLayout.header.regNo.valueX, fieldLayout.header.regNo.y, fieldLayout.header.regNo.fontSize, 110);
-    drawText(fieldLayout.header.form.label, fieldLayout.header.form.x, fieldLayout.header.form.y, fieldLayout.header.form.fontSize, 40);
-    drawText(fieldLayout.header.formNote.label, fieldLayout.header.formNote.x, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize, 40);
+    // HEADER: Dynamically Centered REG NO
+    const fullRegNoText = `REG NO : ${report.regNo || ''}`;
+    drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
+
+    // HEADER: Right-Anchored FORM-23A
+    drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
+    drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
 
     // TOP-LEFT BLOCK
     fieldLayout.topLeft.forEach((field) => {
@@ -345,7 +382,10 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
     // TOP-RIGHT BLOCK
     fieldLayout.topRight.forEach((field) => {
-      const value = report[getFieldKey(field.label)];
+      let value = report[getFieldKey(field.label)];
+      if (field.label === 'CLASS' && value) {
+        value = String(value).replace(/\s*\(2WN\)\s*/i, '').trim();
+      }
       drawText(field.label, field.labelX, field.y, field.fontSize, 28);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 65);
@@ -373,21 +413,21 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       const value = report[getFieldKey(field.label)];
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 75);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
     });
 
-    // BOTTOM-RIGHT BLOCK (Specs)
+    // BOTTOM-RIGHT BLOCK
     fieldLayout.bottomRight.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, 46);
+      drawText(field.label, field.labelX, field.y, field.fontSize, 42);
       if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 45);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 30);
     });
 
-    // FOOTER
-    drawText(fieldLayout.footer.authority.label, fieldLayout.footer.authority.x, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize, 75);
-    drawText(report.rto, fieldLayout.footer.rto.x, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize, 75);
+    // FOOTER (Right-Anchored directly to right boundary)
+    drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
+    drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
 
     // Save PDF
     const pdfBytes = await pdfDoc.save();

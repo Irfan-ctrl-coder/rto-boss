@@ -34,7 +34,7 @@
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
 
-    /* Side-by-Side Cards (486px x 307.5px = 1.5x of 324x205) */
+    /* Side-by-Side Cards (486px x 307.5px = 1.5x of 242.88 x 153.0) */
     .card-preview-box {
       width: 486px;
       height: 307.5px;
@@ -576,6 +576,7 @@
       if (data.docType === 'RC' && data.rcFormat === 'OLD') {
         const r = data.report;
         const slNo = String(r.ownerSerial || '1').padStart(2, '0');
+        const cleanClass = String(r.vehicleClassFull || '').replace(/\s*\(2WN\)\s*/i, '').trim();
 
         // Address Multi-Line
         const addr = r.address || '';
@@ -603,134 +604,134 @@
               <!-- BACKGROUND -->
               <rect x="0" y="0" width="242.88" height="153.0" fill="#FFFFFF" />
 
-              <!-- HEADER -->
-              <text x="55" y="14.0" font-size="9.5" font-weight="bold" fill="#000000">REG NO : <tspan font-weight="bold">${r.regNo}</tspan></text>
-              <text x="200" y="13.0" font-size="6.5" font-weight="bold" fill="#000000">FORM-23A</text>
-              <text x="195" y="19.0" font-size="5.5" font-weight="bold" fill="#000000">(See Rule 48)</text>
+              <!-- HEADER (Centered REG NO + zero top margin) -->
+              <text x="121.44" y="12.5" font-size="9.5" font-weight="bold" text-anchor="middle" fill="#000000">REG NO : <tspan font-weight="bold">${r.regNo}</tspan></text>
+              <text x="236" y="12.0" font-size="6.5" font-weight="bold" text-anchor="end" fill="#000000">FORM-23A</text>
+              <text x="236" y="18.0" font-size="5.5" font-weight="bold" text-anchor="end" fill="#000000">(See Rule 48)</text>
 
               <!-- TOP-LEFT SECTION -->
               <!-- REG.DATE -->
-              <text x="6" y="28.0" font-size="6.8" font-weight="bold">REG.DATE</text>
-              <text x="42" y="28.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="58" y="28.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="28.0" font-size="6.8" font-weight="bold">${r.regDate}</text>
+              <text x="6" y="27.0" font-size="6.8" font-weight="bold">REG.DATE</text>
+              <text x="42" y="27.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="57" y="27.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="27.0" font-size="6.8" font-weight="bold">${r.regDate}</text>
 
               <!-- CHASSIS NO. -->
-              <text x="6" y="35.0" font-size="6.8" font-weight="bold">CHASSIS NO.</text>
-              <text x="46" y="35.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="58" y="35.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="35.0" font-size="6.8" font-weight="bold">${r.chassisNo}</text>
+              <text x="6" y="34.0" font-size="6.8" font-weight="bold">CHASSIS NO.</text>
+              <text x="46" y="34.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="57" y="34.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="34.0" font-size="6.8" font-weight="bold">${r.chassisNo}</text>
 
               <!-- ENGINE NO -->
-              <text x="6" y="42.0" font-size="6.8" font-weight="bold">ENGINE NO</text>
-              <text x="44" y="42.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="58" y="42.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="42.0" font-size="6.8" font-weight="bold">${r.engineNo}</text>
+              <text x="6" y="41.0" font-size="6.8" font-weight="bold">ENGINE NO</text>
+              <text x="44" y="41.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="57" y="41.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="41.0" font-size="6.8" font-weight="bold">${r.engineNo}</text>
 
               <!-- MFR -->
-              <text x="6" y="49.0" font-size="6.8" font-weight="bold">MFR</text>
-              <text x="58" y="49.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="49.0" font-size="6.8" font-weight="bold">${r.maker}</text>
+              <text x="6" y="48.0" font-size="6.8" font-weight="bold">MFR</text>
+              <text x="57" y="48.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="48.0" font-size="6.8" font-weight="bold">${r.maker}</text>
 
               <!-- TOP-RIGHT SECTION -->
               <!-- O SLNO -->
-              <text x="160" y="28.0" font-size="6.8" font-weight="bold">O SLNO</text>
-              <text x="190" y="28.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="195" y="28.0" font-size="6.8" font-weight="bold">${slNo}</text>
+              <text x="148" y="27.0" font-size="6.8" font-weight="bold">O SLNO</text>
+              <text x="176" y="27.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="181" y="27.0" font-size="6.8" font-weight="bold">${slNo}</text>
 
-              <!-- CLASS -->
-              <text x="160" y="35.0" font-size="6.8" font-weight="bold">CLASS</text>
-              <text x="190" y="35.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="195" y="35.0" font-size="6.8" font-weight="bold">${r.vehicleClassFull}</text>
+              <!-- CLASS (Full bold, clean fit) -->
+              <text x="148" y="34.0" font-size="6.8" font-weight="bold">CLASS</text>
+              <text x="176" y="34.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="181" y="34.0" font-size="6.8" font-weight="bold">${cleanClass}</text>
 
               <!-- COLOUR -->
-              <text x="160" y="42.0" font-size="6.8" font-weight="bold">COLOUR</text>
-              <text x="190" y="42.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="195" y="42.0" font-size="6.8" font-weight="bold">${r.color}</text>
+              <text x="148" y="41.0" font-size="6.8" font-weight="bold">COLOUR</text>
+              <text x="176" y="41.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="181" y="41.0" font-size="6.8" font-weight="bold">${r.color}</text>
 
               <!-- MIDDLE SECTION (OWNER & ADDRESS) -->
               <!-- OWNERNAME -->
-              <text x="6" y="61.0" font-size="6.8" font-weight="bold">OWNERNAME</text>
-              <text x="58" y="61.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="61.0" font-size="6.8" font-weight="bold">${r.owner}</text>
+              <text x="6" y="60.0" font-size="6.8" font-weight="bold">OWNERNAME</text>
+              <text x="57" y="60.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="60.0" font-size="6.8" font-weight="bold">${r.owner}</text>
 
               <!-- S/W/D OF -->
-              <text x="6" y="68.0" font-size="6.8" font-weight="bold">S/W/D OF</text>
-              <text x="58" y="68.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="68.0" font-size="6.8" font-weight="bold">${r.swd}</text>
+              <text x="6" y="67.0" font-size="6.8" font-weight="bold">S/W/D OF</text>
+              <text x="57" y="67.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="67.0" font-size="6.8" font-weight="bold">${r.swd}</text>
 
               <!-- ADDRESS -->
-              <text x="6" y="75.0" font-size="6.8" font-weight="bold">ADDRESS</text>
-              <text x="58" y="75.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="75.0" font-size="5.6" font-weight="bold">${a1}</text>
-              ${a2 ? `<text x="63" y="81.5" font-size="5.6" font-weight="bold">${a2}</text>` : ''}
+              <text x="6" y="74.0" font-size="6.8" font-weight="bold">ADDRESS</text>
+              <text x="57" y="74.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="74.0" font-size="5.6" font-weight="bold">${a1}</text>
+              ${a2 ? `<text x="62" y="80.5" font-size="5.6" font-weight="bold">${a2}</text>` : ''}
 
               <!-- BOTTOM-LEFT SECTION (SPECS) -->
               <!-- MODEL -->
-              <text x="6" y="97.0" font-size="6.8" font-weight="bold">MODEL</text>
-              <text x="58" y="97.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="97.0" font-size="6.8" font-weight="bold">${r.model}</text>
+              <text x="6" y="99.0" font-size="6.8" font-weight="bold">MODEL</text>
+              <text x="57" y="99.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="99.0" font-size="6.8" font-weight="bold">${r.model}</text>
 
               <!-- BODY -->
-              <text x="6" y="104.0" font-size="6.8" font-weight="bold">BODY</text>
-              <text x="58" y="104.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="104.0" font-size="6.8" font-weight="bold">${r.bodyType}</text>
+              <text x="6" y="106.0" font-size="6.8" font-weight="bold">BODY</text>
+              <text x="57" y="106.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="106.0" font-size="6.8" font-weight="bold">${r.bodyType}</text>
 
               <!-- WHEEL BASE -->
-              <text x="6" y="111.0" font-size="6.8" font-weight="bold">WHEEL BASE</text>
-              <text x="58" y="111.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="111.0" font-size="6.8" font-weight="bold">${r.wheelBase}</text>
+              <text x="6" y="113.0" font-size="6.8" font-weight="bold">WHEEL BASE</text>
+              <text x="57" y="113.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="113.0" font-size="6.8" font-weight="bold">${r.wheelBase}</text>
 
               <!-- MFG DATE -->
-              <text x="6" y="118.0" font-size="6.8" font-weight="bold">MFG DATE</text>
-              <text x="58" y="118.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="118.0" font-size="6.8" font-weight="bold">${r.mfgDate}</text>
+              <text x="6" y="120.0" font-size="6.8" font-weight="bold">MFG DATE</text>
+              <text x="57" y="120.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="120.0" font-size="6.8" font-weight="bold">${r.mfgDate}</text>
 
               <!-- FUEL -->
-              <text x="6" y="125.0" font-size="6.8" font-weight="bold">FUEL</text>
-              <text x="58" y="125.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="125.0" font-size="6.8" font-weight="bold">${r.fuel}</text>
+              <text x="6" y="127.0" font-size="6.8" font-weight="bold">FUEL</text>
+              <text x="57" y="127.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="127.0" font-size="6.8" font-weight="bold">${r.fuel}</text>
 
               <!-- REG/FC UPTO -->
-              <text x="6" y="132.0" font-size="6.8" font-weight="bold">REG/FC UPTO</text>
-              <text x="58" y="132.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="132.0" font-size="6.8" font-weight="bold">${r.validUpto}</text>
+              <text x="6" y="134.0" font-size="6.8" font-weight="bold">REG/FC UPTO</text>
+              <text x="57" y="134.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="134.0" font-size="6.8" font-weight="bold">${r.validUpto}</text>
 
               <!-- TAX UPTO -->
-              <text x="6" y="139.0" font-size="6.8" font-weight="bold">TAX UPTO</text>
-              <text x="58" y="139.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="63" y="139.0" font-size="6.8" font-weight="bold">${r.taxUpto || 'LTT'}</text>
+              <text x="6" y="141.0" font-size="6.8" font-weight="bold">TAX UPTO</text>
+              <text x="57" y="141.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="62" y="141.0" font-size="6.8" font-weight="bold">${r.taxUpto || 'LTT'}</text>
 
-              <!-- BOTTOM-RIGHT SECTION (SPECS) -->
+              <!-- BOTTOM-RIGHT SECTION (Shifted to X: 96) -->
               <!-- NO.OF CYL -->
-              <text x="140" y="97.0" font-size="6.8" font-weight="bold">NO.OF CYL</text>
-              <text x="170" y="97.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="188" y="97.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="194" y="97.0" font-size="6.8" font-weight="bold">${r.cylinders}</text>
+              <text x="96" y="106.0" font-size="6.8" font-weight="bold">NO.OF CYL</text>
+              <text x="126" y="106.0" font-size="6.8" font-weight="bold">.</text>
+              <text x="139" y="106.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="144" y="106.0" font-size="6.8" font-weight="bold">${r.cylinders}</text>
 
               <!-- UNLADEN WT -->
-              <text x="140" y="104.0" font-size="6.8" font-weight="bold">UNLADEN WT</text>
-              <text x="188" y="104.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="194" y="104.0" font-size="6.8" font-weight="bold">${r.unladenWt}</text>
+              <text x="96" y="113.0" font-size="6.8" font-weight="bold">UNLADEN WT</text>
+              <text x="139" y="113.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="144" y="113.0" font-size="6.8" font-weight="bold">${r.unladenWt}</text>
 
               <!-- SEATING -->
-              <text x="140" y="111.0" font-size="6.8" font-weight="bold">SEATING</text>
-              <text x="188" y="111.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="194" y="111.0" font-size="6.8" font-weight="bold">${r.seating}</text>
+              <text x="96" y="120.0" font-size="6.8" font-weight="bold">SEATING</text>
+              <text x="139" y="120.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="144" y="120.0" font-size="6.8" font-weight="bold">${r.seating}</text>
 
               <!-- STDG/SLPR -->
-              <text x="140" y="118.0" font-size="6.8" font-weight="bold">STDG/SLPR</text>
-              <text x="188" y="118.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="194" y="118.0" font-size="6.8" font-weight="bold">${r.stdgSlpr || '0 / 0'}</text>
+              <text x="96" y="127.0" font-size="6.8" font-weight="bold">STDG/SLPR</text>
+              <text x="139" y="127.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="144" y="127.0" font-size="6.8" font-weight="bold">${r.stdgSlpr || '0 / 0'}</text>
 
               <!-- CC -->
-              <text x="140" y="125.0" font-size="6.8" font-weight="bold">CC</text>
-              <text x="188" y="125.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="194" y="125.0" font-size="6.8" font-weight="bold">${r.cubicCap}</text>
+              <text x="96" y="134.0" font-size="6.8" font-weight="bold">CC</text>
+              <text x="139" y="134.0" font-size="6.8" font-weight="bold">:</text>
+              <text x="144" y="134.0" font-size="6.8" font-weight="bold">${r.cubicCap}</text>
 
-              <!-- FOOTER -->
-              <text x="165" y="139.0" font-size="6.5" font-weight="bold">Registering Authority</text>
-              <text x="165" y="146.0" font-size="6.8" font-weight="bold" fill="#000000">${r.rto}</text>
+              <!-- FOOTER (Right-Anchored directly against right boundary) -->
+              <text x="236" y="143.5" font-size="6.5" font-weight="bold" text-anchor="end">Registering Authority</text>
+              <text x="236" y="149.5" font-size="6.8" font-weight="bold" text-anchor="end" fill="#000000">${r.rto}</text>
 
             </svg>
           </div>
