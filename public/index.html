@@ -39,7 +39,7 @@
       width: 486px;
       height: 307.5px;
       border: 1.2px solid #64748B;
-      border-radius: 4px;
+      border-radius: 8px; /* Rounded ID card corners */
       background-color: #FFFFFF;
       flex-shrink: 0;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
@@ -50,7 +50,7 @@
 
     @media print {
       @page { 
-        size: A4 landscape; 
+        size: A4 portrait; 
         margin: 10mm; 
       }
       html, body { 
@@ -67,11 +67,11 @@
       #view-success-state { 
         display: flex !important; 
         justify-content: center !important; 
-        align-items: center !important; 
+        align-items: flex-start !important; 
         width: 100% !important;
         height: 100% !important;
         margin: 0 auto !important; 
-        padding: 0 !important;
+        padding-top: 20mm !important;
       }
       #certificateContainer {
         display: flex !important;
@@ -84,13 +84,14 @@
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
-        margin: auto !important;
+        margin: 0 auto !important;
       }
       .card-preview-box {
         width: 486px !important;
         height: 307.5px !important;
         box-shadow: none !important;
         border: 1.2px solid #64748B !important;
+        border-radius: 8px !important;
         page-break-inside: avoid !important;
       }
     }
@@ -588,21 +589,21 @@
         }
 
         container.innerHTML = `
-          <!-- 1. FRONT CARD (HD VIDHANA SOUDHA BANNER) -->
+          <!-- 1. FRONT CARD (HD VIDHANA SOUDHA BANNER WITH ROUNDED CORNERS) -->
           <div class="card-preview-box">
             <img 
               src="/assets/templates/ka_front_hd.png" 
               alt="Karnataka RC Front" 
-              class="w-full h-full object-cover select-none pointer-events-none"
+              class="w-full h-full object-cover select-none pointer-events-none rounded-[8px]"
             />
           </div>
 
-          <!-- 2. BACK CARD (EXACT ALIGNED VECTOR SVG) -->
+          <!-- 2. BACK CARD (EXACT ALIGNED VECTOR SVG WITH ROUNDED CORNERS) -->
           <div class="card-preview-box">
-            <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none" style="font-family: Helvetica, Arial, sans-serif;">
+            <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none rounded-[8px]" style="font-family: Helvetica, Arial, sans-serif;">
               
-              <!-- BACKGROUND -->
-              <rect x="0" y="0" width="242.88" height="153.0" fill="#FFFFFF" />
+              <!-- BACKGROUND WITH ROUNDED CORNERS (rx=8, ry=8) -->
+              <rect x="0" y="0" width="242.88" height="153.0" rx="8" ry="8" fill="#FFFFFF" />
 
               <!-- HEADER (Centered REG NO + zero top margin) -->
               <text x="121.44" y="12.5" font-size="9.5" font-weight="bold" text-anchor="middle" fill="#000000">REG NO : <tspan font-weight="bold">${r.regNo}</tspan></text>
@@ -639,7 +640,7 @@
               <text x="176" y="27.0" font-size="6.8" font-weight="bold">:</text>
               <text x="181" y="27.0" font-size="6.8" font-weight="bold">${slNo}</text>
 
-              <!-- CLASS (Full bold, clean fit) -->
+              <!-- CLASS -->
               <text x="148" y="34.0" font-size="6.8" font-weight="bold">CLASS</text>
               <text x="176" y="34.0" font-size="6.8" font-weight="bold">:</text>
               <text x="181" y="34.0" font-size="6.8" font-weight="bold">${cleanClass}</text>
@@ -702,14 +703,14 @@
               <text x="57" y="141.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="141.0" font-size="6.8" font-weight="bold">${r.taxUpto || 'LTT'}</text>
 
-              <!-- BOTTOM-RIGHT SECTION (Starts at X: 98, colons at X: 146, values at X: 151) -->
+              <!-- BOTTOM-RIGHT SECTION -->
               <!-- NO.OF CYL -->
               <text x="98" y="106.0" font-size="6.8" font-weight="bold">NO.OF CYL</text>
               <text x="132" y="106.0" font-size="6.8" font-weight="bold">.</text>
               <text x="146" y="106.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="106.0" font-size="6.8" font-weight="bold">${r.cylinders}</text>
 
-              <!-- UNLADEN WT (Clean colon & value placement) -->
+              <!-- UNLADEN WT -->
               <text x="98" y="113.0" font-size="6.8" font-weight="bold">UNLADEN WT</text>
               <text x="146" y="113.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="113.0" font-size="6.8" font-weight="bold">${r.unladenWt}</text>
@@ -729,7 +730,7 @@
               <text x="146" y="134.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="134.0" font-size="6.8" font-weight="bold">${r.cubicCap}</text>
 
-              <!-- FOOTER (Right-Anchored directly against right boundary) -->
+              <!-- FOOTER -->
               <text x="236" y="143.5" font-size="6.5" font-weight="bold" text-anchor="end">Registering Authority</text>
               <text x="236" y="149.5" font-size="6.8" font-weight="bold" text-anchor="end" fill="#000000">${r.rto}</text>
 

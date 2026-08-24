@@ -108,7 +108,7 @@ const mockDatabase = {
 };
 
 // =====================================================================
-// EXACT ALIGNED LAYOUT COORDINATES (CANVA MASTER MATCH)
+// EXACT ALIGNED LAYOUT COORDINATES
 // =====================================================================
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
@@ -155,7 +155,7 @@ const fieldLayout = {
     { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 36 }
   ],
 
-  // BOTTOM-RIGHT BLOCK (Colon at X: 146, value at X: 151)
+  // BOTTOM-RIGHT BLOCK
   bottomRight: [
     { label: 'NO.OF CYL', labelX: 98, dotX: 132, colonX: 146, valueX: 151, y: 49, fontSize: 6.8, isDot: true, maxW: 48 },
     { label: 'UNLADEN WT', labelX: 98, colonX: 146, valueX: 151, y: 42, fontSize: 6.8, maxW: 48 },
@@ -164,7 +164,7 @@ const fieldLayout = {
     { label: 'CC', labelX: 98, colonX: 146, valueX: 151, y: 21, fontSize: 6.8, maxW: 48 }
   ],
 
-  // FOOTER (Right-Anchored at bottom)
+  // FOOTER
   footer: {
     authority: { label: 'Registering Authority', rightAnchorX: 236.0, y: 11.5, fontSize: 6.5 },
     rto: { rightAnchorX: 236.0, y: 4.0, fontSize: 6.8 }
@@ -224,7 +224,7 @@ app.post('/api/verify-payment', (req, res) => {
 });
 
 // =====================================================================
-// MAIN BACKEND VECTOR PDF ENGINE
+// A4 PORTRAIT TOP-CENTERED VECTOR PDF ENGINE (ROUNDED CORNERS)
 // =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
@@ -234,25 +234,41 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     }
 
     const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([841.89, 595.28]); // A4 Landscape
+    const page = pdfDoc.addPage([595.28, 841.89]);
     const { width, height } = page.getSize();
 
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-    // Scale Factor
-    const S = 370 / CARD_WIDTH; // 1.5234
-    const cardW = 370;
-    const cardH = CARD_HEIGHT * S;
-    const gap = 20;
+    // ID Card Dimensions & Scaling
+    const cardW = 260.0;
+    const S = cardW / CARD_WIDTH; // 1.07048
+    const cardH = CARD_HEIGHT * S; // 163.78 pt
+    const gap = 14.0;
+    const cornerRadius = 7.0; // Standard CR-80 card radius
+
     const totalW = (cardW * 2) + gap;
     const startX = (width - totalW) / 2;
-    const startY = (height - cardH) / 2;
+    const topMargin = 72.0;
+    const startY = height - topMargin - cardH;
 
     const leftCardX = startX;
     const rightCardX = startX + cardW + gap;
     const cardY = startY;
 
-    // 1. LEFT CARD: FRONT BANNER
+    // Helper: Build SVG Path string for rounded rectangle
+    function getRoundedRectPath(x, y, w, h, r) {
+      return `M ${x + r} ${y} 
+              L ${x + w - r} ${y} 
+              Q ${x + w} ${y} ${x + w} ${y + r} 
+              L ${x + w} ${y + h - r} 
+              Q ${x + w} ${y + h} ${x + w - r} ${y + h} 
+              L ${x + r} ${y + h} 
+              Q ${x} ${y + h} ${x} ${y + h - r} 
+              L ${x} ${y + r} 
+              Q ${x} ${y} ${x + r} ${y} Z`;
+    }
+
+    // 1. LEFT CARD: FRONT BANNER & ROUNDED BORDER
     const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
     if (fs.existsSync(frontImgPath)) {
       const frontImgBytes = fs.readFileSync(frontImgPath);
@@ -265,37 +281,26 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       });
     }
 
-    page.drawRectangle({
-      x: leftCardX,
-      y: cardY,
-      width: cardW,
-      height: cardH,
+    page.drawSvgPath(getRoundedRectPath(leftCardX, cardY, cardW, cardH, cornerRadius), {
       borderColor: rgb(0.39, 0.45, 0.55),
-      borderWidth: 1,
+      borderWidth: 0.9,
     });
 
-    // 2. RIGHT CARD: WHITE BACKGROUND & BORDER
-    page.drawRectangle({
-      x: rightCardX,
-      y: cardY,
-      width: cardW,
-      height: cardH,
+    // 2. RIGHT CARD: WHITE BACKGROUND & ROUNDED BORDER
+    page.drawSvgPath(getRoundedRectPath(rightCardX, cardY, cardW, cardH, cornerRadius), {
       color: rgb(1, 1, 1),
       borderColor: rgb(0.39, 0.45, 0.55),
-      borderWidth: 1,
+      borderWidth: 0.9,
     });
 
     // Standard Left-Anchored Text Drawer
     function drawText(text, x, y, size, maxWidth = 170) {
       if (!text) return;
-      
       let fontSize = size * S;
       let displayText = String(text).trim();
-      
-      while (fontSize > 4.5 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
+      while (fontSize > 4.0 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
         fontSize -= 0.2;
       }
-
       page.drawText(displayText, {
         x: rightCardX + (x * S),
         y: cardY + (y * S),
@@ -363,7 +368,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
     // ===== DRAW LAYOUT FIELDS =====
 
-    // HEADER: Dynamically Centered REG NO
+    // HEADER: Centered REG NO
     const fullRegNoText = `REG NO : ${report.regNo || ''}`;
     drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
 
@@ -425,7 +430,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       drawText(value, field.valueX, field.y, field.fontSize, 35);
     });
 
-    // FOOTER (Right-Anchored directly to right boundary)
+    // FOOTER
     drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
     drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
 
