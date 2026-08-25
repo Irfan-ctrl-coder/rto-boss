@@ -39,7 +39,7 @@
       width: 486px;
       height: 307.5px;
       border: 1.2px solid #64748B;
-      border-radius: 8px; /* Rounded ID card corners */
+      border-radius: 8px;
       background-color: #FFFFFF;
       flex-shrink: 0;
       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
@@ -56,7 +56,7 @@
       html, body { 
         background: #FFFFFF !important; 
         color: #000000 !important; 
-        margin: 0 !important;
+        margin: 0 !important; 
         padding: 0 !important;
         width: 100% !important;
         height: 100% !important;
@@ -114,7 +114,7 @@
 
       <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700">
         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        Page 2 Vector Coords Synced
+        Vector Coords Synced
       </div>
     </div>
   </header>
@@ -174,9 +174,9 @@
                   <input 
                     type="text" 
                     id="rcInput" 
-                    placeholder="KA09HJ1161" 
+                    placeholder="KA40EF5093" 
                     maxlength="13" 
-                    value="KA09HJ1161"
+                    value="KA40EF5093"
                     oninput="handleRcInput(this)"
                     class="w-full bg-transparent mono text-2xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none" 
                   />
@@ -218,6 +218,7 @@
               <!-- TEST DATA -->
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
                 <div class="font-bold text-slate-800">🧪 Exact Test Reference Records:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (Karnataka New Smart Card Reference)</div>
                 <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Vidhana Soudha Format)</div>
                 <div>• <span class="mono font-bold text-blue-700">KA03HZ2486</span> (Karnataka Old Format Reference 2)</div>
                 <div>• <span class="mono font-bold text-indigo-700">KA40Y5748</span> (Karnataka New Smart Card RC)</div>
@@ -269,7 +270,7 @@
                 <span class="font-bold text-brand-success">ACTIVE</span>
               </div>
               <div class="flex justify-between text-slate-600">
-                <span>Page 2 Layout Lock</span>
+                <span>Exact Canva Positioning</span>
                 <span class="font-bold text-brand-success">LOCKED</span>
               </div>
             </div>
@@ -400,7 +401,7 @@
     let currentPrice = 100;
     let selectedTierLabel = '2-Wheeler';
     let detectedState = 'KA';
-    let chosenFormat = 'OLD';
+    let chosenFormat = 'NEW';
     let activeOrderId = null;
     let activeReportData = null;
 
@@ -565,7 +566,7 @@
     }
 
     // =========================================================================
-    // EXACT PROPORTIONAL VECTOR PREVIEW (242.88 x 153.0 PT BLUEPRINT)
+    // EXACT PROPORTIONAL VECTOR PREVIEW
     // =========================================================================
     function renderSuccessReport(data) {
       document.getElementById('view-input-state').classList.add('hidden');
@@ -573,23 +574,23 @@
       
       const container = document.getElementById('certificateContainer');
       container.innerHTML = '';
+      const r = data.report;
+
+      // Address Multi-Line (Matched to 55 max chars)
+      const addr = r.address || '';
+      let a1 = addr, a2 = '';
+      if (addr.length > 55) {
+        const cut = addr.lastIndexOf(' ', 55);
+        a2 = addr.substring(cut > 0 ? cut + 1 : 55);
+        a1 = addr.substring(0, cut > 0 ? cut : 55);
+      }
 
       if (data.docType === 'RC' && data.rcFormat === 'OLD') {
-        const r = data.report;
         const slNo = String(r.ownerSerial || '1').padStart(2, '0');
         const cleanClass = String(r.vehicleClassFull || '').replace(/\s*\(2WN\)\s*/i, '').trim();
 
-        // Address Multi-Line
-        const addr = r.address || '';
-        let a1 = addr, a2 = '';
-        if (addr.length > 42) {
-          const cut = addr.lastIndexOf(' ', 42);
-          a2 = addr.substring(cut > 0 ? cut + 1 : 42);
-          a1 = addr.substring(0, cut > 0 ? cut : 42);
-        }
-
         container.innerHTML = `
-          <!-- 1. FRONT CARD (HD VIDHANA SOUDHA BANNER WITH ROUNDED CORNERS) -->
+          <!-- 1. FRONT CARD -->
           <div class="card-preview-box">
             <img 
               src="/assets/templates/ka_front_hd.png" 
@@ -598,150 +599,181 @@
             />
           </div>
 
-          <!-- 2. BACK CARD (EXACT ALIGNED VECTOR SVG WITH ROUNDED CORNERS) -->
+          <!-- 2. BACK CARD -->
           <div class="card-preview-box">
-            <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none rounded-[8px]" style="font-family: Helvetica, Arial, sans-serif;">
-              
-              <!-- BACKGROUND WITH ROUNDED CORNERS (rx=8, ry=8) -->
+            <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
               <rect x="0" y="0" width="242.88" height="153.0" rx="8" ry="8" fill="#FFFFFF" />
 
-              <!-- HEADER (Centered REG NO + zero top margin) -->
               <text x="121.44" y="12.5" font-size="9.5" font-weight="bold" text-anchor="middle" fill="#000000">REG NO : <tspan font-weight="bold">${r.regNo}</tspan></text>
               <text x="236" y="12.0" font-size="6.5" font-weight="bold" text-anchor="end" fill="#000000">FORM-23A</text>
               <text x="236" y="18.0" font-size="5.5" font-weight="bold" text-anchor="end" fill="#000000">(See Rule 48)</text>
 
-              <!-- TOP-LEFT SECTION -->
-              <!-- REG.DATE -->
               <text x="6" y="27.0" font-size="6.8" font-weight="bold">REG.DATE</text>
               <text x="42" y="27.0" font-size="6.8" font-weight="bold">.</text>
               <text x="57" y="27.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="27.0" font-size="6.8" font-weight="bold">${r.regDate}</text>
 
-              <!-- CHASSIS NO. -->
               <text x="6" y="34.0" font-size="6.8" font-weight="bold">CHASSIS NO.</text>
               <text x="46" y="34.0" font-size="6.8" font-weight="bold">.</text>
               <text x="57" y="34.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="34.0" font-size="6.8" font-weight="bold">${r.chassisNo}</text>
 
-              <!-- ENGINE NO -->
               <text x="6" y="41.0" font-size="6.8" font-weight="bold">ENGINE NO</text>
               <text x="44" y="41.0" font-size="6.8" font-weight="bold">.</text>
               <text x="57" y="41.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="41.0" font-size="6.8" font-weight="bold">${r.engineNo}</text>
 
-              <!-- MFR -->
               <text x="6" y="48.0" font-size="6.8" font-weight="bold">MFR</text>
               <text x="57" y="48.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="48.0" font-size="6.8" font-weight="bold">${r.maker}</text>
 
-              <!-- TOP-RIGHT SECTION -->
-              <!-- O SLNO -->
               <text x="148" y="27.0" font-size="6.8" font-weight="bold">O SLNO</text>
               <text x="176" y="27.0" font-size="6.8" font-weight="bold">:</text>
               <text x="181" y="27.0" font-size="6.8" font-weight="bold">${slNo}</text>
 
-              <!-- CLASS -->
               <text x="148" y="34.0" font-size="6.8" font-weight="bold">CLASS</text>
               <text x="176" y="34.0" font-size="6.8" font-weight="bold">:</text>
               <text x="181" y="34.0" font-size="6.8" font-weight="bold">${cleanClass}</text>
 
-              <!-- COLOUR -->
               <text x="148" y="41.0" font-size="6.8" font-weight="bold">COLOUR</text>
               <text x="176" y="41.0" font-size="6.8" font-weight="bold">:</text>
               <text x="181" y="41.0" font-size="6.8" font-weight="bold">${r.color}</text>
 
-              <!-- MIDDLE SECTION (OWNER & ADDRESS) -->
-              <!-- OWNERNAME -->
               <text x="6" y="60.0" font-size="6.8" font-weight="bold">OWNERNAME</text>
               <text x="57" y="60.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="60.0" font-size="6.8" font-weight="bold">${r.owner}</text>
 
-              <!-- S/W/D OF -->
               <text x="6" y="67.0" font-size="6.8" font-weight="bold">S/W/D OF</text>
               <text x="57" y="67.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="67.0" font-size="6.8" font-weight="bold">${r.swd}</text>
 
-              <!-- ADDRESS -->
               <text x="6" y="74.0" font-size="6.8" font-weight="bold">ADDRESS</text>
               <text x="57" y="74.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="74.0" font-size="5.6" font-weight="bold">${a1}</text>
               ${a2 ? `<text x="62" y="80.5" font-size="5.6" font-weight="bold">${a2}</text>` : ''}
 
-              <!-- BOTTOM-LEFT SECTION (SPECS) -->
-              <!-- MODEL -->
               <text x="6" y="99.0" font-size="6.8" font-weight="bold">MODEL</text>
               <text x="57" y="99.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="99.0" font-size="6.8" font-weight="bold">${r.model}</text>
 
-              <!-- BODY -->
               <text x="6" y="106.0" font-size="6.8" font-weight="bold">BODY</text>
               <text x="57" y="106.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="106.0" font-size="6.8" font-weight="bold">${r.bodyType}</text>
 
-              <!-- WHEEL BASE -->
               <text x="6" y="113.0" font-size="6.8" font-weight="bold">WHEEL BASE</text>
               <text x="57" y="113.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="113.0" font-size="6.8" font-weight="bold">${r.wheelBase}</text>
 
-              <!-- MFG DATE -->
               <text x="6" y="120.0" font-size="6.8" font-weight="bold">MFG DATE</text>
               <text x="57" y="120.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="120.0" font-size="6.8" font-weight="bold">${r.mfgDate}</text>
 
-              <!-- FUEL -->
               <text x="6" y="127.0" font-size="6.8" font-weight="bold">FUEL</text>
               <text x="57" y="127.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="127.0" font-size="6.8" font-weight="bold">${r.fuel}</text>
 
-              <!-- REG/FC UPTO -->
               <text x="6" y="134.0" font-size="6.8" font-weight="bold">REG/FC UPTO</text>
               <text x="57" y="134.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="134.0" font-size="6.8" font-weight="bold">${r.validUpto}</text>
 
-              <!-- TAX UPTO -->
               <text x="6" y="141.0" font-size="6.8" font-weight="bold">TAX UPTO</text>
               <text x="57" y="141.0" font-size="6.8" font-weight="bold">:</text>
               <text x="62" y="141.0" font-size="6.8" font-weight="bold">${r.taxUpto || 'LTT'}</text>
 
-              <!-- BOTTOM-RIGHT SECTION -->
-              <!-- NO.OF CYL -->
               <text x="98" y="106.0" font-size="6.8" font-weight="bold">NO.OF CYL</text>
               <text x="132" y="106.0" font-size="6.8" font-weight="bold">.</text>
               <text x="146" y="106.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="106.0" font-size="6.8" font-weight="bold">${r.cylinders}</text>
 
-              <!-- UNLADEN WT -->
               <text x="98" y="113.0" font-size="6.8" font-weight="bold">UNLADEN WT</text>
               <text x="146" y="113.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="113.0" font-size="6.8" font-weight="bold">${r.unladenWt}</text>
 
-              <!-- SEATING -->
               <text x="98" y="120.0" font-size="6.8" font-weight="bold">SEATING</text>
               <text x="146" y="120.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="120.0" font-size="6.8" font-weight="bold">${r.seating}</text>
 
-              <!-- STDG/SLPR -->
               <text x="98" y="127.0" font-size="6.8" font-weight="bold">STDG/SLPR</text>
               <text x="146" y="127.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="127.0" font-size="6.8" font-weight="bold">${r.stdgSlpr || '0 / 0'}</text>
 
-              <!-- CC -->
               <text x="98" y="134.0" font-size="6.8" font-weight="bold">CC</text>
               <text x="146" y="134.0" font-size="6.8" font-weight="bold">:</text>
               <text x="151" y="134.0" font-size="6.8" font-weight="bold">${r.cubicCap}</text>
 
-              <!-- FOOTER -->
               <text x="236" y="143.5" font-size="6.5" font-weight="bold" text-anchor="end">Registering Authority</text>
               <text x="236" y="149.5" font-size="6.8" font-weight="bold" text-anchor="end" fill="#000000">${r.rto}</text>
-
             </svg>
           </div>
         `;
         return;
       }
+
+      // NEW SMART CARD RENDER
+      container.innerHTML = `
+        <!-- SMART CARD FRONT (100% LOCKED) -->
+        <div class="card-preview-box">
+          <img src="/assets/templates/new_rc_front.png" onerror="this.src='/assets/templates/new_rc_.png'" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
+          <svg viewBox="0 0 242.88 153.0" class="absolute inset-0 w-full h-full block select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
+            <!-- Top Row (Bold Values - Aligned at yTop: 41.0) -->
+            <text x="56.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.regNo || ''}</text>
+            <text x="126.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.regDate || ''}</text>
+            <text x="186.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.validUpto || ''}</text>
+
+            <!-- Sub Details (All Regular Weight @ 6.5 pt / Soft Charcoal #151c28) -->
+            <text x="56.7" y="58.5" font-size="6.5" font-weight="normal" fill="#151c28">${r.chassisNo || ''}</text>
+            <text x="56.7" y="80.0" font-size="6.5" font-weight="normal" fill="#151c28">${r.engineNo || ''}</text>
+            <text x="56.7" y="96.0" font-size="6.5" font-weight="normal" fill="#151c28">${r.owner || ''}</text>
+            <text x="56.7" y="114.5" font-size="6.5" font-weight="normal" fill="#151c28">${r.swd || ''}</text>
+
+            <!-- Bottom Row (Shared Baseline yTop: 135.5) -->
+            <text x="2.5" y="115.5" font-size="6.5" font-weight="normal" fill="#151c28">${r.fuel || ''}</text>
+            <text x="1.0" y="135.5" font-size="5.5" font-weight="normal" fill="#151c28">${r.emissionNorms || 'BHARAT STAGE VI'}</text>
+
+            <!-- Address (Uniform 6.5 pt / Balanced 6.8 Line-Height with Line 2 Indent) -->
+            <text x="56.7" y="135.5" font-size="6.5" font-weight="normal" fill="#151c28">${a1}</text>
+            ${a2 ? `<text x="64.0" y="142.3" font-size="6.5" font-weight="normal" fill="#151c28">${a2}</text>` : ''}
+          </svg>
+        </div>
+
+        <!-- SMART CARD BACK (CALIBRATED WITH VEHICLE CLASS) -->
+        <div class="card-preview-box">
+          <img src="/assets/templates/new_rc_back.png" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
+          <svg viewBox="0 0 242.88 153.0" class="absolute inset-0 w-full h-full block select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
+            <!-- Top Blue Header Band: Vehicle Class -->
+            <text x="101.0" y="13.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.vehicleClassFull || 'M-Cycel/Scooter (2WN)'}</text>
+
+            <text x="10.0" y="32.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.regNo || ''}</text>
+            <text x="58.0" y="32.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.maker || ''}</text>
+            <text x="58.0" y="49.0" font-size="6.0" font-weight="normal" fill="#151c28">${r.model || ''}</text>
+            <text x="58.0" y="66.0" font-size="6.0" font-weight="normal" fill="#151c28">${r.bodyType || ''}</text>
+
+            <!-- Seating Row -->
+            <text x="60.0" y="83.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.seating || '2'}</text>
+            <text x="104.0" y="83.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.stdgSlpr ? r.stdgSlpr.split('/')[0].trim() : '0'}</text>
+            <text x="138.0" y="83.5" font-size="6.0" font-weight="normal" fill="#151c28">0</text>
+
+            <!-- Weights Row -->
+            <text x="10.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.mfgDate || ''}</text>
+            <text x="64.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.unladenWt || '109'}</text>
+            <text x="94.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.ladenWt || '239'}</text>
+            <text x="126.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">0</text>
+
+            <!-- Engine Specs Row -->
+            <text x="18.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.cylinders || '1'}</text>
+            <text x="64.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.cubicCap || '109.7'}</text>
+            <text x="104.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.horsePower || '7.37'}</text>
+            <text x="166.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.wheelBase || '1275'}</text>
+
+            <!-- Footer Details -->
+            <text x="58.0" y="135.5" font-size="5.5" font-weight="normal" fill="#151c28">${r.financer || ''}</text>
+            <text x="236.0" y="149.5" font-size="5.5" font-weight="normal" text-anchor="end" fill="#151c28">${r.rto || 'CHICKABALLAPURA RTO'}</text>
+          </svg>
+        </div>
+      `;
     }
 
-    // SERVER-SIDE VECTOR PDF DOWNLOAD (pdf-lib)
+    // SERVER-SIDE VECTOR PDF DOWNLOAD
     async function downloadOfficialVectorPdf() {
       if (!activeReportData) return;
 
@@ -749,7 +781,10 @@
         const res = await fetch('/api/download-rc-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ report: activeReportData })
+          body: JSON.stringify({ 
+            report: activeReportData,
+            rcFormat: chosenFormat 
+          })
         });
 
         if (!res.ok) throw new Error('PDF download failed');
