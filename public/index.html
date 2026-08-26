@@ -220,8 +220,10 @@
                 <div class="font-bold text-slate-800">🧪 Exact Test Reference Records:</div>
                 <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (Karnataka New Smart Card Reference)</div>
                 <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Vidhana Soudha Format)</div>
-                <div>• <span class="mono font-bold text-blue-700">KA03HZ2486</span> (Karnataka Old Format Reference 2)</div>
-                <div>• <span class="mono font-bold text-indigo-700">KA40Y5748</span> (Karnataka New Smart Card RC)</div>
+                <div>• <span class="mono font-bold text-blue-700">TN01AB1234</span> (Tamil Nadu — Personal 2-Wheeler / NT)</div>
+                <div>• <span class="mono font-bold text-amber-700">MH02CB5566</span> (Maharashtra — Commercial Taxi / TR)</div>
+                <div>• <span class="mono font-bold text-indigo-700">DL1CAB9988</span> (Delhi — Personal Car / NT)</div>
+                <div>• <span class="mono font-bold text-cyan-700">KL07BW4321</span> (Kerala — Commercial Goods Carrier / TR)</div>
               </div>
             </div>
 
@@ -397,6 +399,46 @@
   </footer>
 
   <script>
+    const STATE_NAMES_CLIENT = {
+      AN: 'ANDAMAN AND NICOBAR',
+      AP: 'ANDHRA PRADESH',
+      AR: 'ARUNACHAL PRADESH',
+      AS: 'ASSAM',
+      BR: 'BIHAR',
+      CG: 'CHHATTISGARH',
+      CH: 'CHANDIGARH',
+      DD: 'DAMAN AND DIU',
+      DL: 'DELHI',
+      DN: 'DADRA AND NAGAR HAVELI',
+      GA: 'GOA',
+      GJ: 'GUJARAT',
+      HP: 'HIMACHAL PRADESH',
+      HR: 'HARYANA',
+      JH: 'JHARKHAND',
+      JK: 'JAMMU AND KASHMIR',
+      KA: 'KARNATAKA',
+      KL: 'KERALA',
+      LA: 'LADAKH',
+      LD: 'LAKSHADWEEP',
+      MH: 'MAHARASHTRA',
+      ML: 'MEGHALAYA',
+      MN: 'MANIPUR',
+      MP: 'MADHYA PRADESH',
+      MZ: 'MIZORAM',
+      NL: 'NAGALAND',
+      OD: 'ODISHA',
+      PB: 'PUNJAB',
+      PY: 'PUDUCHERRY',
+      RJ: 'RAJASTHAN',
+      SK: 'SIKKIM',
+      TN: 'TAMIL NADU',
+      TR: 'TRIPURA',
+      TS: 'TELANGANA',
+      UK: 'UTTARAKHAND',
+      UP: 'UTTAR PRADESH',
+      WB: 'WEST BENGAL'
+    };
+
     let currentService = 'RC';
     let currentPrice = 100;
     let selectedTierLabel = '2-Wheeler';
@@ -404,6 +446,14 @@
     let chosenFormat = 'NEW';
     let activeOrderId = null;
     let activeReportData = null;
+
+    function isCommercialClassClient(vClass) {
+      if (!vClass) return false;
+      const str = String(vClass).toUpperCase();
+      return str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') || 
+             str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') || 
+             str.includes('CARRIAGE') || str.includes('STAGE');
+    }
 
     function handleRcInput(elem) {
       let val = elem.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -414,8 +464,8 @@
 
       if (detectedState === 'KA') {
         badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available';
-      } else if (detectedState === 'TN') {
-        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Tamil Nadu (TN)</span> — New Smart RC Card format active';
+      } else if (STATE_NAMES_CLIENT[detectedState]) {
+        badge.innerHTML = `📍 <span class="text-brand-success font-bold">${STATE_NAMES_CLIENT[detectedState]} (${detectedState})</span> — Standard All-India Smart RC active`;
       } else if (val.length >= 2) {
         badge.innerHTML = `📍 <span class="text-blue-700 font-bold">${detectedState}</span> vehicle detected — Standard All-India Smart RC`;
       }
@@ -576,7 +626,6 @@
       container.innerHTML = '';
       const r = data.report;
 
-      // Address Multi-Line (Matched to 55 max chars)
       const addr = r.address || '';
       let a1 = addr, a2 = '';
       if (addr.length > 55) {
@@ -590,7 +639,6 @@
         const cleanClass = String(r.vehicleClassFull || '').replace(/\s*\(2WN\)\s*/i, '').trim();
 
         container.innerHTML = `
-          <!-- 1. FRONT CARD -->
           <div class="card-preview-box">
             <img 
               src="/assets/templates/ka_front_hd.png" 
@@ -599,7 +647,6 @@
             />
           </div>
 
-          <!-- 2. BACK CARD -->
           <div class="card-preview-box">
             <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
               <rect x="0" y="0" width="242.88" height="153.0" rx="8" ry="8" fill="#FFFFFF" />
@@ -710,11 +757,32 @@
       }
 
       // NEW SMART CARD RENDER
+      const stateCode = (r.regNo || 'KA').substring(0, 2).toUpperCase();
+      const isKA = stateCode === 'KA';
+      const isCommercial = isCommercialClassClient(r.vehicleClassFull);
+      const vehicleBadge = isCommercial ? 'TR' : 'NT';
+      const stateFullName = STATE_NAMES_CLIENT[stateCode] || 'KARNATAKA';
+
+      const frontImgSrc = isKA ? '/assets/templates/new_rc_front.png' : '/assets/templates/national_rc_front.png';
+      const backImgSrc = isKA ? '/assets/templates/new_rc_back.png' : '/assets/templates/national_rc_back.png';
+
       container.innerHTML = `
-        <!-- SMART CARD FRONT (100% LOCKED) -->
+        <!-- SMART CARD FRONT (LOCKED) -->
         <div class="card-preview-box">
-          <img src="/assets/templates/new_rc_front.png" onerror="this.src='/assets/templates/new_rc_.png'" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
+          <img src="${frontImgSrc}" onerror="this.src='/assets/templates/new_rc_front.png'" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
           <svg viewBox="0 0 242.88 153.0" class="absolute inset-0 w-full h-full block select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
+            
+            ${!isKA ? `
+              <!-- Dynamic Front Subtitle (Exact Original: yTop: 21.0, 5.6pt, bold, #0c2340) -->
+              <text x="121.44" y="21.0" font-size="5.6" font-weight="bold" text-anchor="middle" fill="#0c2340">Issued by Transport Department, Government of ${stateFullName}</text>
+              
+              <!-- Dynamic Front Badge 1: Blue Circle (NT / TR) @ X: 218.0, yTop: 14.5 (Regular, Black) -->
+              <text x="218.0" y="14.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${vehicleBadge}</text>
+
+              <!-- Dynamic Front Badge 2: Orange Circle (State Code) @ X: 232.0, yTop: 14.5 (Regular, Black) -->
+              <text x="232.0" y="14.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${stateCode}</text>
+            ` : ''}
+
             <!-- Top Row (Bold Values - Aligned at yTop: 41.0) -->
             <text x="56.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.regNo || ''}</text>
             <text x="126.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.regDate || ''}</text>
@@ -736,10 +804,19 @@
           </svg>
         </div>
 
-        <!-- SMART CARD BACK (CALIBRATED WITH VEHICLE CLASS) -->
+        <!-- SMART CARD BACK (LOCKED) -->
         <div class="card-preview-box">
-          <img src="/assets/templates/new_rc_back.png" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
+          <img src="${backImgSrc}" onerror="this.src='/assets/templates/new_rc_back.png'" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
           <svg viewBox="0 0 242.88 153.0" class="absolute inset-0 w-full h-full block select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
+            
+            ${!isKA ? `
+              <!-- Dynamic Back Badge 1: Blue Circle (NT / TR) @ X: 9.5, yTop: 12.5 (Regular, Black) -->
+              <text x="9.5" y="12.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${vehicleBadge}</text>
+
+              <!-- Dynamic Back Badge 2: Orange Circle (State Code) @ X: 24.0, yTop: 12.5 (Regular, Black) -->
+              <text x="24.0" y="12.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${stateCode}</text>
+            ` : ''}
+
             <!-- Top Blue Header Band: Vehicle Class -->
             <text x="101.0" y="13.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.vehicleClassFull || 'M-Cycel/Scooter (2WN)'}</text>
 

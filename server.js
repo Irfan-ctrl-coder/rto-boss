@@ -15,8 +15,80 @@ app.use(express.static(path.join(__dirname, 'public')));
 // In-Memory Order Storage
 const orders = new Map();
 
+// All-India State Master Mapping
+const STATE_NAMES = {
+  AN: 'ANDAMAN AND NICOBAR',
+  AP: 'ANDHRA PRADESH',
+  AR: 'ARUNACHAL PRADESH',
+  AS: 'ASSAM',
+  BR: 'BIHAR',
+  CG: 'CHHATTISGARH',
+  CH: 'CHANDIGARH',
+  DD: 'DAMAN AND DIU',
+  DL: 'DELHI',
+  DN: 'DADRA AND NAGAR HAVELI',
+  GA: 'GOA',
+  GJ: 'GUJARAT',
+  HP: 'HIMACHAL PRADESH',
+  HR: 'HARYANA',
+  JH: 'JHARKHAND',
+  JK: 'JAMMU AND KASHMIR',
+  KA: 'KARNATAKA',
+  KL: 'KERALA',
+  LA: 'LADAKH',
+  LD: 'LAKSHADWEEP',
+  MH: 'MAHARASHTRA',
+  ML: 'MEGHALAYA',
+  MN: 'MANIPUR',
+  MP: 'MADHYA PRADESH',
+  MZ: 'MIZORAM',
+  NL: 'NAGALAND',
+  OD: 'ODISHA',
+  PB: 'PUNJAB',
+  PY: 'PUDUCHERRY',
+  RJ: 'RAJASTHAN',
+  SK: 'SIKKIM',
+  TN: 'TAMIL NADU',
+  TR: 'TRIPURA',
+  TS: 'TELANGANA',
+  UK: 'UTTARAKHAND',
+  UP: 'UTTAR PRADESH',
+  WB: 'WEST BENGAL'
+};
+
 // Mock Vehicle & DL Database
 const mockDatabase = {
+  // 1. KARNATAKA (LOCKED MASTER REFERENCES)
+  'KA40EF5093': {
+    regNo: 'KA40EF5093',
+    regDate: '04-02-2021',
+    chassisNo: 'MD626CG5XL1N54566',
+    engineNo: 'CG5NL1221331',
+    maker: 'TVS MOTOR COMPANY LTD',
+    model: 'PEARL BLUE',
+    bodyType: '2 WHEELER',
+    wheelBase: '1275',
+    mfgDate: '11/2020',
+    fuel: 'PETROL',
+    validUpto: '03-02-2036',
+    taxUpto: 'LTT',
+    owner: 'SHARADHAM SRINIVASULU',
+    swd: 'NARASIMHULU',
+    address: '#1 KOLAR ROAD, VIJAYAPURA, , Bangalore Rural, KA, 562135',
+    ownerSerial: '01',
+    color: 'PEARL BLUE',
+    vehicleClassFull: 'M-Cycel/Scooter (2WN)',
+    cylinders: '1',
+    unladenWt: '109',
+    ladenWt: '239',
+    horsePower: '7.37',
+    seating: '2',
+    stdgSlpr: '0 / 0',
+    cubicCap: '109.7',
+    rto: 'CHICKABALLAPURA RTO',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: ''
+  },
   'KA09HJ1161': {
     regNo: 'KA09HJ1161',
     regDate: '06-07-2016',
@@ -101,36 +173,136 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: 'HDFC BANK LTD'
   },
-  'KA40EF5093': {
-    regNo: 'KA40EF5093',
-    regDate: '04-02-2021',
-    chassisNo: 'MD626CG5XL1N54566',
-    engineNo: 'CG5NL1221331',
-    maker: 'TVS MOTOR COMPANY LTD',
-    model: 'PEARL BLUE',
+
+  // 2. TAMIL NADU (TEST: PERSONAL 2-WHEELER -> NT)
+  'TN01AB1234': {
+    regNo: 'TN01AB1234',
+    regDate: '15-08-2022',
+    chassisNo: 'ME1RG0812NA019283',
+    engineNo: 'G3J4E0918231',
+    maker: 'INDIA YAMAHA MOTOR PVT LTD',
+    model: 'YZF R15 V4',
     bodyType: '2 WHEELER',
-    wheelBase: '1275',
-    mfgDate: '11/2020',
+    wheelBase: '1325',
+    mfgDate: '07/2022',
     fuel: 'PETROL',
-    validUpto: '03-02-2036',
+    validUpto: '14-08-2037',
     taxUpto: 'LTT',
-    owner: 'SHARADHAM SRINIVASULU',
-    swd: 'NARASIMHULU',
-    address: '#1 KOLAR ROAD, VIJAYAPURA, , Bangalore Rural, KA, 562135',
+    owner: 'KARTHIK RAJAN',
+    swd: 'MUTHUVEL RAJAN',
+    address: 'NO 42, ANNA SALAI, T NAGAR, CHENNAI, Tamil Nadu, 600017',
     ownerSerial: '01',
-    color: 'PEARL BLUE',
+    color: 'RACING BLUE',
     vehicleClassFull: 'M-Cycel/Scooter (2WN)',
     cylinders: '1',
-    unladenWt: '109',
-    ladenWt: '239',
-    horsePower: '7.37',
+    unladenWt: '142',
+    ladenWt: '290',
+    horsePower: '18.40',
     seating: '2',
     stdgSlpr: '0 / 0',
-    cubicCap: '109.7',
-    rto: 'CHICKABALLAPURA RTO',
+    cubicCap: '155.0',
+    rto: 'CHENNAI CENTRAL RTO',
     emissionNorms: 'BHARAT STAGE VI',
-    financer: ''
+    financer: 'HDFC BANK LTD'
   },
+
+  // 3. MAHARASHTRA (TEST: COMMERCIAL TAXI -> TR)
+  'MH02CB5566': {
+    regNo: 'MH02CB5566',
+    regDate: '10-01-2023',
+    chassisNo: 'MA3EAA11S00192834',
+    engineNo: 'K12MN9823412',
+    maker: 'MARUTI SUZUKI INDIA LTD',
+    model: 'TOUR S (CNG)',
+    bodyType: 'SEDAN',
+    wheelBase: '2450',
+    mfgDate: '12/2022',
+    fuel: 'CNG/PETROL',
+    validUpto: '09-01-2025',
+    taxUpto: 'ANNUAL',
+    owner: 'AMIT PRAKASH JADHAV',
+    swd: 'PRAKASH JADHAV',
+    address: 'FLAT 304, SHIVAM APTS, ANDHERI WEST, MUMBAI, Maharashtra, 400058',
+    ownerSerial: '01',
+    color: 'SUPERIOR WHITE',
+    vehicleClassFull: 'Motor Cab / Commercial Taxi',
+    cylinders: '4',
+    unladenWt: '1010',
+    ladenWt: '1480',
+    horsePower: '67.0',
+    seating: '5',
+    stdgSlpr: '0 / 0',
+    cubicCap: '1197.0',
+    rto: 'ANDHERI RTO (MH02)',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'STATE BANK OF INDIA'
+  },
+
+  // 4. DELHI (TEST: PERSONAL CAR -> NT)
+  'DL1CAB9988': {
+    regNo: 'DL1CAB9988',
+    regDate: '20-03-2021',
+    chassisNo: 'MALC181CLMM091823',
+    engineNo: 'G4FLM8912301',
+    maker: 'HYUNDAI MOTOR INDIA LTD',
+    model: 'CRETA 1.5 SX',
+    bodyType: 'SUV',
+    wheelBase: '2610',
+    mfgDate: '02/2021',
+    fuel: 'PETROL',
+    validUpto: '19-03-2036',
+    taxUpto: 'OTT',
+    owner: 'ROHIT VERMA',
+    swd: 'SURESH VERMA',
+    address: 'C-12, CONNAUGHT PLACE, NEW DELHI, Delhi, 110001',
+    ownerSerial: '01',
+    color: 'POLAR WHITE',
+    vehicleClassFull: 'Motor Car (LMV)',
+    cylinders: '4',
+    unladenWt: '1215',
+    ladenWt: '1690',
+    horsePower: '113.4',
+    seating: '5',
+    stdgSlpr: '0 / 0',
+    cubicCap: '1497.0',
+    rto: 'MALL ROAD, DELHI RTO',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'ICICI BANK LTD'
+  },
+
+  // 5. KERALA (TEST: COMMERCIAL GOODS CARRIER -> TR)
+  'KL07BW4321': {
+    regNo: 'KL07BW4321',
+    regDate: '11-11-2022',
+    chassisNo: 'MAT491029N9102834',
+    engineNo: 'E2718293041',
+    maker: 'TATA MOTORS LTD',
+    model: 'TATA ACE GOLD',
+    bodyType: 'OPEN GOODS VEHICLE',
+    wheelBase: '2100',
+    mfgDate: '10/2022',
+    fuel: 'DIESEL',
+    validUpto: '10-11-2024',
+    taxUpto: 'QUARTERLY',
+    owner: 'MANOJ KURIAN',
+    swd: 'KURIAN JOSEPH',
+    address: 'HOUSE NO 14, MG ROAD, ERNAKULAM, KOCHI, Kerala, 682016',
+    ownerSerial: '01',
+    color: 'ARCTIC WHITE',
+    vehicleClassFull: 'Goods Carrier / Commercial Transport',
+    cylinders: '2',
+    unladenWt: '875',
+    ladenWt: '1675',
+    horsePower: '20.0',
+    seating: '2',
+    stdgSlpr: '0 / 0',
+    cubicCap: '702.0',
+    rto: 'ERNAKULAM RTO (KL07)',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'KOTAK MAHINDRA BANK'
+  },
+
+  // 6. DRIVING LICENCE TEST RECORD
   'KA1120140002551': {
     dlNo: 'KA1120140002551',
     name: 'PAVAN KUMAR K',
@@ -194,31 +366,27 @@ const fieldLayout = {
 };
 
 // =====================================================================
-// 1. SMART CARD FRONT LAYOUT (100% LOCKED)
+// 1. SMART CARD FRONT LAYOUT (LOCKED)
 // =====================================================================
 const newRcFrontLayout = {
-  // Top Row (Bold Values)
   regNo:         { x: 56.0,  yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 65 },
   regDate:       { x: 126.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
   validUpto:     { x: 186.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
 
-  // Sub-details (All Regular Weight @ 6.5 pt)
   chassisNo:     { x: 56.7,  yTop: 58.5,  size: 6.5, font: 'regular', maxW: 140 },
   engineNo:      { x: 56.7,  yTop: 80.0,  size: 6.5, font: 'regular', maxW: 140 },
   ownerName:     { x: 56.7,  yTop: 96.0,  size: 6.5, font: 'regular', maxW: 140 },
   swdName:       { x: 56.7,  yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
 
-  // Bottom Row (Strictly aligned to shared baseline yTop: 135.5)
   fuel:          { x: 2.5,   yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
   emissionNorms: { x: 1.0,   yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
   address:       { x: 56.7,  line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
 };
 
 // =====================================================================
-// 2. CALIBRATED SMART CARD BACK LAYOUT (CANVA EXACT MATRIX)
+// 2. SMART CARD BACK LAYOUT (LOCKED)
 // =====================================================================
 const newRcBackLayout = {
-  // Top Blue Header Band: Vehicle Class
   vehicleClass:     { x: 101.0, yTop: 13.5, size: 6.0, font: 'regular', maxW: 120 },
 
   regNo:            { x: 10.0,  yTop: 32.5, size: 6.0, font: 'regular', maxW: 40 },
@@ -226,24 +394,20 @@ const newRcBackLayout = {
   model:            { x: 58.0,  yTop: 49.0, size: 6.0, font: 'regular', maxW: 175 },
   bodyType:         { x: 58.0,  yTop: 66.0, size: 6.0, font: 'regular', maxW: 175 },
 
-  // Seating Row (Centered under Standing# and Sleeping# Capacity)
   seatingCapacity:  { x: 60.0,  yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
   standingCapacity: { x: 104.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
   sleeperCapacity:  { x: 138.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
 
-  // Weights Row
   mfgDate:          { x: 10.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 35 },
   unladenWeight:    { x: 64.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
   ladenWeight:      { x: 94.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
   grossWeight:      { x: 126.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
 
-  // Engine Specs Row
   cylinders:        { x: 18.0,  yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
   cubicCapacity:    { x: 64.0,  yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
   horsePower:       { x: 104.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
   wheelbase:        { x: 166.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 35 },
 
-  // Footer Details (Untouched)
   financer:         { x: 58.0,  yTop: 135.5, size: 5.5, font: 'regular', maxW: 110 },
   rtoAuthority:     { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
 };
@@ -254,6 +418,14 @@ function getTemplatePath(candidates) {
     if (fs.existsSync(fullPath)) return fullPath;
   }
   return null;
+}
+
+function isCommercialClass(vClass) {
+  if (!vClass) return false;
+  const str = String(vClass).toUpperCase();
+  return str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') || 
+         str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') || 
+         str.includes('CARRIAGE') || str.includes('STAGE');
 }
 
 // =====================================================================
@@ -293,9 +465,11 @@ app.post('/api/verify-payment', (req, res) => {
   let report = mockDatabase[lookupKey];
 
   if (!report) {
+    const state = lookupKey.substring(0, 2);
     report = {
       ...mockDatabase['KA40EF5093'],
-      regNo: order.targetNumber
+      regNo: order.targetNumber,
+      rto: `${STATE_NAMES[state] || 'STATE'} RTO`
     };
   }
 
@@ -370,8 +544,18 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     `);
 
     if (rcFormat === 'NEW') {
-      // 1. EMBED SMART CARD FRONT
-      const frontPath = getTemplatePath(['new_rc_front.png', 'new_rc_.png', 'new_rc.png']);
+      const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
+      const isKA = stateCode === 'KA';
+      const isCommercial = isCommercialClass(report.vehicleClassFull);
+      const vehicleBadge = isCommercial ? 'TR' : 'NT';
+      const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+      // 1. EMBED SMART CARD FRONT TEMPLATE
+      const frontCandidates = isKA 
+        ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png']
+        : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
+        
+      const frontPath = getTemplatePath(frontCandidates);
       if (frontPath) {
         const maskedFrontPng = await sharp(frontPath)
           .resize(1040, 655)
@@ -382,8 +566,12 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
       }
 
-      // 2. EMBED SMART CARD BACK
-      const backPath = getTemplatePath(['new_rc_back.png', 'new_rc_back_.png']);
+      // 2. EMBED SMART CARD BACK TEMPLATE
+      const backCandidates = isKA
+        ? ['new_rc_back.png', 'new_rc_back_.png']
+        : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
+
+      const backPath = getTemplatePath(backCandidates);
       if (backPath) {
         const maskedBackPng = await sharp(backPath)
           .resize(1040, 655)
@@ -394,7 +582,65 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
       }
 
-      // 3. DRAW FRONT FIELDS (100% LOCKED)
+      // 3. DYNAMIC NATIONAL HEADER & BADGES (ONLY FOR NON-KA CARDS)
+      if (!isKA) {
+        // Front Subtitle (Exact Original: yTop: 21.0, initial 5.6 size, Bold, rgb(0.05, 0.15, 0.3))
+        const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
+        let subTitleSize = 5.6 * S;
+        while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+          subTitleSize -= 0.2;
+        }
+        const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+        page.drawText(subTitleText, {
+          x: leftCardX + ((cardW - subTitleWidth) / 2),
+          y: cardY + ((CARD_HEIGHT - 21.0) * S),
+          size: subTitleSize,
+          font: fontBold,
+          color: rgb(0.05, 0.15, 0.3)
+        });
+
+        // Front Badge 1: Blue Circle (NT / TR) @ X: 218.0, yTop: 14.5 (Regular Font, Black Text)
+        const b1FWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
+        page.drawText(vehicleBadge, {
+          x: leftCardX + (218.0 * S) - (b1FWidth / 2),
+          y: cardY + ((CARD_HEIGHT - 14.5) * S),
+          size: 5.2 * S,
+          font: fontRegular,
+          color: rgb(0, 0, 0)
+        });
+
+        // Front Badge 2: Orange Circle (State Code) @ X: 232.0, yTop: 14.5 (Regular Font, Black Text)
+        const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+        page.drawText(stateCode, {
+          x: leftCardX + (232.0 * S) - (b2FWidth / 2),
+          y: cardY + ((CARD_HEIGHT - 14.5) * S),
+          size: 5.2 * S,
+          font: fontRegular,
+          color: rgb(0, 0, 0)
+        });
+
+        // Back Badge 1: Blue Circle (NT / TR) @ X: 9.5, yTop: 12.5 (Regular Font, Black Text)
+        const b1BWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
+        page.drawText(vehicleBadge, {
+          x: rightCardX + (9.5 * S) - (b1BWidth / 2),
+          y: cardY + ((CARD_HEIGHT - 12.5) * S),
+          size: 5.2 * S,
+          font: fontRegular,
+          color: rgb(0, 0, 0)
+        });
+
+        // Back Badge 2: Orange Circle (State Code) @ X: 24.0, yTop: 12.5 (Regular Font, Black Text)
+        const b2BWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+        page.drawText(stateCode, {
+          x: rightCardX + (24.0 * S) - (b2BWidth / 2),
+          y: cardY + ((CARD_HEIGHT - 12.5) * S),
+          size: 5.2 * S,
+          font: fontRegular,
+          color: rgb(0, 0, 0)
+        });
+      }
+
+      // 4. DRAW FRONT FIELDS (LOCKED)
       const frontData = {
         regNo: report.regNo,
         regDate: report.regDate,
@@ -442,7 +688,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         }
       });
 
-      // 4. DRAW BACK FIELDS (CALIBRATED ZERO-ALIGNMENT)
+      // 5. DRAW BACK FIELDS (LOCKED)
       const backData = {
         vehicleClass:     report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
         regNo:            report.regNo || '',
