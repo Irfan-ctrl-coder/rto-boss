@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RTO Boss — Instant RC &amp; DL Format Utility</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
@@ -33,68 +32,6 @@
     * { box-sizing: border-box; }
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
-
-    /* Side-by-Side Cards (486px x 307.5px = 1.5x of 242.88 x 153.0) */
-    .card-preview-box {
-      width: 486px;
-      height: 307.5px;
-      border: 1.2px solid #64748B;
-      border-radius: 8px;
-      background-color: #FFFFFF;
-      flex-shrink: 0;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-      position: relative;
-      overflow: hidden;
-      user-select: none;
-    }
-
-    @media print {
-      @page { 
-        size: A4 portrait; 
-        margin: 10mm; 
-      }
-      html, body { 
-        background: #FFFFFF !important; 
-        color: #000000 !important; 
-        margin: 0 !important; 
-        padding: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-      }
-      header, footer, #view-input-state, #formatChooserModal, #paymentModal, .no-print {
-        display: none !important;
-      }
-      #view-success-state { 
-        display: flex !important; 
-        justify-content: center !important; 
-        align-items: flex-start !important; 
-        width: 100% !important;
-        height: 100% !important;
-        margin: 0 auto !important; 
-        padding-top: 20mm !important;
-      }
-      #certificateContainer {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 16px !important;
-        width: 100% !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0 !important;
-        margin: 0 auto !important;
-      }
-      .card-preview-box {
-        width: 486px !important;
-        height: 307.5px !important;
-        box-shadow: none !important;
-        border: 1.2px solid #64748B !important;
-        border-radius: 8px !important;
-        page-break-inside: avoid !important;
-      }
-    }
   </style>
 </head>
 <body class="bg-brand-canvas text-slate-800 min-h-screen flex flex-col justify-between selection:bg-brand-primary selection:text-white">
@@ -102,7 +39,7 @@
   <!-- HEADER -->
   <header class="w-full border-b border-slate-200 bg-white sticky top-0 z-40 shadow-sm no-print">
     <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-2.5">
+      <div class="flex items-center gap-2.5 cursor-pointer" onclick="navigateTo('search')">
         <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-brand-primary text-base">
           ⚡
         </div>
@@ -112,9 +49,11 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        Vector Coords Synced
+      <div class="flex items-center gap-2">
+        <div id="roleBadgeContainer" class="hidden"></div>
+        <button id="navAgentBtn" onclick="openAgentModal()" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 transition-all flex items-center gap-1.5">
+          <span>🤝</span> Agent Portal
+        </button>
       </div>
     </div>
   </header>
@@ -195,22 +134,22 @@
                 </div>
 
                 <div class="grid grid-cols-3 gap-2">
-                  <button type="button" onclick="selectRcTier(100, '2-Wheeler', this)" class="tier-btn active p-3 rounded-xl border-2 border-brand-primary bg-blue-50/80 text-left transition-all">
+                  <button type="button" onclick="selectRcTier('2-Wheeler', this)" id="tierBtn2W" class="tier-btn active p-3 rounded-xl border-2 border-brand-primary bg-blue-50/80 text-left transition-all">
                     <div class="text-xl">🛵</div>
                     <div class="text-xs font-bold text-brand-navy mt-1">2-Wheeler</div>
-                    <div class="text-xs font-black text-brand-primary">₹100</div>
+                    <div class="text-xs font-black text-brand-primary" id="priceLabel2W">₹100</div>
                   </button>
 
-                  <button type="button" onclick="selectRcTier(300, '3-Wheeler', this)" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
+                  <button type="button" onclick="selectRcTier('3-Wheeler', this)" id="tierBtn3W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
                     <div class="text-xl">🛺</div>
                     <div class="text-xs font-bold text-slate-700 mt-1">3-Wheeler</div>
-                    <div class="text-xs font-black text-slate-500">₹300</div>
+                    <div class="text-xs font-black text-slate-500" id="priceLabel3W">₹300</div>
                   </button>
 
-                  <button type="button" onclick="selectRcTier(400, '4-Wheeler+', this)" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
+                  <button type="button" onclick="selectRcTier('4-Wheeler+', this)" id="tierBtn4W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
                     <div class="text-xl">🚗</div>
                     <div class="text-xs font-bold text-slate-700 mt-1">4-Wheeler+</div>
-                    <div class="text-xs font-black text-slate-500">₹400</div>
+                    <div class="text-xs font-black text-slate-500" id="priceLabel4W">₹400</div>
                   </button>
                 </div>
               </div>
@@ -234,9 +173,9 @@
                 <input 
                   type="text" 
                   id="dlInput" 
-                  placeholder="KA1120140002551" 
-                  value="KA1120140002551"
-                  maxlength="16" 
+                  placeholder="KA13 20170004921" 
+                  value="KA13 20170004921"
+                  maxlength="20" 
                   class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary"
                 />
               </div>
@@ -245,9 +184,16 @@
                 <input 
                   type="date" 
                   id="dlDob" 
-                  value="1982-02-06"
+                  value="1993-04-24"
                   class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary"
                 />
+              </div>
+
+              <!-- DL TEST DATA -->
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div class="font-bold text-slate-800">🧪 DL Test Reference Records:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> (Harishakumara C — LMV Reference)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA11 20140002551</span> (Pavan Kumar K — LMV, MCWG)</div>
               </div>
             </div>
 
@@ -272,8 +218,8 @@
                 <span class="font-bold text-brand-success">ACTIVE</span>
               </div>
               <div class="flex justify-between text-slate-600">
-                <span>Exact Canva Positioning</span>
-                <span class="font-bold text-brand-success">LOCKED</span>
+                <span>Account Role</span>
+                <span class="font-bold text-brand-primary uppercase" id="summaryRoleLabel">Public Rate</span>
               </div>
             </div>
 
@@ -287,11 +233,58 @@
               onclick="handleProceedClick()"
               class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
               <span>⚡</span>
-              <span id="btnText">Proceed to Format (₹100)</span>
+              <span id="btnText">Proceed to Format &amp; Download (₹100)</span>
             </button>
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- STATE 2: DOWNLOAD RECEIPT SUCCESS VIEW -->
+    <div id="view-success-state" class="hidden max-w-xl mx-auto space-y-6">
+      <div class="bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-lg space-y-5">
+        <div class="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 text-3xl mx-auto font-black">
+          ✓
+        </div>
+        
+        <div>
+          <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
+          <p class="text-sm text-slate-500 mt-1">Your official vector PDF is downloading automatically.</p>
+        </div>
+
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
+          <div class="flex justify-between text-slate-600">
+            <span>Document Number:</span>
+            <span class="font-bold text-slate-900 mono" id="receiptDocNo">---</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Order Reference ID:</span>
+            <span class="font-bold text-slate-900 mono" id="receiptOrderId">---</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Payment Status:</span>
+            <span class="font-bold text-emerald-600">PAID &amp; VERIFIED</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Amount Paid:</span>
+            <span class="font-bold text-slate-900" id="receiptAmount">---</span>
+          </div>
+        </div>
+
+        <div class="space-y-2.5 pt-2">
+          <button 
+            onclick="downloadOfficialVectorPdf()"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
+            <span>📥</span> Download Official Vector PDF Again
+          </button>
+          
+          <button 
+            onclick="navigateTo('search')"
+            class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
+            ← Format Another Document
+          </button>
+        </div>
       </div>
     </div>
 
@@ -338,7 +331,7 @@
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
         <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">₹</div>
         <div>
-          <h3 class="text-lg font-black text-brand-navy">Simulated UPI Gateway</h3>
+          <h3 class="text-lg font-black text-brand-navy" id="paymentModalTitle">Simulated UPI Gateway</h3>
           <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
         </div>
 
@@ -354,6 +347,7 @@
         </div>
 
         <button 
+          id="simPaymentBtn"
           onclick="simulatePaymentSuccess()"
           class="w-full bg-brand-success hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
           <span>✓</span> Simulate Payment Success
@@ -363,28 +357,141 @@
       </div>
     </div>
 
-    <!-- SUCCESS VIEW: OUTPUT CONTAINER -->
-    <div id="view-success-state" class="hidden max-w-6xl mx-auto space-y-6">
-      
-      <div id="certificateContainer" class="flex flex-row items-center justify-center gap-4 p-4 md:p-6 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
-        <!-- RENDERED DOCUMENT INJECTED HERE -->
-      </div>
+    <!-- AGENT MODAL (LOGIN & REGISTER) -->
+    <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-brand-primary uppercase tracking-wider">PARTNER PORTAL</span>
+            <h3 class="text-xl font-black text-brand-navy" id="agentModalTitle">Agent Login</h3>
+          </div>
+          <button onclick="closeAgentModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+        </div>
 
-      <!-- ACTION BUTTONS -->
-      <div class="max-w-md mx-auto space-y-3 no-print">
-        <button 
-          onclick="downloadOfficialVectorPdf()"
-          class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-4 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
-          <span>📥</span> Download Official Vector PDF (Zero Drift)
-        </button>
-        
-        <button 
-          onclick="resetToSearch()"
-          class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
-          ← Format Another Document
-        </button>
-      </div>
+        <!-- AGENT LOGIN VIEW -->
+        <div id="agentLoginView" class="space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile or Email</label>
+            <input type="text" id="agentLogIdentifier" placeholder="9876543210 / agent@shop.com" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <input type="password" id="agentLogPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
 
+          <button onclick="handleAgentLogin()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+            Log In to Agent Dashboard
+          </button>
+
+          <div class="text-center pt-2 border-t border-slate-100">
+            <p class="text-xs text-slate-500">Want to become a verified agent partner?</p>
+            <button onclick="toggleAgentAuthView('register')" class="text-xs font-bold text-brand-primary hover:underline mt-1">
+              Apply to Become an Agent (₹500 Fee) →
+            </button>
+          </div>
+        </div>
+
+        <!-- AGENT REGISTRATION VIEW -->
+        <div id="agentRegisterView" class="hidden space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Shop Name</label>
+            <input type="text" id="agentRegName" placeholder="Rajesh Xerox &amp; RTO Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile Number</label>
+              <input type="text" id="agentRegMobile" placeholder="9876543210" maxlength="10" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Email</label>
+              <input type="email" id="agentRegEmail" placeholder="rajesh@gmail.com" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <input type="password" id="agentRegPassword" placeholder="Create password" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Shop / Work Address</label>
+            <textarea id="agentRegAddress" rows="2" placeholder="Shop #12, Near RTO Office, Hassan" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
+          </div>
+
+          <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight">
+            ℹ️ One-time ₹500 verification fee is required. After payment, your profile will be put on hold for admin approval.
+          </div>
+
+          <button onclick="handleAgentRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+            Pay ₹500 &amp; Submit Application
+          </button>
+
+          <div class="text-center pt-2 border-t border-slate-100">
+            <button onclick="toggleAgentAuthView('login')" class="text-xs font-bold text-slate-500 hover:underline">
+              ← Back to Agent Login
+            </button>
+          </div>
+        </div>
+
+        <!-- AGENT HOLD STATUS VIEW -->
+        <div id="agentHoldView" class="hidden text-center py-4 space-y-3">
+          <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
+            ⏳
+          </div>
+          <h4 class="font-extrabold text-base text-brand-navy">Account Under Review</h4>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+            Your ₹500 fee has been received. Your profile has been submitted and is currently on hold. You will be able to log in once master admin approves your account.
+          </p>
+          <button onclick="closeAgentModal()" class="text-xs font-bold text-brand-primary hover:underline">Close Window</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MASTER ADMIN MODAL (ACCESSIBLE VIA /#admin) -->
+    <div id="adminModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider">SECRET MASTER ACCESS</span>
+            <h3 class="text-xl font-black text-brand-navy">Admin Control Panel</h3>
+          </div>
+          <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+        </div>
+
+        <!-- ADMIN LOGIN VIEW -->
+        <div id="adminLoginView" class="space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Master Secret Key</label>
+            <input type="password" id="adminSecretKey" placeholder="ADMIN_MASTER_SECRET" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-mono font-bold outline-none focus:border-brand-primary" />
+          </div>
+          <button onclick="handleAdminLogin()" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-3 rounded-xl text-sm transition-all">
+            Access Master Control
+          </button>
+        </div>
+
+        <!-- ADMIN DASHBOARD VIEW -->
+        <div id="adminDashboardView" class="hidden space-y-4 overflow-y-auto flex-1">
+          <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div>
+              <span class="text-xs font-bold text-slate-800">Admin Mode Active (Free Bypass Enabled)</span>
+              <p class="text-[10px] text-slate-500">All document lookups are set to ₹0 free download.</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="clearTestData()" class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100">
+                Clear Test Data
+              </button>
+              <button onclick="logoutSession()" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
+                Logout
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-extrabold text-sm text-brand-navy mb-2">Registered Partner Agents</h4>
+            <div id="adminAgentsList" class="space-y-2 text-xs">
+              <p class="text-slate-400 text-center py-4">Loading agents...</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
   </main>
@@ -440,19 +547,110 @@
     };
 
     let currentService = 'RC';
-    let currentPrice = 100;
     let selectedTierLabel = '2-Wheeler';
     let detectedState = 'KA';
     let chosenFormat = 'NEW';
     let activeOrderId = null;
     let activeReportData = null;
+    let pendingOnboardingAgentId = null;
 
-    function isCommercialClassClient(vClass) {
-      if (!vClass) return false;
-      const str = String(vClass).toUpperCase();
-      return str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') || 
-             str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') || 
-             str.includes('CARRIAGE') || str.includes('STAGE');
+    // Role Session State: 'PUBLIC' | 'AGENT' | 'ADMIN'
+    let currentRole = 'PUBLIC';
+    let sessionToken = null;
+    let sessionAgentData = null;
+
+    // SPA Navigation with Browser History
+    function navigateTo(viewName, addToHistory = true) {
+      document.getElementById('view-input-state').classList.add('hidden');
+      document.getElementById('view-success-state').classList.add('hidden');
+      closeFormatModal();
+      closePaymentModal();
+      closeAgentModal();
+      closeAdminModal();
+
+      if (viewName === 'complete') {
+        document.getElementById('view-success-state').classList.remove('hidden');
+        if (addToHistory) history.pushState({ view: 'complete' }, '', '#complete');
+      } else {
+        document.getElementById('view-input-state').classList.remove('hidden');
+        if (addToHistory) history.pushState({ view: 'search' }, '', '#search');
+      }
+    }
+
+    // Check for Secret Admin Route (/#admin or /admin)
+    function checkAdminRoute() {
+      if (window.location.hash === '#admin' || window.location.pathname === '/admin') {
+        openAdminModal();
+      }
+    }
+
+    window.addEventListener('popstate', (e) => {
+      const state = e.state;
+      if (state && state.view) {
+        navigateTo(state.view, false);
+      } else {
+        navigateTo('search', false);
+      }
+    });
+
+    window.addEventListener('hashchange', () => {
+      checkAdminRoute();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkAdminRoute();
+      if (!window.location.hash) {
+        history.replaceState({ view: 'search' }, '', '#search');
+      }
+      updatePriceUI();
+    });
+
+    function getRate(tier) {
+      if (currentRole === 'ADMIN') return 0;
+      if (currentRole === 'AGENT') {
+        if (currentService === 'DL') return 80;
+        if (tier === '3-Wheeler') return 240;
+        if (tier === '4-Wheeler+') return 320;
+        return 80;
+      }
+      if (currentService === 'DL') return 100;
+      if (tier === '3-Wheeler') return 300;
+      if (tier === '4-Wheeler+') return 400;
+      return 100;
+    }
+
+    function updatePriceUI() {
+      const p2W = getRate('2-Wheeler');
+      const p3W = getRate('3-Wheeler');
+      const p4W = getRate('4-Wheeler+');
+
+      document.getElementById('priceLabel2W').innerText = '₹' + p2W;
+      document.getElementById('priceLabel3W').innerText = '₹' + p3W;
+      document.getElementById('priceLabel4W').innerText = '₹' + p4W;
+
+      const activePrice = currentService === 'DL' ? getRate('2-Wheeler') : getRate(selectedTierLabel);
+
+      document.getElementById('summaryBasePrice').innerText = '₹' + activePrice + '.00';
+      document.getElementById('summaryTotalPrice').innerText = '₹' + activePrice;
+      
+      const roleText = currentRole === 'ADMIN' ? 'Admin Free Bypass (₹0)' : (currentRole === 'AGENT' ? 'Agent Wholesale Rate' : 'Public Standard Rate');
+      document.getElementById('summaryRoleLabel').innerText = roleText;
+
+      document.getElementById('btnText').innerText = currentRole === 'ADMIN' 
+        ? 'Generate & Download Instant PDF (₹0)' 
+        : `Proceed to Format & Download (₹${activePrice})`;
+
+      // Header Badge
+      const badgeCont = document.getElementById('roleBadgeContainer');
+      if (currentRole === 'ADMIN') {
+        badgeCont.className = "flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold text-purple-700";
+        badgeCont.innerHTML = '<span>👑</span> Master Admin Mode';
+      } else if (currentRole === 'AGENT') {
+        badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
+        badgeCont.innerHTML = `<span>🤝</span> Partner: ${sessionAgentData.name}`;
+      } else {
+        badgeCont.className = "hidden";
+      }
     }
 
     function handleRcInput(elem) {
@@ -479,9 +677,6 @@
       const dlView = document.getElementById('dlInputView');
       const serviceTag = document.getElementById('summaryServiceTag');
       const itemLabel = document.getElementById('summaryItemLabel');
-      const basePrice = document.getElementById('summaryBasePrice');
-      const totalPrice = document.getElementById('summaryTotalPrice');
-      const btnText = document.getElementById('btnText');
 
       if (service === 'RC') {
         rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
@@ -490,9 +685,6 @@
         dlView.classList.add('hidden');
         serviceTag.innerText = "RC Verification";
         itemLabel.innerText = `${selectedTierLabel} RC Document`;
-        basePrice.innerText = `₹${currentPrice}.00`;
-        totalPrice.innerText = `₹${currentPrice}`;
-        btnText.innerText = `Proceed to Format (₹${currentPrice})`;
       } else {
         dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
         rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
@@ -500,16 +692,12 @@
         rcView.classList.add('hidden');
         serviceTag.innerText = "DL Verification";
         itemLabel.innerText = "Driving Licence Smart Card";
-        basePrice.innerText = "₹100.00";
-        totalPrice.innerText = "₹100";
-        btnText.innerText = "Proceed to Format (₹100)";
       }
+      updatePriceUI();
     }
 
-    function selectRcTier(price, label, btn) {
-      currentPrice = price;
+    function selectRcTier(label, btn) {
       selectedTierLabel = label;
-
       document.querySelectorAll('.tier-btn').forEach(b => {
         b.classList.remove('border-2', 'border-brand-primary', 'bg-blue-50/80');
         b.classList.add('border', 'border-slate-200', 'bg-white');
@@ -523,9 +711,7 @@
       if (priceElem) priceElem.className = "text-xs font-black text-brand-primary";
 
       document.getElementById('summaryItemLabel').innerText = `${label} RC Document`;
-      document.getElementById('summaryBasePrice').innerText = `₹${price}.00`;
-      document.getElementById('summaryTotalPrice').innerText = `₹${price}`;
-      document.getElementById('btnText').innerText = `Proceed to Format (₹${price})`;
+      updatePriceUI();
     }
 
     function handleProceedClick() {
@@ -560,25 +746,25 @@
     async function startOrderCreation() {
       let targetNumber = '';
       let dob = null;
-      let amount = currentPrice;
 
       if (currentService === 'RC') {
         targetNumber = document.getElementById('rcInput').value.trim().toUpperCase();
       } else {
         targetNumber = document.getElementById('dlInput').value.trim().toUpperCase();
         dob = document.getElementById('dlDob').value;
-        amount = 100;
       }
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
 
       try {
         const res = await fetch('/api/create-order', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
             docType: currentService,
             targetNumber,
             tier: selectedTierLabel,
-            amount,
             dob,
             rcFormat: chosenFormat
           })
@@ -586,18 +772,48 @@
         const data = await res.json();
         if (data.success) {
           activeOrderId = data.orderId;
+
+          // Free bypass for Admin
+          if (data.role === 'ADMIN' || data.amount === 0) {
+            simulatePaymentSuccess();
+            return;
+          }
+
+          document.getElementById('paymentModalTitle').innerText = 'Simulated UPI Gateway';
           document.getElementById('modalOrderId').innerText = data.orderId;
           document.getElementById('modalTarget').innerText = targetNumber;
           document.getElementById('modalAmount').innerText = '₹' + data.amount;
           document.getElementById('paymentModal').classList.remove('hidden');
         }
       } catch (e) {
-        alert('Could not initiate order.');
+        alert('Could not initiate order: ' + e.message);
       }
     }
 
+    // Direct Download Flow upon Payment Success
     async function simulatePaymentSuccess() {
       closePaymentModal();
+
+      // Onboarding fee check
+      if (pendingOnboardingAgentId) {
+        try {
+          const res = await fetch('/api/agent/verify-onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: pendingOnboardingAgentId })
+          });
+          const d = await res.json();
+          pendingOnboardingAgentId = null;
+          if (d.success) {
+            openAgentModal();
+            toggleAgentAuthView('hold');
+          }
+        } catch (e) {
+          alert('Error verifying onboarding fee');
+        }
+        return;
+      }
+
       try {
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
@@ -608,249 +824,24 @@
 
         if (data.status === 'SUCCESS') {
           activeReportData = data.report;
-          renderSuccessReport(data);
+
+          // Populate Receipt View
+          document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
+          document.getElementById('receiptOrderId').innerText = data.orderId;
+          document.getElementById('receiptAmount').innerText = '₹' + data.amount;
+
+          // Trigger Immediate Vector PDF Download
+          await downloadOfficialVectorPdf();
+
+          // Show Receipt Screen
+          navigateTo('complete');
         }
       } catch (e) {
-        alert('Error verifying payment');
+        alert('Error verifying payment: ' + e.message);
       }
     }
 
-    // =========================================================================
-    // EXACT PROPORTIONAL VECTOR PREVIEW
-    // =========================================================================
-    function renderSuccessReport(data) {
-      document.getElementById('view-input-state').classList.add('hidden');
-      document.getElementById('view-success-state').classList.remove('hidden');
-      
-      const container = document.getElementById('certificateContainer');
-      container.innerHTML = '';
-      const r = data.report;
-
-      const addr = r.address || '';
-      let a1 = addr, a2 = '';
-      if (addr.length > 55) {
-        const cut = addr.lastIndexOf(' ', 55);
-        a2 = addr.substring(cut > 0 ? cut + 1 : 55);
-        a1 = addr.substring(0, cut > 0 ? cut : 55);
-      }
-
-      if (data.docType === 'RC' && data.rcFormat === 'OLD') {
-        const slNo = String(r.ownerSerial || '1').padStart(2, '0');
-        const cleanClass = String(r.vehicleClassFull || '').replace(/\s*\(2WN\)\s*/i, '').trim();
-
-        container.innerHTML = `
-          <div class="card-preview-box">
-            <img 
-              src="/assets/templates/ka_front_hd.png" 
-              alt="Karnataka RC Front" 
-              class="w-full h-full object-cover select-none pointer-events-none rounded-[8px]"
-            />
-          </div>
-
-          <div class="card-preview-box">
-            <svg viewBox="0 0 242.88 153.0" class="w-full h-full block font-sans font-bold text-black select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
-              <rect x="0" y="0" width="242.88" height="153.0" rx="8" ry="8" fill="#FFFFFF" />
-
-              <text x="121.44" y="12.5" font-size="9.5" font-weight="bold" text-anchor="middle" fill="#000000">REG NO : <tspan font-weight="bold">${r.regNo}</tspan></text>
-              <text x="236" y="12.0" font-size="6.5" font-weight="bold" text-anchor="end" fill="#000000">FORM-23A</text>
-              <text x="236" y="18.0" font-size="5.5" font-weight="bold" text-anchor="end" fill="#000000">(See Rule 48)</text>
-
-              <text x="6" y="27.0" font-size="6.8" font-weight="bold">REG.DATE</text>
-              <text x="42" y="27.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="57" y="27.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="27.0" font-size="6.8" font-weight="bold">${r.regDate}</text>
-
-              <text x="6" y="34.0" font-size="6.8" font-weight="bold">CHASSIS NO.</text>
-              <text x="46" y="34.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="57" y="34.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="34.0" font-size="6.8" font-weight="bold">${r.chassisNo}</text>
-
-              <text x="6" y="41.0" font-size="6.8" font-weight="bold">ENGINE NO</text>
-              <text x="44" y="41.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="57" y="41.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="41.0" font-size="6.8" font-weight="bold">${r.engineNo}</text>
-
-              <text x="6" y="48.0" font-size="6.8" font-weight="bold">MFR</text>
-              <text x="57" y="48.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="48.0" font-size="6.8" font-weight="bold">${r.maker}</text>
-
-              <text x="148" y="27.0" font-size="6.8" font-weight="bold">O SLNO</text>
-              <text x="176" y="27.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="181" y="27.0" font-size="6.8" font-weight="bold">${slNo}</text>
-
-              <text x="148" y="34.0" font-size="6.8" font-weight="bold">CLASS</text>
-              <text x="176" y="34.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="181" y="34.0" font-size="6.8" font-weight="bold">${cleanClass}</text>
-
-              <text x="148" y="41.0" font-size="6.8" font-weight="bold">COLOUR</text>
-              <text x="176" y="41.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="181" y="41.0" font-size="6.8" font-weight="bold">${r.color}</text>
-
-              <text x="6" y="60.0" font-size="6.8" font-weight="bold">OWNERNAME</text>
-              <text x="57" y="60.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="60.0" font-size="6.8" font-weight="bold">${r.owner}</text>
-
-              <text x="6" y="67.0" font-size="6.8" font-weight="bold">S/W/D OF</text>
-              <text x="57" y="67.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="67.0" font-size="6.8" font-weight="bold">${r.swd}</text>
-
-              <text x="6" y="74.0" font-size="6.8" font-weight="bold">ADDRESS</text>
-              <text x="57" y="74.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="74.0" font-size="5.6" font-weight="bold">${a1}</text>
-              ${a2 ? `<text x="62" y="80.5" font-size="5.6" font-weight="bold">${a2}</text>` : ''}
-
-              <text x="6" y="99.0" font-size="6.8" font-weight="bold">MODEL</text>
-              <text x="57" y="99.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="99.0" font-size="6.8" font-weight="bold">${r.model}</text>
-
-              <text x="6" y="106.0" font-size="6.8" font-weight="bold">BODY</text>
-              <text x="57" y="106.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="106.0" font-size="6.8" font-weight="bold">${r.bodyType}</text>
-
-              <text x="6" y="113.0" font-size="6.8" font-weight="bold">WHEEL BASE</text>
-              <text x="57" y="113.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="113.0" font-size="6.8" font-weight="bold">${r.wheelBase}</text>
-
-              <text x="6" y="120.0" font-size="6.8" font-weight="bold">MFG DATE</text>
-              <text x="57" y="120.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="120.0" font-size="6.8" font-weight="bold">${r.mfgDate}</text>
-
-              <text x="6" y="127.0" font-size="6.8" font-weight="bold">FUEL</text>
-              <text x="57" y="127.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="127.0" font-size="6.8" font-weight="bold">${r.fuel}</text>
-
-              <text x="6" y="134.0" font-size="6.8" font-weight="bold">REG/FC UPTO</text>
-              <text x="57" y="134.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="134.0" font-size="6.8" font-weight="bold">${r.validUpto}</text>
-
-              <text x="6" y="141.0" font-size="6.8" font-weight="bold">TAX UPTO</text>
-              <text x="57" y="141.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="62" y="141.0" font-size="6.8" font-weight="bold">${r.taxUpto || 'LTT'}</text>
-
-              <text x="98" y="106.0" font-size="6.8" font-weight="bold">NO.OF CYL</text>
-              <text x="132" y="106.0" font-size="6.8" font-weight="bold">.</text>
-              <text x="146" y="106.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="151" y="106.0" font-size="6.8" font-weight="bold">${r.cylinders}</text>
-
-              <text x="98" y="113.0" font-size="6.8" font-weight="bold">UNLADEN WT</text>
-              <text x="146" y="113.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="151" y="113.0" font-size="6.8" font-weight="bold">${r.unladenWt}</text>
-
-              <text x="98" y="120.0" font-size="6.8" font-weight="bold">SEATING</text>
-              <text x="146" y="120.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="151" y="120.0" font-size="6.8" font-weight="bold">${r.seating}</text>
-
-              <text x="98" y="127.0" font-size="6.8" font-weight="bold">STDG/SLPR</text>
-              <text x="146" y="127.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="151" y="127.0" font-size="6.8" font-weight="bold">${r.stdgSlpr || '0 / 0'}</text>
-
-              <text x="98" y="134.0" font-size="6.8" font-weight="bold">CC</text>
-              <text x="146" y="134.0" font-size="6.8" font-weight="bold">:</text>
-              <text x="151" y="134.0" font-size="6.8" font-weight="bold">${r.cubicCap}</text>
-
-              <text x="236" y="143.5" font-size="6.5" font-weight="bold" text-anchor="end">Registering Authority</text>
-              <text x="236" y="149.5" font-size="6.8" font-weight="bold" text-anchor="end" fill="#000000">${r.rto}</text>
-            </svg>
-          </div>
-        `;
-        return;
-      }
-
-      // NEW SMART CARD RENDER
-      const stateCode = (r.regNo || 'KA').substring(0, 2).toUpperCase();
-      const isKA = stateCode === 'KA';
-      const isCommercial = isCommercialClassClient(r.vehicleClassFull);
-      const vehicleBadge = isCommercial ? 'TR' : 'NT';
-      const stateFullName = STATE_NAMES_CLIENT[stateCode] || 'KARNATAKA';
-
-      const frontImgSrc = isKA ? '/assets/templates/new_rc_front.png' : '/assets/templates/national_rc_front.png';
-      const backImgSrc = isKA ? '/assets/templates/new_rc_back.png' : '/assets/templates/national_rc_back.png';
-
-      container.innerHTML = `
-        <!-- SMART CARD FRONT (LOCKED) -->
-        <div class="card-preview-box">
-          <img src="${frontImgSrc}" onerror="this.src='/assets/templates/new_rc_front.png'" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
-          <svg viewBox="0 0 242.88 153.0" class="absolute inset-0 w-full h-full block select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
-            
-            ${!isKA ? `
-              <!-- Dynamic Front Subtitle (Exact Original: yTop: 21.0, 5.6pt, bold, #0c2340) -->
-              <text x="121.44" y="21.0" font-size="5.6" font-weight="bold" text-anchor="middle" fill="#0c2340">Issued by Transport Department, Government of ${stateFullName}</text>
-              
-              <!-- Dynamic Front Badge 1: Blue Circle (NT / TR) @ X: 218.0, yTop: 14.5 (Regular, Black) -->
-              <text x="218.0" y="14.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${vehicleBadge}</text>
-
-              <!-- Dynamic Front Badge 2: Orange Circle (State Code) @ X: 232.0, yTop: 14.5 (Regular, Black) -->
-              <text x="232.0" y="14.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${stateCode}</text>
-            ` : ''}
-
-            <!-- Top Row (Bold Values - Aligned at yTop: 41.0) -->
-            <text x="56.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.regNo || ''}</text>
-            <text x="126.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.regDate || ''}</text>
-            <text x="186.0" y="41.0" font-size="6.5" font-weight="bold" fill="#000000">${r.validUpto || ''}</text>
-
-            <!-- Sub Details (All Regular Weight @ 6.5 pt / Soft Charcoal #151c28) -->
-            <text x="56.7" y="58.5" font-size="6.5" font-weight="normal" fill="#151c28">${r.chassisNo || ''}</text>
-            <text x="56.7" y="80.0" font-size="6.5" font-weight="normal" fill="#151c28">${r.engineNo || ''}</text>
-            <text x="56.7" y="96.0" font-size="6.5" font-weight="normal" fill="#151c28">${r.owner || ''}</text>
-            <text x="56.7" y="114.5" font-size="6.5" font-weight="normal" fill="#151c28">${r.swd || ''}</text>
-
-            <!-- Bottom Row (Shared Baseline yTop: 135.5) -->
-            <text x="2.5" y="115.5" font-size="6.5" font-weight="normal" fill="#151c28">${r.fuel || ''}</text>
-            <text x="1.0" y="135.5" font-size="5.5" font-weight="normal" fill="#151c28">${r.emissionNorms || 'BHARAT STAGE VI'}</text>
-
-            <!-- Address (Uniform 6.5 pt / Balanced 6.8 Line-Height with Line 2 Indent) -->
-            <text x="56.7" y="135.5" font-size="6.5" font-weight="normal" fill="#151c28">${a1}</text>
-            ${a2 ? `<text x="64.0" y="142.3" font-size="6.5" font-weight="normal" fill="#151c28">${a2}</text>` : ''}
-          </svg>
-        </div>
-
-        <!-- SMART CARD BACK (LOCKED) -->
-        <div class="card-preview-box">
-          <img src="${backImgSrc}" onerror="this.src='/assets/templates/new_rc_back.png'" class="absolute inset-0 w-full h-full object-cover pointer-events-none rounded-[8px]" />
-          <svg viewBox="0 0 242.88 153.0" class="absolute inset-0 w-full h-full block select-none rounded-[8px]" style="font-family: Arial, Helvetica, sans-serif;">
-            
-            ${!isKA ? `
-              <!-- Dynamic Back Badge 1: Blue Circle (NT / TR) @ X: 9.5, yTop: 12.5 (Regular, Black) -->
-              <text x="9.5" y="12.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${vehicleBadge}</text>
-
-              <!-- Dynamic Back Badge 2: Orange Circle (State Code) @ X: 24.0, yTop: 12.5 (Regular, Black) -->
-              <text x="24.0" y="12.5" font-size="5.2" font-weight="normal" text-anchor="middle" fill="#000000">${stateCode}</text>
-            ` : ''}
-
-            <!-- Top Blue Header Band: Vehicle Class -->
-            <text x="101.0" y="13.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.vehicleClassFull || 'M-Cycel/Scooter (2WN)'}</text>
-
-            <text x="10.0" y="32.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.regNo || ''}</text>
-            <text x="58.0" y="32.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.maker || ''}</text>
-            <text x="58.0" y="49.0" font-size="6.0" font-weight="normal" fill="#151c28">${r.model || ''}</text>
-            <text x="58.0" y="66.0" font-size="6.0" font-weight="normal" fill="#151c28">${r.bodyType || ''}</text>
-
-            <!-- Seating Row -->
-            <text x="60.0" y="83.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.seating || '2'}</text>
-            <text x="104.0" y="83.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.stdgSlpr ? r.stdgSlpr.split('/')[0].trim() : '0'}</text>
-            <text x="138.0" y="83.5" font-size="6.0" font-weight="normal" fill="#151c28">0</text>
-
-            <!-- Weights Row -->
-            <text x="10.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.mfgDate || ''}</text>
-            <text x="64.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.unladenWt || '109'}</text>
-            <text x="94.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.ladenWt || '239'}</text>
-            <text x="126.0" y="101.5" font-size="6.0" font-weight="normal" fill="#151c28">0</text>
-
-            <!-- Engine Specs Row -->
-            <text x="18.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.cylinders || '1'}</text>
-            <text x="64.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.cubicCap || '109.7'}</text>
-            <text x="104.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.horsePower || '7.37'}</text>
-            <text x="166.0" y="119.5" font-size="6.0" font-weight="normal" fill="#151c28">${r.wheelBase || '1275'}</text>
-
-            <!-- Footer Details -->
-            <text x="58.0" y="135.5" font-size="5.5" font-weight="normal" fill="#151c28">${r.financer || ''}</text>
-            <text x="236.0" y="149.5" font-size="5.5" font-weight="normal" text-anchor="end" fill="#151c28">${r.rto || 'CHICKABALLAPURA RTO'}</text>
-          </svg>
-        </div>
-      `;
-    }
-
-    // SERVER-SIDE VECTOR PDF DOWNLOAD
+    // Official Vector PDF Download Stream
     async function downloadOfficialVectorPdf() {
       if (!activeReportData) return;
 
@@ -860,7 +851,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             report: activeReportData,
-            rcFormat: chosenFormat 
+            rcFormat: chosenFormat,
+            docType: currentService
           })
         });
 
@@ -870,7 +862,9 @@
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `RC_${activeReportData.regNo || 'Document'}.pdf`;
+        const prefix = currentService === 'DL' ? 'DL' : 'RC';
+        const docNum = activeReportData.dlNo || activeReportData.regNo || 'Document';
+        a.download = `${prefix}_${docNum}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -880,9 +874,227 @@
       }
     }
 
-    function resetToSearch() {
-      document.getElementById('view-success-state').classList.add('hidden');
-      document.getElementById('view-input-state').classList.remove('hidden');
+    // =========================================================================
+    // AGENT & ADMIN PORTAL CLIENT LOGIC
+    // =========================================================================
+    function openAgentModal() {
+      document.getElementById('agentModal').classList.remove('hidden');
+      toggleAgentAuthView('login');
+    }
+    function closeAgentModal() {
+      document.getElementById('agentModal').classList.add('hidden');
+    }
+
+    function toggleAgentAuthView(view) {
+      document.getElementById('agentLoginView').classList.add('hidden');
+      document.getElementById('agentRegisterView').classList.add('hidden');
+      document.getElementById('agentHoldView').classList.add('hidden');
+
+      if (view === 'register') {
+        document.getElementById('agentModalTitle').innerText = 'Apply for Agent Partnership';
+        document.getElementById('agentRegisterView').classList.remove('hidden');
+      } else if (view === 'hold') {
+        document.getElementById('agentModalTitle').innerText = 'Application Status';
+        document.getElementById('agentHoldView').classList.remove('hidden');
+      } else {
+        document.getElementById('agentModalTitle').innerText = 'Agent Login';
+        document.getElementById('agentLoginView').classList.remove('hidden');
+      }
+    }
+
+    async function handleAgentRegister() {
+      const name = document.getElementById('agentRegName').value.trim();
+      const mobile = document.getElementById('agentRegMobile').value.trim();
+      const email = document.getElementById('agentRegEmail').value.trim();
+      const password = document.getElementById('agentRegPassword').value.trim();
+      const address = document.getElementById('agentRegAddress').value.trim();
+
+      if (!name || !mobile || !email || !password || !address) {
+        alert('Please fill all fields');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/agent/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, mobile, email, password, address })
+        });
+        const d = await res.json();
+        if (d.success) {
+          pendingOnboardingAgentId = d.agentId;
+          closeAgentModal();
+
+          // Open Payment Gateway for ₹500 fee
+          document.getElementById('paymentModalTitle').innerText = 'Agent Onboarding Fee (₹500)';
+          document.getElementById('modalOrderId').innerText = d.agentId;
+          document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
+          document.getElementById('modalAmount').innerText = '₹500.00';
+          document.getElementById('paymentModal').classList.remove('hidden');
+        } else {
+          alert(d.error || 'Registration failed');
+        }
+      } catch (e) {
+        alert('Error submitting registration: ' + e.message);
+      }
+    }
+
+    async function handleAgentLogin() {
+      const identifier = document.getElementById('agentLogIdentifier').value.trim();
+      const password = document.getElementById('agentLogPassword').value.trim();
+
+      if (!identifier || !password) {
+        alert('Please enter credentials');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/agent/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const d = await res.json();
+
+        if (d.success) {
+          currentRole = 'AGENT';
+          sessionToken = d.token.replace('TOK_AGT_', '');
+          sessionToken = `TOK_AGT_${sessionToken}`;
+          sessionAgentData = d.agent;
+          closeAgentModal();
+          updatePriceUI();
+          alert(`Welcome, ${d.agent.name}! Wholesale pricing activated.`);
+        } else {
+          if (d.status === 'PENDING_APPROVAL') {
+            toggleAgentAuthView('hold');
+          } else {
+            alert(d.error || 'Login failed');
+          }
+        }
+      } catch (e) {
+        alert('Login failed: ' + e.message);
+      }
+    }
+
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      if (currentRole === 'ADMIN') {
+        document.getElementById('adminLoginView').classList.add('hidden');
+        document.getElementById('adminDashboardView').classList.remove('hidden');
+        fetchAdminAgents();
+      } else {
+        document.getElementById('adminLoginView').classList.remove('hidden');
+        document.getElementById('adminDashboardView').classList.add('hidden');
+      }
+    }
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+      if (window.location.hash === '#admin') {
+        history.replaceState({ view: 'search' }, '', '#search');
+      }
+    }
+
+    async function handleAdminLogin() {
+      const secretKey = document.getElementById('adminSecretKey').value.trim();
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secretKey })
+        });
+        const d = await res.json();
+        if (d.success) {
+          currentRole = 'ADMIN';
+          sessionToken = d.token;
+          document.getElementById('adminLoginView').classList.add('hidden');
+          document.getElementById('adminDashboardView').classList.remove('hidden');
+          fetchAdminAgents();
+          updatePriceUI();
+        } else {
+          alert(d.error || 'Invalid Admin Key');
+        }
+      } catch (e) {
+        alert('Admin login failed: ' + e.message);
+      }
+    }
+
+    async function fetchAdminAgents() {
+      try {
+        const res = await fetch('/api/admin/agents', {
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          const list = document.getElementById('adminAgentsList');
+          if (!d.agents || d.agents.length === 0) {
+            list.innerHTML = '<p class="text-slate-400 text-center py-4">No agent applications registered yet.</p>';
+            return;
+          }
+          list.innerHTML = d.agents.map(a => `
+            <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-800">${a.name} (${a.mobile})</div>
+                <div class="text-[11px] text-slate-500">${a.email} • ${a.address}</div>
+                <div class="mt-1">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${a.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : (a.status === 'PENDING_APPROVAL' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600')}">${a.status}</span>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                ${a.status !== 'ACTIVE' ? `<button onclick="updateAgentStatus('${a.agentId}', 'ACTIVE')" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-700">Approve</button>` : ''}
+                ${a.status !== 'REJECTED' ? `<button onclick="updateAgentStatus('${a.agentId}', 'REJECTED')" class="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold text-[11px] hover:bg-red-700">Reject</button>` : ''}
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.error('Failed to load agents', e);
+      }
+    }
+
+    async function updateAgentStatus(agentId, status) {
+      try {
+        const res = await fetch('/api/admin/update-agent-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ agentId, status })
+        });
+        const d = await res.json();
+        if (d.success) {
+          fetchAdminAgents();
+        }
+      } catch (e) {
+        alert('Could not update status');
+      }
+    }
+
+    async function clearTestData() {
+      if (!confirm('Are you sure you want to clear all in-memory agents and orders?')) return;
+      try {
+        const res = await fetch('/api/admin/clear-data', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          alert(d.message);
+          fetchAdminAgents();
+        }
+      } catch (e) {
+        alert('Failed to clear data');
+      }
+    }
+
+    function logoutSession() {
+      currentRole = 'PUBLIC';
+      sessionToken = null;
+      sessionAgentData = null;
+      closeAdminModal();
+      closeAgentModal();
+      updatePriceUI();
+      alert('Logged out to public mode.');
     }
 
     function closeFormatModal() {

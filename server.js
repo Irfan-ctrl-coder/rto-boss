@@ -7,13 +7,15 @@ const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ADMIN_MASTER_SECRET = 'ADMIN_MASTER_SECRET';
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-Memory Order Storage
+// In-Memory Storage
 const orders = new Map();
+const agents = new Map();
 
 // All-India State Master Mapping
 const STATE_NAMES = {
@@ -174,7 +176,7 @@ const mockDatabase = {
     financer: 'HDFC BANK LTD'
   },
 
-  // 2. TAMIL NADU (TEST: PERSONAL 2-WHEELER -> NT)
+  // 2. TAMIL NADU
   'TN01AB1234': {
     regNo: 'TN01AB1234',
     regDate: '15-08-2022',
@@ -206,7 +208,7 @@ const mockDatabase = {
     financer: 'HDFC BANK LTD'
   },
 
-  // 3. MAHARASHTRA (TEST: COMMERCIAL TAXI -> TR)
+  // 3. MAHARASHTRA
   'MH02CB5566': {
     regNo: 'MH02CB5566',
     regDate: '10-01-2023',
@@ -238,13 +240,13 @@ const mockDatabase = {
     financer: 'STATE BANK OF INDIA'
   },
 
-  // 4. DELHI (TEST: PERSONAL CAR -> NT)
+  // 4. DELHI
   'DL1CAB9988': {
     regNo: 'DL1CAB9988',
     regDate: '20-03-2021',
     chassisNo: 'MALC181CLMM091823',
     engineNo: 'G4FLM8912301',
-    maker: 'HYUNDAI MOTOR INDIA LTD',
+    maker: 'HYUNDAI\u76dbMOTOR INDIA LTD',
     model: 'CRETA 1.5 SX',
     bodyType: 'SUV',
     wheelBase: '2610',
@@ -270,7 +272,7 @@ const mockDatabase = {
     financer: 'ICICI BANK LTD'
   },
 
-  // 5. KERALA (TEST: COMMERCIAL GOODS CARRIER -> TR)
+  // 5. KERALA
   'KL07BW4321': {
     regNo: 'KL07BW4321',
     regDate: '11-11-2022',
@@ -302,17 +304,49 @@ const mockDatabase = {
     financer: 'KOTAK MAHINDRA BANK'
   },
 
-  // 6. DRIVING LICENCE TEST RECORD
+  // 6. DRIVING LICENCE MASTER TEST RECORDS
+  'KA1320170004921': {
+    dlNo: 'KA13 20170004921',
+    doi: '05-05-2017',
+    validUptoNT: '04-05-2037',
+    validUptoTR: '',
+    name: 'HARISHAKUMARA C',
+    dob: '24-04-1993',
+    bloodGroup: '',
+    organDonor: 'N',
+    swd: 'DHARMEGOWDA',
+    address: '#1 KOLAR ROAD, VIJAYAPURA, , Bangalore Rural, KA, 562135',
+    firstIssueDate: '02-07-2026',
+    adpVehNo: '',
+    hazardousValidity: '',
+    hillValidity: '',
+    covList: [
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA51', doi: '18-05-2013', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
+    ],
+    mobileNo: '',
+    rtoAuthority: 'RTO, HASSAN'
+  },
   'KA1120140002551': {
-    dlNo: 'KA1120140002551',
+    dlNo: 'KA11 20140002551',
+    doi: '23-08-2022',
+    validUptoNT: '08-06-2035',
+    validUptoTR: '',
     name: 'PAVAN KUMAR K',
     dob: '09-06-1995',
+    bloodGroup: 'B+VE',
+    organDonor: 'N',
     swd: 'KALASAIAH',
     address: 'Javarayyana Beedi Kurupete Kanakapura, Kanakapura Ramanagar Karnataka 562117',
-    doi: '23-08-2022',
-    validUpto: '08-06-2035(nt)',
-    cov: 'LMV, MCWG',
-    rto: 'RAMANAGARA-(KA42)'
+    firstIssueDate: '12-04-2014',
+    adpVehNo: '',
+    hazardousValidity: '',
+    hillValidity: '',
+    covList: [
+      { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA11', doi: '12-04-2014', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' },
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA42', doi: '23-08-2022', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
+    ],
+    mobileNo: '',
+    rtoAuthority: 'RAMANAGARA-(KA42)'
   }
 };
 
@@ -429,26 +463,184 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// API ENDPOINTS
+// AGENT & ADMIN API ENDPOINTS
+// =====================================================================
+
+// Agent Registration
+app.post('/api/agent/register', (req, res) => {
+  const { name, mobile, email, password, address } = req.body;
+  if (!name || !mobile || !email || !password || !address) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const existingAgent = Array.from(agents.values()).find(a => a.mobile === mobile || a.email === email);
+  if (existingAgent) {
+    return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
+  }
+
+  const agentId = 'AGT_' + Date.now();
+  const newAgent = {
+    agentId,
+    name,
+    mobile,
+    email,
+    password,
+    address,
+    status: 'PENDING_PAYMENT',
+    createdAt: new Date()
+  };
+
+  agents.set(agentId, newAgent);
+  res.json({ success: true, agentId, amount: 500 });
+});
+
+// Agent Onboarding Payment Verification
+app.post('/api/agent/verify-onboarding', (req, res) => {
+  const { agentId } = req.body;
+  const agent = agents.get(agentId);
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent record not found' });
+  }
+
+  agent.status = 'PENDING_APPROVAL';
+  res.json({
+    success: true,
+    status: 'PENDING_APPROVAL',
+    message: 'Onboarding payment received. Account is now under admin review.'
+  });
+});
+
+// Agent Login
+app.post('/api/agent/login', (req, res) => {
+  const { identifier, password } = req.body;
+  const agent = Array.from(agents.values()).find(
+    a => (a.mobile === identifier || a.email === identifier) && a.password === password
+  );
+
+  if (!agent) {
+    return res.status(401).json({ error: 'Invalid mobile/email or password' });
+  }
+
+  if (agent.status === 'PENDING_PAYMENT') {
+    return res.status(403).json({ error: 'Onboarding fee pending', status: 'PENDING_PAYMENT', agentId: agent.agentId });
+  }
+
+  if (agent.status === 'PENDING_APPROVAL') {
+    return res.status(403).json({ error: 'Account under review by admin', status: 'PENDING_APPROVAL' });
+  }
+
+  if (agent.status === 'REJECTED') {
+    return res.status(403).json({ error: 'Account application rejected by admin', status: 'REJECTED' });
+  }
+
+  const token = 'TOK_AGT_' + agent.agentId;
+  res.json({
+    success: true,
+    token,
+    agent: {
+      name: agent.name,
+      mobile: agent.mobile,
+      email: agent.email
+    }
+  });
+});
+
+// Admin Login
+app.post('/api/admin/login', (req, res) => {
+  const { secretKey } = req.body;
+  if (secretKey === ADMIN_MASTER_SECRET) {
+    return res.json({ success: true, token: 'ADMIN_SUPER_TOKEN' });
+  }
+  return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
+});
+
+// Admin: Get All Agents
+app.get('/api/admin/agents', (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== 'Bearer ADMIN_SUPER_TOKEN') {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+  res.json({ success: true, agents: Array.from(agents.values()) });
+});
+
+// Admin: Update Agent Status
+app.post('/api/admin/update-agent-status', (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== 'Bearer ADMIN_SUPER_TOKEN') {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  const { agentId, status } = req.body;
+  const agent = agents.get(agentId);
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent not found' });
+  }
+
+  agent.status = status;
+  res.json({ success: true, agent });
+});
+
+// Admin: Clear In-Memory Data for Testing
+app.post('/api/admin/clear-data', (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== 'Bearer ADMIN_SUPER_TOKEN') {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  orders.clear();
+  agents.clear();
+  res.json({ success: true, message: 'All test orders and agents cleared successfully.' });
+});
+
+// =====================================================================
+// ORDER PROCESSING API
 // =====================================================================
 
 app.post('/api/create-order', (req, res) => {
-  const { docType, targetNumber, tier, amount, dob, rcFormat } = req.body;
-  const orderId = 'ORD_' + Date.now();
+  const { docType, targetNumber, tier, dob, rcFormat } = req.body;
+  const authHeader = req.headers['authorization'] || '';
 
+  let role = 'PUBLIC';
+  if (authHeader === 'Bearer ADMIN_SUPER_TOKEN') {
+    role = 'ADMIN';
+  } else if (authHeader.startsWith('Bearer TOK_AGT_')) {
+    const agtId = authHeader.replace('Bearer TOK_AGT_', '');
+    const agt = agents.get(agtId);
+    if (agt && agt.status === 'ACTIVE') {
+      role = 'AGENT';
+    }
+  }
+
+  let finalAmount = 100;
+  if (role === 'ADMIN') {
+    finalAmount = 0;
+  } else if (role === 'AGENT') {
+    if (docType === 'DL') finalAmount = 80;
+    else if (tier === '3-Wheeler') finalAmount = 240;
+    else if (tier === '4-Wheeler+') finalAmount = 320;
+    else finalAmount = 80;
+  } else {
+    if (docType === 'DL') finalAmount = 100;
+    else if (tier === '3-Wheeler') finalAmount = 300;
+    else if (tier === '4-Wheeler+') finalAmount = 400;
+    else finalAmount = 100;
+  }
+
+  const orderId = 'ORD_' + Date.now();
   orders.set(orderId, {
     orderId,
     docType,
     targetNumber,
     tier,
-    amount,
+    amount: finalAmount,
+    role,
     dob,
     rcFormat: rcFormat || 'OLD',
-    status: 'PENDING',
+    status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
     createdAt: new Date()
   });
 
-  res.json({ success: true, orderId, amount });
+  res.json({ success: true, orderId, amount: finalAmount, role });
 });
 
 app.post('/api/verify-payment', (req, res) => {
@@ -466,11 +658,19 @@ app.post('/api/verify-payment', (req, res) => {
 
   if (!report) {
     const state = lookupKey.substring(0, 2);
-    report = {
-      ...mockDatabase['KA40EF5093'],
-      regNo: order.targetNumber,
-      rto: `${STATE_NAMES[state] || 'STATE'} RTO`
-    };
+    if (order.docType === 'DL') {
+      report = {
+        ...mockDatabase['KA1320170004921'],
+        dlNo: order.targetNumber,
+        rtoAuthority: `${STATE_NAMES[state] || 'STATE'} RTO`
+      };
+    } else {
+      report = {
+        ...mockDatabase['KA40EF5093'],
+        regNo: order.targetNumber,
+        rto: `${STATE_NAMES[state] || 'STATE'} RTO`
+      };
+    }
   }
 
   res.json({
@@ -478,6 +678,8 @@ app.post('/api/verify-payment', (req, res) => {
     orderId: order.orderId,
     docType: order.docType,
     rcFormat: order.rcFormat,
+    amount: order.amount,
+    role: order.role,
     report
   });
 });
@@ -487,7 +689,7 @@ app.post('/api/verify-payment', (req, res) => {
 // =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
-    const { report, rcFormat } = req.body;
+    const { report, rcFormat, docType } = req.body;
     if (!report) {
       return res.status(400).json({ error: 'Report data is required' });
     }
@@ -543,7 +745,235 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       </svg>
     `);
 
-    if (rcFormat === 'NEW') {
+    // =================================================================
+    // DRIVING LICENCE BRANCH (STANDALONE ISOLATED ENGINE)
+    // =================================================================
+    if (docType === 'DL') {
+      const stateCode = (report.dlNo || 'KA').substring(0, 2).toUpperCase();
+      const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+      const frontPath = getTemplatePath(['dl_front.png', 'Website Template Final (13).png']);
+      if (frontPath) {
+        const maskedFrontPng = await sharp(frontPath)
+          .resize(1040, 655)
+          .composite([{ input: roundedMask, blend: 'dest-in' }])
+          .png()
+          .toBuffer();
+        const frontImg = await pdfDoc.embedPng(maskedFrontPng);
+        page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+      }
+
+      const backPath = getTemplatePath(['dl_back.png', 'Website Template Final (14).png']);
+      if (backPath) {
+        const maskedBackPng = await sharp(backPath)
+          .resize(1040, 655)
+          .composite([{ input: roundedMask, blend: 'dest-in' }])
+          .png()
+          .toBuffer();
+        const backImg = await pdfDoc.embedPng(maskedBackPng);
+        page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+      }
+
+      // DL FRONT EMBEDS
+      const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
+      let subTitleSize = 5.6 * S;
+      while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+        subTitleSize -= 0.2;
+      }
+      const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+      page.drawText(subTitleText, {
+        x: leftCardX + ((cardW - subTitleWidth) / 2),
+        y: cardY + ((CARD_HEIGHT - 21.0) * S),
+        size: subTitleSize,
+        font: fontBold,
+        color: rgb(0.05, 0.15, 0.3)
+      });
+
+      const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+      page.drawText(stateCode, {
+        x: leftCardX + (232.0 * S) - (b2FWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 14.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      // DL No (Calibrated left anchor at X: 89.0, yTop: 35.5)
+      const cleanDlNo = String(report.dlNo || '').trim();
+      page.drawText(cleanDlNo, {
+        x: leftCardX + (89.0 * S),
+        y: cardY + ((CARD_HEIGHT - 35.5) * S),
+        size: 8.5 * S,
+        font: fontBold,
+        color: boldColor
+      });
+
+      // Dates Row (Locked at yTop: 59.5)
+      page.drawText(String(report.doi || '').trim(), {
+        x: leftCardX + (57.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+      page.drawText(String(report.validUptoNT || '').trim(), {
+        x: leftCardX + (101.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+      if (report.validUptoTR) {
+        page.drawText(String(report.validUptoTR).trim(), {
+          x: leftCardX + (152.0 * S),
+          y: cardY + ((CARD_HEIGHT - 59.5) * S),
+          size: 6.5 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+      }
+
+      // Holder Details
+      page.drawText(String(report.name || '').trim(), {
+        x: leftCardX + (28.0 * S),
+        y: cardY + ((CARD_HEIGHT - 92.0) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+      page.drawText(String(report.dob || '').trim(), {
+        x: leftCardX + (47.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+      page.drawText(String(report.bloodGroup || '').trim(), {
+        x: leftCardX + (148.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+      page.drawText(String(report.organDonor || 'N').trim(), {
+        x: leftCardX + (222.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+      page.drawText(String(report.swd || '').trim(), {
+        x: leftCardX + (79.0 * S),
+        y: cardY + ((CARD_HEIGHT - 122.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+
+      const dlAddrLines = splitAddress(report.address || '', 55);
+      dlAddrLines.slice(0, 2).forEach((line, idx) => {
+        page.drawText(String(line).trim(), {
+          x: leftCardX + (35.0 * S),
+          y: cardY + ((CARD_HEIGHT - (136.0 + (idx * 6.8))) * S),
+          size: 6.0 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+      });
+
+      // Front Vertical Margin
+      const vText = `( ${report.firstIssueDate || '02-07-2026'} )`;
+      page.drawText(vText, {
+        x: leftCardX + (238.5 * S),
+        y: cardY + (72.0 * S),
+        size: 5.0 * S,
+        font: fontRegular,
+        color: softTextColor,
+        rotate: { type: 'degrees', angle: 90 }
+      });
+
+      // DL BACK EMBEDS
+      page.drawText(cleanDlNo, {
+        x: rightCardX + (32.0 * S),
+        y: cardY + ((CARD_HEIGHT - 9.0) * S),
+        size: 7.0 * S,
+        font: fontBold,
+        color: boldColor
+      });
+
+      // COV Table Rows (Shifted DOWN to rowY: 83.8)
+      if (report.covList && Array.isArray(report.covList)) {
+        report.covList.slice(0, 5).forEach((cov, idx) => {
+          const rowY = 83.8 + (idx * 11.5);
+
+          // Code (LMV) @ X: 49.0
+          const codeVal = String(cov.code || '').trim();
+          const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
+          page.drawText(codeVal, {
+            x: rightCardX + (49.0 * S) - (codeW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: softTextColor
+          });
+
+          // Issued by (KA51) @ X: 73.0
+          const issuedVal = String(cov.issuedBy || '').trim();
+          const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+          page.drawText(issuedVal, {
+            x: rightCardX + (73.0 * S) - (issuedW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: softTextColor
+          });
+
+          // Date of Issue (18-05-2013) @ X: 108.0
+          const doiVal = String(cov.doi || '').trim();
+          const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+          page.drawText(doiVal, {
+            x: rightCardX + (108.0 * S) - (doiW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 4.8 * S,
+            font: fontRegular,
+            color: softTextColor
+          });
+
+          // Vehicle Category (NT) @ X: 144.0
+          const catVal = String(cov.category || 'NT').trim();
+          const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+          page.drawText(catVal, {
+            x: rightCardX + (144.0 * S) - (catW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: softTextColor
+          });
+        });
+      }
+
+      if (report.mobileNo) {
+        page.drawText(String(report.mobileNo).trim(), {
+          x: rightCardX + (46.0 * S),
+          y: cardY + ((CARD_HEIGHT - 146.0) * S),
+          size: 6.0 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+      }
+
+      // RTO Authority Right-Anchored (Locked at X: 236.0, yTop: 149.5)
+      const rtoVal = String(report.rtoAuthority || 'RTO, HASSAN').trim();
+      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+      page.drawText(rtoVal, {
+        x: rightCardX + ((236.0 * S) - rtoWidth),
+        y: cardY + ((CARD_HEIGHT - 149.5) * S),
+        size: 5.5 * S,
+        font: fontBold,
+        color: softTextColor
+      });
+
+    } else if (rcFormat === 'NEW') {
       const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
       const isKA = stateCode === 'KA';
       const isCommercial = isCommercialClass(report.vehicleClassFull);
@@ -554,7 +984,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       const frontCandidates = isKA 
         ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png']
         : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
-        
+
       const frontPath = getTemplatePath(frontCandidates);
       if (frontPath) {
         const maskedFrontPng = await sharp(frontPath)
@@ -584,7 +1014,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
       // 3. DYNAMIC NATIONAL HEADER & BADGES (ONLY FOR NON-KA CARDS)
       if (!isKA) {
-        // Front Subtitle (Exact Original: yTop: 21.0, initial 5.6 size, Bold, rgb(0.05, 0.15, 0.3))
         const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
         let subTitleSize = 5.6 * S;
         while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
@@ -599,7 +1028,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
           color: rgb(0.05, 0.15, 0.3)
         });
 
-        // Front Badge 1: Blue Circle (NT / TR) @ X: 218.0, yTop: 14.5 (Regular Font, Black Text)
         const b1FWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
         page.drawText(vehicleBadge, {
           x: leftCardX + (218.0 * S) - (b1FWidth / 2),
@@ -609,7 +1037,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
           color: rgb(0, 0, 0)
         });
 
-        // Front Badge 2: Orange Circle (State Code) @ X: 232.0, yTop: 14.5 (Regular Font, Black Text)
         const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
         page.drawText(stateCode, {
           x: leftCardX + (232.0 * S) - (b2FWidth / 2),
@@ -619,7 +1046,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
           color: rgb(0, 0, 0)
         });
 
-        // Back Badge 1: Blue Circle (NT / TR) @ X: 9.5, yTop: 12.5 (Regular Font, Black Text)
         const b1BWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
         page.drawText(vehicleBadge, {
           x: rightCardX + (9.5 * S) - (b1BWidth / 2),
@@ -629,7 +1055,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
           color: rgb(0, 0, 0)
         });
 
-        // Back Badge 2: Orange Circle (State Code) @ X: 24.0, yTop: 12.5 (Regular Font, Black Text)
         const b2BWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
         page.drawText(stateCode, {
           x: rightCardX + (24.0 * S) - (b2BWidth / 2),
@@ -881,7 +1306,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="4"/>
       </svg>
     `);
-    
+
     const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
     const borderImg = await pdfDoc.embedPng(borderPngBuffer);
 
@@ -889,8 +1314,9 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
 
     const pdfBytes = await pdfDoc.save();
+    const fileName = docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=RC_${report.regNo || 'Document'}.pdf`);
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
     res.send(Buffer.from(pdfBytes));
 
   } catch (err) {
