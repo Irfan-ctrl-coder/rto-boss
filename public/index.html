@@ -357,7 +357,7 @@
       </div>
     </div>
 
-    <!-- AGENT MODAL (LOGIN & REGISTER) -->
+    <!-- AGENT MODAL (LOGIN, REGISTER, & HOLD) -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -384,7 +384,7 @@
           </button>
 
           <div class="text-center pt-2 border-t border-slate-100">
-            <p class="text-xs text-slate-500">Want to become a verified agent partner?</p>
+            <p class="text-xs text-slate-500">Want to become a verified partner?</p>
             <button onclick="toggleAgentAuthView('register')" class="text-xs font-bold text-brand-primary hover:underline mt-1">
               Apply to Become an Agent (₹500 Fee) →
             </button>
@@ -431,16 +431,37 @@
           </div>
         </div>
 
-        <!-- AGENT HOLD STATUS VIEW -->
-        <div id="agentHoldView" class="hidden text-center py-4 space-y-3">
-          <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
+        <!-- AGENT HOLD STATUS VIEW (WITH QUICK APPROVAL WHATSAPP CALLOUT) -->
+        <div id="agentHoldView" class="hidden text-center py-4 space-y-4">
+          <div class="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-2xl font-bold flex items-center justify-center mx-auto animate-pulse">
             ⏳
           </div>
-          <h4 class="font-extrabold text-base text-brand-navy">Account Under Review</h4>
-          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-            Your ₹500 fee has been received. Your profile has been submitted and is currently on hold. You will be able to log in once master admin approves your account.
-          </p>
-          <button onclick="closeAgentModal()" class="text-xs font-bold text-brand-primary hover:underline">Close Window</button>
+          <div>
+            <h4 class="font-black text-lg text-brand-navy">Account Under Review</h4>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your ₹500 fee has been registered. Your application is currently on hold pending admin verification.
+            </p>
+          </div>
+
+          <!-- FAST APPROVAL SCREENSHOT NOTICE -->
+          <div class="p-4 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl text-left space-y-2.5 shadow-sm">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⚡</span>
+              <span class="text-xs font-extrabold text-emerald-900 uppercase tracking-wider">Want Instant 5-Min Activation?</span>
+            </div>
+            <p class="text-[11px] text-emerald-800 leading-relaxed font-medium">
+              Send your <strong>Payment Screenshot</strong> or <strong>Application ID</strong> to our WhatsApp admin desk for immediate activation.
+            </p>
+            <a 
+              href="https://wa.me/919876543210?text=Hi%20Admin,%20I%20have%20paid%20the%20Rs.500%20agent%20fee%20for%20RTO%20Boss.%20Please%20approve%20my%20account.%20Order%20ID:%20" 
+              target="_blank" 
+              id="whatsappApprovalLink"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] text-center block">
+              <span>💬</span> Send Screenshot on WhatsApp (+91 98765 43210)
+            </a>
+          </div>
+
+          <button onclick="closeAgentModal()" class="text-xs font-bold text-slate-400 hover:text-slate-600">Close Window</button>
         </div>
       </div>
     </div>
@@ -496,14 +517,51 @@
 
   </main>
 
-  <!-- FOOTER -->
-  <footer class="w-full border-t border-slate-200 bg-white py-6 mt-8 no-print">
-    <div class="max-w-4xl mx-auto px-4 space-y-3 text-center">
-      <p class="text-[11px] text-slate-400 leading-relaxed">
-        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup utility. We are not affiliated with, endorsed by, or associated with MoRTH, Parivahan, or any State Transport Department.
+  <!-- COMPLIANT FOOTER FOR PAYMENT GATEWAYS -->
+  <footer class="w-full border-t border-slate-200 bg-white py-8 mt-12 no-print">
+    <div class="max-w-5xl mx-auto px-4 space-y-3.5 text-center">
+      
+      <!-- MANDATORY COMPLIANCE POLICY LINKS -->
+      <div class="flex flex-wrap items-center justify-center gap-3 md:gap-6 text-xs font-semibold text-slate-600">
+        <a href="javascript:void(0)" onclick="openPolicyModal('terms')" class="hover:text-brand-primary transition-all">Terms &amp; Conditions</a>
+        <span>•</span>
+        <a href="javascript:void(0)" onclick="openPolicyModal('privacy')" class="hover:text-brand-primary transition-all">Privacy Policy</a>
+        <span>•</span>
+        <a href="javascript:void(0)" onclick="openPolicyModal('refund')" class="hover:text-brand-primary transition-all">Refund &amp; Cancellation</a>
+        <span>•</span>
+        <a href="javascript:void(0)" onclick="openPolicyModal('contact')" class="hover:text-brand-primary transition-all">Contact Us</a>
+      </div>
+
+      <!-- LEGAL DISCLAIMER -->
+      <p class="text-[11px] text-slate-400 max-w-2xl mx-auto leading-relaxed">
+        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup and document formatting utility. We are not affiliated with, endorsed by, or associated with MoRTH, Parivahan, or any State Transport Department.
       </p>
+
+      <div class="text-[10px] text-slate-400 font-medium">
+        © 2026 RTO Boss. All rights reserved.
+      </div>
     </div>
   </footer>
+
+  <!-- POLICY MODAL CONTAINER -->
+  <div id="policyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="text-xl font-black text-brand-navy" id="policyModalTitle">Policy Document</h3>
+        <button onclick="closePolicyModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+      </div>
+
+      <div id="policyModalContent" class="space-y-3 overflow-y-auto flex-1 text-xs text-slate-600 leading-relaxed pr-2">
+        <!-- Injected dynamically -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 text-right">
+        <button onclick="closePolicyModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script>
     const STATE_NAMES_CLIENT = {
@@ -577,7 +635,7 @@
       }
     }
 
-    // Check for Secret Admin Route (/#admin or /admin)
+    // Secret Admin Route Check (/#admin or /admin)
     function checkAdminRoute() {
       if (window.location.hash === '#admin' || window.location.pathname === '/admin') {
         openAdminModal();
@@ -803,8 +861,14 @@
             body: JSON.stringify({ agentId: pendingOnboardingAgentId })
           });
           const d = await res.json();
+          const lastAgentId = pendingOnboardingAgentId;
           pendingOnboardingAgentId = null;
+
           if (d.success) {
+            // Update WhatsApp dynamic link with exact Order ID
+            const waLink = `https://wa.me/919876543210?text=Hi%20Admin,%20I%20have%20paid%20the%20Rs.500%20agent%20fee%20for%20RTO%20Boss.%20Please%20approve%20my%20account.%20Agent%20ID:%20${lastAgentId}`;
+            document.getElementById('whatsappApprovalLink').href = waLink;
+
             openAgentModal();
             toggleAgentAuthView('hold');
           }
@@ -1102,6 +1166,70 @@
     }
     function closePaymentModal() {
       document.getElementById('paymentModal').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // MANDATORY POLICY MODALS
+    // =========================================================================
+    const POLICY_DATA = {
+      terms: {
+        title: "Terms & Conditions",
+        body: `
+          <p class="font-bold text-slate-800">1. Nature of Services</p>
+          <p>RTO Boss provides automated layout formatting and vector PDF rendering services for public vehicle registration (RC) and driving licence (DL) records. We do not issue original government identity cards or licenses.</p>
+          <p class="font-bold text-slate-800 mt-3">2. Platform Usage</p>
+          <p>Users are strictly required to have lawful permission and legitimate interest to query and format vehicle or driving licence identifiers entered on this platform.</p>
+          <p class="font-bold text-slate-800 mt-3">3. Pricing & Wholesale Terms</p>
+          <p>Services are billed per-query basis according to displayed rates (₹100 for 2-Wheelers/DL, ₹300 for 3-Wheelers, ₹400 for 4-Wheelers+). Verified agent partners access discounted wholesale pricing.</p>
+        `
+      },
+      privacy: {
+        title: "Privacy Policy",
+        body: `
+          <p class="font-bold text-slate-800">1. Data Handled</p>
+          <p>We process search identifiers (Vehicle Registration Number, DL Number, Date of Birth) solely to render the requested PDF card format.</p>
+          <p class="font-bold text-slate-800 mt-3">2. Financial Protection</p>
+          <p>All financial transactions are handled via authorized, PCI-DSS compliant Indian payment gateways. We never access, handle, or store debit/credit card numbers or UPI PINs.</p>
+          <p class="font-bold text-slate-800 mt-3">3. Information Disclosure</p>
+          <p>We do not sell, distribute, or rent your search queries or contact credentials to third-party marketing entities.</p>
+        `
+      },
+      refund: {
+        title: "Refund & Cancellation Policy",
+        body: `
+          <p class="font-bold text-slate-800">1. Immediate Digital Delivery</p>
+          <p>Because document formatting and vector PDF downloads are delivered instantaneously upon payment confirmation, completed orders are non-refundable once the file is downloaded.</p>
+          <p class="font-bold text-slate-800 mt-3">2. Failed Generation</p>
+          <p>If your account is charged but the server fails to supply your vector PDF file due to a technical breakdown, you are eligible for a 100% refund processed within 5–7 business days to your source payment method.</p>
+          <p class="font-bold text-slate-800 mt-3">3. Claiming Support</p>
+          <p>For refund queries, contact our desk with your Order ID at support@rtoboss.in or via WhatsApp.</p>
+        `
+      },
+      contact: {
+        title: "Contact Us",
+        body: `
+          <p class="font-bold text-slate-800">Support & Help Desk</p>
+          <div class="mt-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 font-medium">
+            <p><strong>Brand / Business:</strong> RTO Boss</p>
+            <p><strong>Support Email:</strong> support@rtoboss.in</p>
+            <p><strong>Phone / WhatsApp:</strong> +91 98765 43210</p>
+            <p><strong>Operating Address:</strong> Near RTO Office, Hassan, Karnataka - 573201</p>
+            <p><strong>Operational Hours:</strong> Monday – Saturday, 9:00 AM – 7:00 PM IST</p>
+          </div>
+        `
+      }
+    };
+
+    function openPolicyModal(type) {
+      const policy = POLICY_DATA[type];
+      if (!policy) return;
+      document.getElementById('policyModalTitle').innerText = policy.title;
+      document.getElementById('policyModalContent').innerHTML = policy.body;
+      document.getElementById('policyModal').classList.remove('hidden');
+    }
+
+    function closePolicyModal() {
+      document.getElementById('policyModal').classList.add('hidden');
     }
   </script>
 </body>
