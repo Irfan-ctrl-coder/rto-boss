@@ -1,565 +1,1236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RC Card</title>
-
-    <style>
-        /* PDF typography: Canva identified the source text as Arial MT Pro Bold. */
-        /* Arial/Helvetica remain fallbacks when Arial MT Pro is unavailable. */
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 40px;
-            background: #ffffff;
-
-            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
-            color: #000000;
-        }
-
-        /* ==============================
-           RC CONTAINER
-        ============================== */
-
-        .rc-card {
-            width: 1000px;
-            min-height: 690px;
-
-            border: 2px solid #777;
-            border-radius: 28px;
-
-            padding: 20px 38px 18px;
-
-            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
-            font-weight: 700;
-        }
-
-
-        /* ==============================
-           REGISTRATION NUMBER
-        ============================== */
-
-        .reg-no {
-            text-align: center;
-
-            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
-            font-size: 52px;
-            font-weight: 700;
-
-            line-height: 1;
-            margin-bottom: 22px;
-
-            white-space: nowrap;
-        }
-
-
-        /* ==============================
-           GENERAL FIELD
-        ============================== */
-
-        .field {
-            display: grid;
-
-            /*
-                LABEL | COLON | VALUE
-            */
-            grid-template-columns: 170px 20px 1fr;
-
-            align-items: baseline;
-
-            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
-            font-size: 22px;
-            font-weight: 700;
-
-            line-height: 1.42;
-
-            white-space: nowrap;
-        }
-
-        .label {
-            font-weight: 700;
-        }
-
-        .colon {
-            text-align: center;
-            font-weight: 700;
-        }
-
-        .value {
-            font-weight: 700;
-        }
-
-
-        /* ==============================
-           TOP TWO-COLUMN SECTION
-        ============================== */
-
-        .top-section {
-            display: grid;
-
-            grid-template-columns: 1fr 1fr;
-
-            column-gap: 25px;
-        }
-
-        /* Right-side top fields align their colon/value independently,
-           matching the reference document. */
-        .top-section > div:nth-child(2) .field {
-            grid-template-columns: 105px 20px 1fr;
-        }
-
-
-        /* ==============================
-           FULL WIDTH INFORMATION
-        ============================== */
-
-        .full-field {
-            display: grid;
-
-            grid-template-columns: 170px 20px 1fr;
-
-            align-items: baseline;
-
-            font-size: 22px;
-            font-weight: 700;
-
-            line-height: 1.42;
-
-            white-space: nowrap;
-        }
-
-
-        /* ==============================
-           ADDRESS
-        ============================== */
-
-        .address {
-            display: grid;
-
-            grid-template-columns: 170px 20px 1fr;
-
-            font-size: 22px;
-            font-weight: 700;
-
-            line-height: 1.42;
-
-            margin-top: 1px;
-        }
-
-        .address-value {
-            white-space: nowrap;
-        }
-
-
-        /* ==============================
-           VEHICLE DETAILS
-        ============================== */
-
-        .vehicle-section {
-            margin-top: 36px;
-
-            display: grid;
-
-            grid-template-columns: 1fr 1fr;
-
-            column-gap: 25px;
-        }
-
-        .vehicle-field {
-            display: grid;
-
-            grid-template-columns: 170px 20px 1fr;
-            
-
-            align-items: baseline;
-
-            font-size: 22px;
-            font-weight: 700;
-
-            line-height: 1.42;
-
-            white-space: nowrap;
-        }
-
-
-        /* ==============================
-           AUTHORITY
-        ============================== */
-
-        .authority {
-            margin-top: 4px;
-
-            text-align: right;
-
-            font-family: "Arial MT Pro", Arial, Helvetica, sans-serif;
-            font-size: 21px;
-            font-weight: 700;
-
-            line-height: 1.25;
-        }
-
-
-        /* ==============================
-           PRINT
-        ============================== */
-
-        @media print {
-
-            body {
-                padding: 0;
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RTO Boss — Instant RC &amp; DL Format Utility</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              canvas: '#F1F5F9',
+              navy: '#0B192C',
+              primary: '#1D4ED8',
+              primaryHover: '#1E40AF',
+              success: '#059669',
+              warning: '#D97706'
             }
-
-            .rc-card {
-                border: 2px solid #777;
-            }
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
         }
-
-    </style>
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
 </head>
+<body class="bg-brand-canvas text-slate-800 min-h-screen flex flex-col justify-between selection:bg-brand-primary selection:text-white">
 
-
-<body>
-
-<div class="rc-card">
-
-
-    <!-- =================================
-         REGISTRATION NUMBER
-    ================================== -->
-
-    <div class="reg-no">
-        REG NO : KA09HJ1161
-    </div>
-
-
-    <!-- =================================
-         TOP INFORMATION
-    ================================== -->
-
-    <div class="top-section">
-
-
-        <!-- LEFT -->
-
+  <!-- HEADER -->
+  <header class="w-full border-b border-slate-200 bg-white sticky top-0 z-40 shadow-sm no-print">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-2.5 cursor-pointer" onclick="navigateTo('search')">
+        <div class="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center font-black text-brand-primary text-base">
+          ⚡
+        </div>
         <div>
+          <span class="font-extrabold text-xl tracking-tight text-brand-navy">RTO<span class="text-brand-primary font-black">Boss</span></span>
+          <span class="text-[9px] text-slate-400 block -mt-1 font-bold tracking-wider">CANVA EXACT MASTER ENGINE</span>
+        </div>
+      </div>
 
-            <div class="field">
-                <span class="label">REG.DATE</span>
-                <span class="colon">:</span>
-                <span class="value">06-07-2016</span>
+      <div class="flex items-center gap-2">
+        <div id="roleBadgeContainer" class="hidden"></div>
+        <button id="navAgentBtn" onclick="openAgentModal()" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 transition-all flex items-center gap-1.5">
+          <span>🤝</span> Agent Portal
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="w-full max-w-7xl mx-auto px-4 py-8 flex-1">
+
+    <!-- STATE 1: SEARCH & INPUT VIEW -->
+    <div id="view-input-state" class="space-y-8 max-w-5xl mx-auto">
+      
+      <div class="text-center">
+        <h1 class="text-3xl md:text-4xl font-black text-brand-navy tracking-tight leading-tight mb-2">
+          Vehicle RC &amp; Driving Licence Formatter
+        </h1>
+        <p class="text-sm md:text-base text-slate-500 max-w-lg mx-auto font-medium">
+          Generate pixel-exact documents directly on your Canva master template.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-12 gap-6 items-start">
+        
+        <!-- LEFT: INPUTS -->
+        <div class="md:col-span-7 space-y-5">
+          <div class="bg-white border border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm">
+            
+            <div class="mb-5">
+              <div class="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button 
+                  id="rcTabBtn" 
+                  onclick="switchService('RC')"
+                  class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2">
+                  <span>🚗</span> Vehicle RC Lookup
+                </button>
+                <button 
+                  id="dlTabBtn" 
+                  onclick="switchService('DL')"
+                  class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2">
+                  <span>🪪</span> Driving Licence Lookup
+                </button>
+              </div>
             </div>
 
-            <div class="field">
-                <span class="label">CHASSIS.NO</span>
-                <span class="colon">:</span>
-                <span class="value">ME4JF505FGT539299</span>
+            <!-- RC FORM -->
+            <div id="rcInputView" class="space-y-4">
+              <div>
+                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Vehicle Registration Number</label>
+                
+                <div class="flex items-stretch rounded-xl border-2 border-slate-300 bg-white focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-blue-100 transition-all overflow-hidden">
+                  <div class="w-10 bg-[#002B7F] flex flex-col items-center justify-between py-2 border-r border-blue-900/40 select-none">
+                    <span class="text-[8px] font-black text-white tracking-tighter">IND</span>
+                    <div class="w-3.5 h-3.5 rounded-full border border-yellow-400 flex items-center justify-center">
+                      <span class="text-[6px] text-yellow-300">☸</span>
+                    </div>
+                    <span class="text-[7px] font-bold text-blue-200">RC</span>
+                  </div>
+
+                  <input 
+                    type="text" 
+                    id="rcInput" 
+                    placeholder="KA40EF5093" 
+                    maxlength="13" 
+                    value="KA40EF5093"
+                    oninput="handleRcInput(this)"
+                    class="w-full bg-transparent mono text-2xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none" 
+                  />
+                </div>
+
+                <div id="rtoBadge" class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                  📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available
+                </div>
+              </div>
+
+              <!-- TIER SELECTOR -->
+              <div class="pt-2">
+                <div class="flex justify-between items-center mb-2">
+                  <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Select Vehicle Category</label>
+                  <span class="text-[10px] text-brand-primary font-bold">Pricing Tier</span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2">
+                  <button type="button" onclick="selectRcTier('2-Wheeler', this)" id="tierBtn2W" class="tier-btn active p-3 rounded-xl border-2 border-brand-primary bg-blue-50/80 text-left transition-all">
+                    <div class="text-xl">🛵</div>
+                    <div class="text-xs font-bold text-brand-navy mt-1">2-Wheeler</div>
+                    <div class="text-xs font-black text-brand-primary" id="priceLabel2W">₹100</div>
+                  </button>
+
+                  <button type="button" onclick="selectRcTier('3-Wheeler', this)" id="tierBtn3W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
+                    <div class="text-xl">🛺</div>
+                    <div class="text-xs font-bold text-slate-700 mt-1">3-Wheeler</div>
+                    <div class="text-xs font-black text-slate-500" id="priceLabel3W">₹300</div>
+                  </button>
+
+                  <button type="button" onclick="selectRcTier('4-Wheeler+', this)" id="tierBtn4W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
+                    <div class="text-xl">🚗</div>
+                    <div class="text-xs font-bold text-slate-700 mt-1">4-Wheeler+</div>
+                    <div class="text-xs font-black text-slate-500" id="priceLabel4W">₹400</div>
+                  </button>
+                </div>
+              </div>
+
+              <!-- TEST DATA -->
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div class="font-bold text-slate-800">🧪 Exact Test Reference Records:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (Karnataka New Smart Card Reference)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Vidhana Soudha Format)</div>
+                <div>• <span class="mono font-bold text-blue-700">TN01AB1234</span> (Tamil Nadu — Personal 2-Wheeler / NT)</div>
+                <div>• <span class="mono font-bold text-amber-700">MH02CB5566</span> (Maharashtra — Commercial Taxi / TR)</div>
+                <div>• <span class="mono font-bold text-indigo-700">DL1CAB9988</span> (Delhi — Personal Car / NT)</div>
+                <div>• <span class="mono font-bold text-cyan-700">KL07BW4321</span> (Kerala — Commercial Goods Carrier / TR)</div>
+              </div>
             </div>
 
-            <div class="field">
-                <span class="label">ENGINE.NO</span>
-                <span class="colon">:</span>
-                <span class="value">JF50ET3541017</span>
+            <!-- DL FORM -->
+            <div id="dlInputView" class="hidden space-y-4">
+              <div>
+                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Driving Licence Number</label>
+                <input 
+                  type="text" 
+                  id="dlInput" 
+                  placeholder="KA13 20170004921" 
+                  value="KA13 20170004921"
+                  maxlength="20" 
+                  class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary"
+                />
+              </div>
+              <div>
+                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Date of Birth (As per DL)</label>
+                <input 
+                  type="date" 
+                  id="dlDob" 
+                  value="1993-04-24"
+                  class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary"
+                />
+              </div>
+
+              <!-- DL TEST DATA -->
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div class="font-bold text-slate-800">🧪 DL Test Reference Records:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> (Harishakumara C — LMV Reference)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA11 20140002551</span> (Pavan Kumar K — LMV, MCWG)</div>
+              </div>
             </div>
 
+          </div>
         </div>
 
+        <!-- RIGHT: SUMMARY & PAY ACTION -->
+        <div class="md:col-span-5">
+          <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 md:p-6 shadow-sm sticky top-20 space-y-5">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 class="text-base font-extrabold text-brand-navy">Order Summary</h3>
+              <span class="text-xs bg-blue-50 text-brand-primary font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="summaryServiceTag">RC Verification</span>
+            </div>
 
-        <!-- RIGHT -->
+            <div class="space-y-2 text-xs">
+              <div class="flex justify-between text-slate-600">
+                <span id="summaryItemLabel">2-Wheeler RC Document</span>
+                <span class="font-bold text-slate-900" id="summaryBasePrice">₹100.00</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>Unified Vector PDF Engine</span>
+                <span class="font-bold text-brand-success">ACTIVE</span>
+              </div>
+              <div class="flex justify-between text-slate-600">
+                <span>Account Role</span>
+                <span class="font-bold text-brand-primary uppercase" id="summaryRoleLabel">Public Rate</span>
+              </div>
+            </div>
 
+            <div class="border-t border-slate-100 pt-3 flex justify-between items-baseline">
+              <span class="text-xs font-bold text-slate-500 uppercase">Total Payable</span>
+              <span class="text-2xl font-black text-brand-navy" id="summaryTotalPrice">₹100</span>
+            </div>
+
+            <button 
+              id="payBtn" 
+              onclick="handleProceedClick()"
+              class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
+              <span>⚡</span>
+              <span id="btnText">Proceed to Format &amp; Download (₹100)</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- STATE 2: DOWNLOAD RECEIPT SUCCESS VIEW -->
+    <div id="view-success-state" class="hidden max-w-xl mx-auto space-y-6">
+      <div class="bg-white border border-slate-200 rounded-3xl p-8 text-center shadow-lg space-y-5">
+        <div class="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 text-3xl mx-auto font-black">
+          ✓
+        </div>
+        
         <div>
-
-            <div class="field">
-                <span class="label">O SLNO</span>
-                <span class="colon">:</span>
-                <span class="value">01</span>
-            </div>
-
-            <div class="field">
-                <span class="label">CLASS</span>
-                <span class="colon">:</span>
-                <span class="value">M-Cycle/Scooter</span>
-            </div>
-
-            <div class="field">
-                <span class="label">COLOUR</span>
-                <span class="colon">:</span>
-                <span class="value">WHITE</span>
-            </div>
-
+          <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
+          <p class="text-sm text-slate-500 mt-1">Your official vector PDF is downloading automatically.</p>
         </div>
 
-    </div>
-
-
-    <!-- =================================
-         MANUFACTURER
-    ================================== -->
-
-    <div class="full-field">
-
-        <span class="label">MFR</span>
-
-        <span class="colon">:</span>
-
-        <span class="value">
-            HONDA MOTORCYCLE AND SCOOTER INDIA (P) LTD
-        </span>
-
-    </div>
-
-
-    <!-- =================================
-         OWNER
-    ================================== -->
-
-    <div class="full-field">
-
-        <span class="label">OWNERNAME</span>
-
-        <span class="colon">:</span>
-
-        <span class="value">
-            JYOTHI M
-        </span>
-
-    </div>
-
-
-    <!-- =================================
-         S/W/D
-    ================================== -->
-
-    <div class="full-field">
-
-        <span class="label">S/W/D OF</span>
-
-        <span class="colon">:</span>
-
-        <span class="value">
-            NAGAVENI
-        </span>
-
-    </div>
-
-
-    <!-- =================================
-         ADDRESS
-    ================================== -->
-
-    <div class="address">
-
-        <span class="label">ADDRESS</span>
-
-        <span class="colon">:</span>
-
-        <div class="address-value">
-
-            # 956, BEML LAYOUT, 2ND STAGE, RAJARAJESHWARI<br>
-
-            NAGAR,, MYSORE, -570022
-
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
+          <div class="flex justify-between text-slate-600">
+            <span>Document Number:</span>
+            <span class="font-bold text-slate-900 mono" id="receiptDocNo">---</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Order Reference ID:</span>
+            <span class="font-bold text-slate-900 mono" id="receiptOrderId">---</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Payment Status:</span>
+            <span class="font-bold text-emerald-600">PAID &amp; VERIFIED</span>
+          </div>
+          <div class="flex justify-between text-slate-600">
+            <span>Amount Paid:</span>
+            <span class="font-bold text-slate-900" id="receiptAmount">---</span>
+          </div>
         </div>
 
+        <div class="space-y-2.5 pt-2">
+          <button 
+            onclick="downloadOfficialVectorPdf()"
+            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
+            <span>📥</span> Download Official Vector PDF Again
+          </button>
+          
+          <button 
+            onclick="navigateTo('search')"
+            class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
+            ← Format Another Document
+          </button>
+        </div>
+      </div>
     </div>
 
+    <!-- FORMAT CHOOSER MODAL -->
+    <div id="formatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
+        <div class="text-left">
+          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA VEHICLE</span>
+          <h3 class="text-xl font-black text-brand-navy mt-2">Select Preferred RC Layout</h3>
+        </div>
 
-    <!-- =================================
-         VEHICLE INFORMATION
-    ================================== -->
+        <div class="grid grid-cols-2 gap-3 text-left">
+          <button 
+            type="button" 
+            onclick="confirmFormatSelection('OLD')"
+            class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
+            <div>
+              <div class="text-2xl">🏛️</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old Book / Paper RC</h4>
+              <p class="text-[10px] text-slate-500 mt-1 leading-tight">Vidhana Soudha template rendered on Canva Master.</p>
+            </div>
+            <span class="text-xs font-bold text-brand-primary">Choose Old RC →</span>
+          </button>
 
-    <div class="vehicle-section">
+          <button 
+            type="button" 
+            onclick="confirmFormatSelection('NEW')"
+            class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
+            <div>
+              <div class="text-2xl">💳</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New Smart Card RC</h4>
+              <p class="text-[10px] text-slate-500 mt-1 leading-tight">National Union standard card with Gold Chip &amp; QR.</p>
+            </div>
+            <span class="text-xs font-bold text-brand-primary">Choose Smart RC →</span>
+          </button>
+        </div>
 
+        <button onclick="closeFormatModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+      </div>
+    </div>
 
-        <!-- LEFT SIDE -->
-
+    <!-- PAYMENT MODAL -->
+    <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">₹</div>
         <div>
-
-            <div class="vehicle-field">
-
-                <span class="label">MODEL</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    H ACTIVA 3G CBS BS3
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">BODY</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    U BONE
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">WHEEL BASE</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    0
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">MFG.DATE</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    7/2016
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">FUEL</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    PETROL
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">REF/RC UPTO</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    05-07-2031
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">TAX UPTO</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    
-                </span>
-
-            </div>
-
+          <h3 class="text-lg font-black text-brand-navy" id="paymentModalTitle">Simulated UPI Gateway</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
         </div>
 
-
-        <!-- RIGHT SIDE -->
-
-        <div>
-
-            <div class="vehicle-field">
-
-                <span class="label">NO.OF CYL</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    1
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">UNLADEN WT</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    108
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">SEATING</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    2
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">STDG/SLPR</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    0/0
-                </span>
-
-            </div>
-
-
-            <div class="vehicle-field">
-
-                <span class="label">CC</span>
-
-                <span class="colon">:</span>
-
-                <span class="value">
-                    109.00
-                </span>
-
-            </div>
-
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2">
+          <div class="flex justify-between text-slate-500">
+            <span>Target:</span>
+            <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
+          </div>
+          <div class="flex justify-between text-slate-500">
+            <span>Amount:</span>
+            <span class="font-black text-brand-primary text-sm" id="modalAmount">---</span>
+          </div>
         </div>
 
+        <button 
+          id="simPaymentBtn"
+          onclick="simulatePaymentSuccess()"
+          class="w-full bg-brand-success hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
+          <span>✓</span> Simulate Payment Success
+        </button>
+
+        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+      </div>
     </div>
 
+    <!-- AGENT MODAL (LOGIN, REGISTER, & HOLD) -->
+    <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-brand-primary uppercase tracking-wider">PARTNER PORTAL</span>
+            <h3 class="text-xl font-black text-brand-navy" id="agentModalTitle">Agent Login</h3>
+          </div>
+          <button onclick="closeAgentModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+        </div>
 
-    <!-- =================================
-         REGISTERING AUTHORITY
-    ================================== -->
+        <!-- AGENT LOGIN VIEW -->
+        <div id="agentLoginView" class="space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile or Email</label>
+            <input type="text" id="agentLogIdentifier" placeholder="9876543210 / agent@shop.com" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <input type="password" id="agentLogPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
 
-    <div class="authority">
+          <button onclick="handleAgentLogin()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+            Log In to Agent Dashboard
+          </button>
 
-        Registering Authority<br>
+          <div class="text-center pt-2 border-t border-slate-100">
+            <p class="text-xs text-slate-500">Want to become a verified partner?</p>
+            <button onclick="toggleAgentAuthView('register')" class="text-xs font-bold text-brand-primary hover:underline mt-1">
+              Apply to Become an Agent (₹500 Fee) →
+            </button>
+          </div>
+        </div>
 
-        MYSURU WEST RTO, Karnataka
+        <!-- AGENT REGISTRATION VIEW -->
+        <div id="agentRegisterView" class="hidden space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Shop Name</label>
+            <input type="text" id="agentRegName" placeholder="Rajesh Xerox &amp; RTO Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile Number</label>
+              <input type="text" id="agentRegMobile" placeholder="9876543210" maxlength="10" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Email</label>
+              <input type="email" id="agentRegEmail" placeholder="rajesh@gmail.com" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <input type="password" id="agentRegPassword" placeholder="Create password" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Shop / Work Address</label>
+            <textarea id="agentRegAddress" rows="2" placeholder="Shop #12, Near RTO Office, Hassan" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
+          </div>
 
+          <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight">
+            ℹ️ One-time ₹500 verification fee is required. After payment, your profile will be put on hold for admin approval.
+          </div>
+
+          <button onclick="handleAgentRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+            Pay ₹500 &amp; Submit Application
+          </button>
+
+          <div class="text-center pt-2 border-t border-slate-100">
+            <button onclick="toggleAgentAuthView('login')" class="text-xs font-bold text-slate-500 hover:underline">
+              ← Back to Agent Login
+            </button>
+          </div>
+        </div>
+
+        <!-- AGENT HOLD STATUS VIEW (WITH QUICK APPROVAL WHATSAPP CALLOUT) -->
+        <div id="agentHoldView" class="hidden text-center py-4 space-y-4">
+          <div class="w-14 h-14 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-2xl font-bold flex items-center justify-center mx-auto animate-pulse">
+            ⏳
+          </div>
+          <div>
+            <h4 class="font-black text-lg text-brand-navy">Account Under Review</h4>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your ₹500 fee has been registered. Your application is currently on hold pending admin verification.
+            </p>
+          </div>
+
+          <!-- FAST APPROVAL SCREENSHOT NOTICE -->
+          <div class="p-4 bg-emerald-50/80 border-2 border-emerald-200 rounded-2xl text-left space-y-2.5 shadow-sm">
+            <div class="flex items-center gap-2">
+              <span class="text-lg">⚡</span>
+              <span class="text-xs font-extrabold text-emerald-900 uppercase tracking-wider">Want Instant 5-Min Activation?</span>
+            </div>
+            <p class="text-[11px] text-emerald-800 leading-relaxed font-medium">
+              Send your <strong>Payment Screenshot</strong> or <strong>Application ID</strong> to our WhatsApp admin desk for immediate activation.
+            </p>
+            <a 
+              href="https://wa.me/919876543210?text=Hi%20Admin,%20I%20have%20paid%20the%20Rs.500%20agent%20fee%20for%20RTO%20Boss.%20Please%20approve%20my%20account.%20Order%20ID:%20" 
+              target="_blank" 
+              id="whatsappApprovalLink"
+              class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] text-center block">
+              <span>💬</span> Send Screenshot on WhatsApp (+91 98765 43210)
+            </a>
+          </div>
+
+          <button onclick="closeAgentModal()" class="text-xs font-bold text-slate-400 hover:text-slate-600">Close Window</button>
+        </div>
+      </div>
     </div>
 
+    <!-- MASTER ADMIN MODAL (ACCESSIBLE VIA /#admin) -->
+    <div id="adminModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider">SECRET MASTER ACCESS</span>
+            <h3 class="text-xl font-black text-brand-navy">Admin Control Panel</h3>
+          </div>
+          <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+        </div>
 
-</div>
+        <!-- ADMIN LOGIN VIEW -->
+        <div id="adminLoginView" class="space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Master Secret Key</label>
+            <input type="password" id="adminSecretKey" placeholder="ADMIN_MASTER_SECRET" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-mono font-bold outline-none focus:border-brand-primary" />
+          </div>
+          <button onclick="handleAdminLogin()" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-3 rounded-xl text-sm transition-all">
+            Access Master Control
+          </button>
+        </div>
 
+        <!-- ADMIN DASHBOARD VIEW -->
+        <div id="adminDashboardView" class="hidden space-y-4 overflow-y-auto flex-1">
+          <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div>
+              <span class="text-xs font-bold text-slate-800">Admin Mode Active (Free Bypass Enabled)</span>
+              <p class="text-[10px] text-slate-500">All document lookups are set to ₹0 free download.</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="clearTestData()" class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100">
+                Clear Test Data
+              </button>
+              <button onclick="logoutSession()" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
+                Logout
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-extrabold text-sm text-brand-navy mb-2">Registered Partner Agents</h4>
+            <div id="adminAgentsList" class="space-y-2 text-xs">
+              <p class="text-slate-400 text-center py-4">Loading agents...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- COMPLIANT FOOTER FOR PAYMENT GATEWAYS -->
+  <footer class="w-full border-t border-slate-200 bg-white py-8 mt-12 no-print">
+    <div class="max-w-5xl mx-auto px-4 space-y-3.5 text-center">
+      
+      <!-- MANDATORY COMPLIANCE POLICY LINKS -->
+      <div class="flex flex-wrap items-center justify-center gap-3 md:gap-6 text-xs font-semibold text-slate-600">
+        <a href="javascript:void(0)" onclick="openPolicyModal('terms')" class="hover:text-brand-primary transition-all">Terms &amp; Conditions</a>
+        <span>•</span>
+        <a href="javascript:void(0)" onclick="openPolicyModal('privacy')" class="hover:text-brand-primary transition-all">Privacy Policy</a>
+        <span>•</span>
+        <a href="javascript:void(0)" onclick="openPolicyModal('refund')" class="hover:text-brand-primary transition-all">Refund &amp; Cancellation</a>
+        <span>•</span>
+        <a href="javascript:void(0)" onclick="openPolicyModal('contact')" class="hover:text-brand-primary transition-all">Contact Us</a>
+      </div>
+
+      <!-- LEGAL DISCLAIMER -->
+      <p class="text-[11px] text-slate-400 max-w-2xl mx-auto leading-relaxed">
+        <strong>Disclaimer:</strong> RTO Boss is an independent, privately owned information lookup and document formatting utility. We are not affiliated with, endorsed by, or associated with MoRTH, Parivahan, or any State Transport Department.
+      </p>
+
+      <div class="text-[10px] text-slate-400 font-medium">
+        © 2026 RTO Boss. All rights reserved.
+      </div>
+    </div>
+  </footer>
+
+  <!-- POLICY MODAL CONTAINER -->
+  <div id="policyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="text-xl font-black text-brand-navy" id="policyModalTitle">Policy Document</h3>
+        <button onclick="closePolicyModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+      </div>
+
+      <div id="policyModalContent" class="space-y-3 overflow-y-auto flex-1 text-xs text-slate-600 leading-relaxed pr-2">
+        <!-- Injected dynamically -->
+      </div>
+
+      <div class="pt-2 border-t border-slate-100 text-right">
+        <button onclick="closePolicyModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STATE_NAMES_CLIENT = {
+      AN: 'ANDAMAN AND NICOBAR',
+      AP: 'ANDHRA PRADESH',
+      AR: 'ARUNACHAL PRADESH',
+      AS: 'ASSAM',
+      BR: 'BIHAR',
+      CG: 'CHHATTISGARH',
+      CH: 'CHANDIGARH',
+      DD: 'DAMAN AND DIU',
+      DL: 'DELHI',
+      DN: 'DADRA AND NAGAR HAVELI',
+      GA: 'GOA',
+      GJ: 'GUJARAT',
+      HP: 'HIMACHAL PRADESH',
+      HR: 'HARYANA',
+      JH: 'JHARKHAND',
+      JK: 'JAMMU AND KASHMIR',
+      KA: 'KARNATAKA',
+      KL: 'KERALA',
+      LA: 'LADAKH',
+      LD: 'LAKSHADWEEP',
+      MH: 'MAHARASHTRA',
+      ML: 'MEGHALAYA',
+      MN: 'MANIPUR',
+      MP: 'MADHYA PRADESH',
+      MZ: 'MIZORAM',
+      NL: 'NAGALAND',
+      OD: 'ODISHA',
+      PB: 'PUNJAB',
+      PY: 'PUDUCHERRY',
+      RJ: 'RAJASTHAN',
+      SK: 'SIKKIM',
+      TN: 'TAMIL NADU',
+      TR: 'TRIPURA',
+      TS: 'TELANGANA',
+      UK: 'UTTARAKHAND',
+      UP: 'UTTAR PRADESH',
+      WB: 'WEST BENGAL'
+    };
+
+    let currentService = 'RC';
+    let selectedTierLabel = '2-Wheeler';
+    let detectedState = 'KA';
+    let chosenFormat = 'NEW';
+    let activeOrderId = null;
+    let activeReportData = null;
+    let pendingOnboardingAgentId = null;
+
+    // Role Session State: 'PUBLIC' | 'AGENT' | 'ADMIN'
+    let currentRole = 'PUBLIC';
+    let sessionToken = null;
+    let sessionAgentData = null;
+
+    // SPA Navigation with Browser History
+    function navigateTo(viewName, addToHistory = true) {
+      document.getElementById('view-input-state').classList.add('hidden');
+      document.getElementById('view-success-state').classList.add('hidden');
+      closeFormatModal();
+      closePaymentModal();
+      closeAgentModal();
+      closeAdminModal();
+
+      if (viewName === 'complete') {
+        document.getElementById('view-success-state').classList.remove('hidden');
+        if (addToHistory) history.pushState({ view: 'complete' }, '', '#complete');
+      } else {
+        document.getElementById('view-input-state').classList.remove('hidden');
+        if (addToHistory) history.pushState({ view: 'search' }, '', '#search');
+      }
+    }
+
+    // Secret Admin Route Check (/#admin or /admin)
+    function checkAdminRoute() {
+      if (window.location.hash === '#admin' || window.location.pathname === '/admin') {
+        openAdminModal();
+      }
+    }
+
+    window.addEventListener('popstate', (e) => {
+      const state = e.state;
+      if (state && state.view) {
+        navigateTo(state.view, false);
+      } else {
+        navigateTo('search', false);
+      }
+    });
+
+    window.addEventListener('hashchange', () => {
+      checkAdminRoute();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkAdminRoute();
+      if (!window.location.hash) {
+        history.replaceState({ view: 'search' }, '', '#search');
+      }
+      updatePriceUI();
+    });
+
+    function getRate(tier) {
+      if (currentRole === 'ADMIN') return 0;
+      if (currentRole === 'AGENT') {
+        if (currentService === 'DL') return 80;
+        if (tier === '3-Wheeler') return 240;
+        if (tier === '4-Wheeler+') return 320;
+        return 80;
+      }
+      if (currentService === 'DL') return 100;
+      if (tier === '3-Wheeler') return 300;
+      if (tier === '4-Wheeler+') return 400;
+      return 100;
+    }
+
+    function updatePriceUI() {
+      const p2W = getRate('2-Wheeler');
+      const p3W = getRate('3-Wheeler');
+      const p4W = getRate('4-Wheeler+');
+
+      document.getElementById('priceLabel2W').innerText = '₹' + p2W;
+      document.getElementById('priceLabel3W').innerText = '₹' + p3W;
+      document.getElementById('priceLabel4W').innerText = '₹' + p4W;
+
+      const activePrice = currentService === 'DL' ? getRate('2-Wheeler') : getRate(selectedTierLabel);
+
+      document.getElementById('summaryBasePrice').innerText = '₹' + activePrice + '.00';
+      document.getElementById('summaryTotalPrice').innerText = '₹' + activePrice;
+      
+      const roleText = currentRole === 'ADMIN' ? 'Admin Free Bypass (₹0)' : (currentRole === 'AGENT' ? 'Agent Wholesale Rate' : 'Public Standard Rate');
+      document.getElementById('summaryRoleLabel').innerText = roleText;
+
+      document.getElementById('btnText').innerText = currentRole === 'ADMIN' 
+        ? 'Generate & Download Instant PDF (₹0)' 
+        : `Proceed to Format & Download (₹${activePrice})`;
+
+      // Header Badge
+      const badgeCont = document.getElementById('roleBadgeContainer');
+      if (currentRole === 'ADMIN') {
+        badgeCont.className = "flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold text-purple-700";
+        badgeCont.innerHTML = '<span>👑</span> Master Admin Mode';
+      } else if (currentRole === 'AGENT') {
+        badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
+        badgeCont.innerHTML = `<span>🤝</span> Partner: ${sessionAgentData.name}`;
+      } else {
+        badgeCont.className = "hidden";
+      }
+    }
+
+    function handleRcInput(elem) {
+      let val = elem.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      elem.value = val;
+
+      const badge = document.getElementById('rtoBadge');
+      detectedState = val.substring(0, 2);
+
+      if (detectedState === 'KA') {
+        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available';
+      } else if (STATE_NAMES_CLIENT[detectedState]) {
+        badge.innerHTML = `📍 <span class="text-brand-success font-bold">${STATE_NAMES_CLIENT[detectedState]} (${detectedState})</span> — Standard All-India Smart RC active`;
+      } else if (val.length >= 2) {
+        badge.innerHTML = `📍 <span class="text-blue-700 font-bold">${detectedState}</span> vehicle detected — Standard All-India Smart RC`;
+      }
+    }
+
+    function switchService(service) {
+      currentService = service;
+      const rcTab = document.getElementById('rcTabBtn');
+      const dlTab = document.getElementById('dlTabBtn');
+      const rcView = document.getElementById('rcInputView');
+      const dlView = document.getElementById('dlInputView');
+      const serviceTag = document.getElementById('summaryServiceTag');
+      const itemLabel = document.getElementById('summaryItemLabel');
+
+      if (service === 'RC') {
+        rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
+        dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
+        rcView.classList.remove('hidden');
+        dlView.classList.add('hidden');
+        serviceTag.innerText = "RC Verification";
+        itemLabel.innerText = `${selectedTierLabel} RC Document`;
+      } else {
+        dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
+        rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
+        dlView.classList.remove('hidden');
+        rcView.classList.add('hidden');
+        serviceTag.innerText = "DL Verification";
+        itemLabel.innerText = "Driving Licence Smart Card";
+      }
+      updatePriceUI();
+    }
+
+    function selectRcTier(label, btn) {
+      selectedTierLabel = label;
+      document.querySelectorAll('.tier-btn').forEach(b => {
+        b.classList.remove('border-2', 'border-brand-primary', 'bg-blue-50/80');
+        b.classList.add('border', 'border-slate-200', 'bg-white');
+        const p = b.querySelector('.font-black');
+        if (p) p.className = "text-xs font-black text-slate-500";
+      });
+
+      btn.classList.remove('border', 'border-slate-200', 'bg-white');
+      btn.classList.add('border-2', 'border-brand-primary', 'bg-blue-50/80');
+      const priceElem = btn.querySelector('.font-black');
+      if (priceElem) priceElem.className = "text-xs font-black text-brand-primary";
+
+      document.getElementById('summaryItemLabel').innerText = `${label} RC Document`;
+      updatePriceUI();
+    }
+
+    function handleProceedClick() {
+      if (currentService === 'DL') {
+        chosenFormat = 'NEW';
+        startOrderCreation();
+        return;
+      }
+
+      const reg = document.getElementById('rcInput').value.trim().toUpperCase();
+      if (!reg || reg.length < 5) {
+        alert('Please enter a valid Registration Number');
+        return;
+      }
+
+      const state = reg.substring(0, 2);
+      if (state === 'KA') {
+        document.getElementById('formatChooserBadge').innerText = 'KARNATAKA (KA) VEHICLE';
+        document.getElementById('formatChooserModal').classList.remove('hidden');
+      } else {
+        chosenFormat = 'NEW';
+        startOrderCreation();
+      }
+    }
+
+    function confirmFormatSelection(format) {
+      chosenFormat = format;
+      closeFormatModal();
+      startOrderCreation();
+    }
+
+    async function startOrderCreation() {
+      let targetNumber = '';
+      let dob = null;
+
+      if (currentService === 'RC') {
+        targetNumber = document.getElementById('rcInput').value.trim().toUpperCase();
+      } else {
+        targetNumber = document.getElementById('dlInput').value.trim().toUpperCase();
+        dob = document.getElementById('dlDob').value;
+      }
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
+      try {
+        const res = await fetch('/api/create-order', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            docType: currentService,
+            targetNumber,
+            tier: selectedTierLabel,
+            dob,
+            rcFormat: chosenFormat
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          activeOrderId = data.orderId;
+
+          // Free bypass for Admin
+          if (data.role === 'ADMIN' || data.amount === 0) {
+            simulatePaymentSuccess();
+            return;
+          }
+
+          document.getElementById('paymentModalTitle').innerText = 'Simulated UPI Gateway';
+          document.getElementById('modalOrderId').innerText = data.orderId;
+          document.getElementById('modalTarget').innerText = targetNumber;
+          document.getElementById('modalAmount').innerText = '₹' + data.amount;
+          document.getElementById('paymentModal').classList.remove('hidden');
+        }
+      } catch (e) {
+        alert('Could not initiate order: ' + e.message);
+      }
+    }
+
+    // Direct Download Flow upon Payment Success
+    async function simulatePaymentSuccess() {
+      closePaymentModal();
+
+      // Onboarding fee check
+      if (pendingOnboardingAgentId) {
+        try {
+          const res = await fetch('/api/agent/verify-onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agentId: pendingOnboardingAgentId })
+          });
+          const d = await res.json();
+          const lastAgentId = pendingOnboardingAgentId;
+          pendingOnboardingAgentId = null;
+
+          if (d.success) {
+            // Update WhatsApp dynamic link with exact Order ID
+            const waLink = `https://wa.me/919876543210?text=Hi%20Admin,%20I%20have%20paid%20the%20Rs.500%20agent%20fee%20for%20RTO%20Boss.%20Please%20approve%20my%20account.%20Agent%20ID:%20${lastAgentId}`;
+            document.getElementById('whatsappApprovalLink').href = waLink;
+
+            openAgentModal();
+            toggleAgentAuthView('hold');
+          }
+        } catch (e) {
+          alert('Error verifying onboarding fee');
+        }
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: activeOrderId })
+        });
+        const data = await res.json();
+
+        if (data.status === 'SUCCESS') {
+          activeReportData = data.report;
+
+          // Populate Receipt View
+          document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
+          document.getElementById('receiptOrderId').innerText = data.orderId;
+          document.getElementById('receiptAmount').innerText = '₹' + data.amount;
+
+          // Trigger Immediate Vector PDF Download
+          await downloadOfficialVectorPdf();
+
+          // Show Receipt Screen
+          navigateTo('complete');
+        }
+      } catch (e) {
+        alert('Error verifying payment: ' + e.message);
+      }
+    }
+
+    // Official Vector PDF Download Stream
+    async function downloadOfficialVectorPdf() {
+      if (!activeReportData) return;
+
+      try {
+        const res = await fetch('/api/download-rc-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            report: activeReportData,
+            rcFormat: chosenFormat,
+            docType: currentService
+          })
+        });
+
+        if (!res.ok) throw new Error('PDF download failed');
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const prefix = currentService === 'DL' ? 'DL' : 'RC';
+        const docNum = activeReportData.dlNo || activeReportData.regNo || 'Document';
+        a.download = `${prefix}_${docNum}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Failed to generate PDF: ' + err.message);
+      }
+    }
+
+    // =========================================================================
+    // AGENT & ADMIN PORTAL CLIENT LOGIC
+    // =========================================================================
+    function openAgentModal() {
+      document.getElementById('agentModal').classList.remove('hidden');
+      toggleAgentAuthView('login');
+    }
+    function closeAgentModal() {
+      document.getElementById('agentModal').classList.add('hidden');
+    }
+
+    function toggleAgentAuthView(view) {
+      document.getElementById('agentLoginView').classList.add('hidden');
+      document.getElementById('agentRegisterView').classList.add('hidden');
+      document.getElementById('agentHoldView').classList.add('hidden');
+
+      if (view === 'register') {
+        document.getElementById('agentModalTitle').innerText = 'Apply for Agent Partnership';
+        document.getElementById('agentRegisterView').classList.remove('hidden');
+      } else if (view === 'hold') {
+        document.getElementById('agentModalTitle').innerText = 'Application Status';
+        document.getElementById('agentHoldView').classList.remove('hidden');
+      } else {
+        document.getElementById('agentModalTitle').innerText = 'Agent Login';
+        document.getElementById('agentLoginView').classList.remove('hidden');
+      }
+    }
+
+    async function handleAgentRegister() {
+      const name = document.getElementById('agentRegName').value.trim();
+      const mobile = document.getElementById('agentRegMobile').value.trim();
+      const email = document.getElementById('agentRegEmail').value.trim();
+      const password = document.getElementById('agentRegPassword').value.trim();
+      const address = document.getElementById('agentRegAddress').value.trim();
+
+      if (!name || !mobile || !email || !password || !address) {
+        alert('Please fill all fields');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/agent/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, mobile, email, password, address })
+        });
+        const d = await res.json();
+        if (d.success) {
+          pendingOnboardingAgentId = d.agentId;
+          closeAgentModal();
+
+          // Open Payment Gateway for ₹500 fee
+          document.getElementById('paymentModalTitle').innerText = 'Agent Onboarding Fee (₹500)';
+          document.getElementById('modalOrderId').innerText = d.agentId;
+          document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
+          document.getElementById('modalAmount').innerText = '₹500.00';
+          document.getElementById('paymentModal').classList.remove('hidden');
+        } else {
+          alert(d.error || 'Registration failed');
+        }
+      } catch (e) {
+        alert('Error submitting registration: ' + e.message);
+      }
+    }
+
+    async function handleAgentLogin() {
+      const identifier = document.getElementById('agentLogIdentifier').value.trim();
+      const password = document.getElementById('agentLogPassword').value.trim();
+
+      if (!identifier || !password) {
+        alert('Please enter credentials');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/agent/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, password })
+        });
+        const d = await res.json();
+
+        if (d.success) {
+          currentRole = 'AGENT';
+          sessionToken = d.token.replace('TOK_AGT_', '');
+          sessionToken = `TOK_AGT_${sessionToken}`;
+          sessionAgentData = d.agent;
+          closeAgentModal();
+          updatePriceUI();
+          alert(`Welcome, ${d.agent.name}! Wholesale pricing activated.`);
+        } else {
+          if (d.status === 'PENDING_APPROVAL') {
+            toggleAgentAuthView('hold');
+          } else {
+            alert(d.error || 'Login failed');
+          }
+        }
+      } catch (e) {
+        alert('Login failed: ' + e.message);
+      }
+    }
+
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      if (currentRole === 'ADMIN') {
+        document.getElementById('adminLoginView').classList.add('hidden');
+        document.getElementById('adminDashboardView').classList.remove('hidden');
+        fetchAdminAgents();
+      } else {
+        document.getElementById('adminLoginView').classList.remove('hidden');
+        document.getElementById('adminDashboardView').classList.add('hidden');
+      }
+    }
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+      if (window.location.hash === '#admin') {
+        history.replaceState({ view: 'search' }, '', '#search');
+      }
+    }
+
+    async function handleAdminLogin() {
+      const secretKey = document.getElementById('adminSecretKey').value.trim();
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secretKey })
+        });
+        const d = await res.json();
+        if (d.success) {
+          currentRole = 'ADMIN';
+          sessionToken = d.token;
+          document.getElementById('adminLoginView').classList.add('hidden');
+          document.getElementById('adminDashboardView').classList.remove('hidden');
+          fetchAdminAgents();
+          updatePriceUI();
+        } else {
+          alert(d.error || 'Invalid Admin Key');
+        }
+      } catch (e) {
+        alert('Admin login failed: ' + e.message);
+      }
+    }
+
+    async function fetchAdminAgents() {
+      try {
+        const res = await fetch('/api/admin/agents', {
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          const list = document.getElementById('adminAgentsList');
+          if (!d.agents || d.agents.length === 0) {
+            list.innerHTML = '<p class="text-slate-400 text-center py-4">No agent applications registered yet.</p>';
+            return;
+          }
+          list.innerHTML = d.agents.map(a => `
+            <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-800">${a.name} (${a.mobile})</div>
+                <div class="text-[11px] text-slate-500">${a.email} • ${a.address}</div>
+                <div class="mt-1">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${a.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : (a.status === 'PENDING_APPROVAL' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600')}">${a.status}</span>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                ${a.status !== 'ACTIVE' ? `<button onclick="updateAgentStatus('${a.agentId}', 'ACTIVE')" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-700">Approve</button>` : ''}
+                ${a.status !== 'REJECTED' ? `<button onclick="updateAgentStatus('${a.agentId}', 'REJECTED')" class="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold text-[11px] hover:bg-red-700">Reject</button>` : ''}
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.error('Failed to load agents', e);
+      }
+    }
+
+    async function updateAgentStatus(agentId, status) {
+      try {
+        const res = await fetch('/api/admin/update-agent-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ agentId, status })
+        });
+        const d = await res.json();
+        if (d.success) {
+          fetchAdminAgents();
+        }
+      } catch (e) {
+        alert('Could not update status');
+      }
+    }
+
+    async function clearTestData() {
+      if (!confirm('Are you sure you want to clear all in-memory agents and orders?')) return;
+      try {
+        const res = await fetch('/api/admin/clear-data', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          alert(d.message);
+          fetchAdminAgents();
+        }
+      } catch (e) {
+        alert('Failed to clear data');
+      }
+    }
+
+    function logoutSession() {
+      currentRole = 'PUBLIC';
+      sessionToken = null;
+      sessionAgentData = null;
+      closeAdminModal();
+      closeAgentModal();
+      updatePriceUI();
+      alert('Logged out to public mode.');
+    }
+
+    function closeFormatModal() {
+      document.getElementById('formatChooserModal').classList.add('hidden');
+    }
+    function closePaymentModal() {
+      document.getElementById('paymentModal').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // MANDATORY POLICY MODALS
+    // =========================================================================
+    const POLICY_DATA = {
+      terms: {
+        title: "Terms & Conditions",
+        body: `
+          <p class="font-bold text-slate-800">1. Nature of Services</p>
+          <p>RTO Boss provides automated layout formatting and vector PDF rendering services for public vehicle registration (RC) and driving licence (DL) records. We do not issue original government identity cards or licenses.</p>
+          <p class="font-bold text-slate-800 mt-3">2. Platform Usage</p>
+          <p>Users are strictly required to have lawful permission and legitimate interest to query and format vehicle or driving licence identifiers entered on this platform.</p>
+          <p class="font-bold text-slate-800 mt-3">3. Pricing & Wholesale Terms</p>
+          <p>Services are billed per-query basis according to displayed rates (₹100 for 2-Wheelers/DL, ₹300 for 3-Wheelers, ₹400 for 4-Wheelers+). Verified agent partners access discounted wholesale pricing.</p>
+        `
+      },
+      privacy: {
+        title: "Privacy Policy",
+        body: `
+          <p class="font-bold text-slate-800">1. Data Handled</p>
+          <p>We process search identifiers (Vehicle Registration Number, DL Number, Date of Birth) solely to render the requested PDF card format.</p>
+          <p class="font-bold text-slate-800 mt-3">2. Financial Protection</p>
+          <p>All financial transactions are handled via authorized, PCI-DSS compliant Indian payment gateways. We never access, handle, or store debit/credit card numbers or UPI PINs.</p>
+          <p class="font-bold text-slate-800 mt-3">3. Information Disclosure</p>
+          <p>We do not sell, distribute, or rent your search queries or contact credentials to third-party marketing entities.</p>
+        `
+      },
+      refund: {
+        title: "Refund & Cancellation Policy",
+        body: `
+          <p class="font-bold text-slate-800">1. Immediate Digital Delivery</p>
+          <p>Because document formatting and vector PDF downloads are delivered instantaneously upon payment confirmation, completed orders are non-refundable once the file is downloaded.</p>
+          <p class="font-bold text-slate-800 mt-3">2. Failed Generation</p>
+          <p>If your account is charged but the server fails to supply your vector PDF file due to a technical breakdown, you are eligible for a 100% refund processed within 5–7 business days to your source payment method.</p>
+          <p class="font-bold text-slate-800 mt-3">3. Claiming Support</p>
+          <p>For refund queries, contact our desk with your Order ID at support@rtoboss.in or via WhatsApp.</p>
+        `
+      },
+      contact: {
+        title: "Contact Us",
+        body: `
+          <p class="font-bold text-slate-800">Support & Help Desk</p>
+          <div class="mt-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 font-medium">
+            <p><strong>Brand / Business:</strong> RTO Boss</p>
+            <p><strong>Support Email:</strong> support@rtoboss.in</p>
+            <p><strong>Phone / WhatsApp:</strong> +91 98765 43210</p>
+            <p><strong>Operating Address:</strong> Near RTO Office, Hassan, Karnataka - 573201</p>
+            <p><strong>Operational Hours:</strong> Monday – Saturday, 9:00 AM – 7:00 PM IST</p>
+          </div>
+        `
+      }
+    };
+
+    function openPolicyModal(type) {
+      const policy = POLICY_DATA[type];
+      if (!policy) return;
+      document.getElementById('policyModalTitle').innerText = policy.title;
+      document.getElementById('policyModalContent').innerHTML = policy.body;
+      document.getElementById('policyModal').classList.remove('hidden');
+    }
+
+    function closePolicyModal() {
+      document.getElementById('policyModal').classList.add('hidden');
+    }
+  </script>
 </body>
 </html>
-
-report.covList

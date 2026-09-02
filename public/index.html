@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DocuBoss | Fleet Document & Digital Card Studio</title>
+  <title>RTOBoss | Digital Records & Fleet Documentation Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -12,55 +12,55 @@
 </head>
 <body class="min-h-screen text-slate-800 flex flex-col justify-between">
 
-  <!-- Navbar -->
+  <!-- Header -->
   <header class="w-full bg-white border-b border-slate-200 py-3 px-6 shadow-sm">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center font-black text-lg">⚡</div>
         <div>
-          <span class="font-extrabold text-xl text-slate-900 tracking-tight">DocuBoss</span>
-          <span class="block text-[10px] font-semibold text-blue-600 uppercase tracking-wider">SMART VECTOR ENGINE</span>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-xl text-slate-900 tracking-tight">RTOBoss</span>
+            <span class="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded font-semibold">by R1 BIKES</span>
+          </div>
+          <span class="block text-[10px] font-semibold text-blue-600 uppercase tracking-wider">DOCUMENT GENERATION ENGINE</span>
         </div>
       </div>
       <div>
-        <a href="javascript:void(0)" class="text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full hover:bg-amber-100 transition">
-          🛡️ Enterprise Portal
-        </a>
+        <span class="text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full">
+          🛡️ Agent Portal
+        </span>
       </div>
     </div>
   </header>
 
-  <!-- Hero Section -->
+  <!-- Main Container -->
   <main class="max-w-6xl mx-auto px-4 py-10 w-full">
     <div class="text-center max-w-2xl mx-auto mb-10">
       <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-        Digital Card & Fleet Document Studio
+        Fleet Digital Records & Asset Studio
       </h1>
       <p class="text-slate-500 mt-3 text-sm sm:text-base">
-        Generate print-ready vector PDF cards from your structured fleet records.
+        Manage and organize your digital fleet and asset documentation.
       </p>
     </div>
 
-    <!-- Main Workspace Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
-      <!-- Left Panel: Input & Options -->
+      <!-- Input Panel -->
       <div class="lg:col-span-7 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm">
         
-        <!-- Document Tabs -->
         <div class="flex gap-2 p-1 bg-slate-100 rounded-xl mb-6">
-          <button id="tabVehicle" onclick="switchTab('vehicle')" class="flex-1 py-2.5 px-4 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-slate-900 transition flex items-center justify-center gap-2">
-            🚗 Vehicle Record Card
+          <button id="tabVehicle" type="button" onclick="switchTab('vehicle')" class="flex-1 py-2.5 px-4 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-slate-900 transition flex items-center justify-center gap-2">
+            🚗 Vehicle Record
           </button>
-          <button id="tabOperator" onclick="switchTab('operator')" class="flex-1 py-2.5 px-4 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-2">
-            🪪 Operator ID Card
+          <button id="tabOperator" type="button" onclick="switchTab('operator')" class="flex-1 py-2.5 px-4 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-2">
+            🪪 Operator Record
           </button>
         </div>
 
-        <!-- Document Input -->
         <div class="mb-6">
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-            REGISTRATION / RECORD IDENTIFIER
+            REGISTRATION / RECORD NUMBER
           </label>
           <div class="relative flex items-center">
             <div class="absolute left-3 bg-blue-900 text-white text-[10px] font-bold px-2 py-2 rounded flex flex-col items-center justify-center leading-none">
@@ -71,38 +71,36 @@
               type="text" 
               placeholder="KA01AB1234" 
               class="w-full pl-16 pr-4 py-3.5 bg-slate-50 border border-slate-300 rounded-xl text-lg font-bold text-slate-800 placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white uppercase transition"
-              oninput="updatePreview(this.value)"
             />
           </div>
           <p class="text-xs text-slate-500 mt-2 flex items-center gap-1">
-            📍 <span id="helperRegion">Karnataka (KA) — Standard & Smart Card layouts supported</span>
+            📍 <span id="helperRegion">Karnataka (KA) — Standard & Electronic print layouts supported</span>
           </p>
         </div>
 
-        <!-- Category Tier Selector -->
         <div>
           <div class="flex justify-between items-center mb-3">
             <label class="text-xs font-bold uppercase tracking-wider text-slate-700">SELECT VEHICLE CATEGORY</label>
-            <span class="text-xs text-blue-600 font-semibold cursor-pointer">Pricing Tier</span>
+            <span class="text-xs text-blue-600 font-semibold">Pricing Tier</span>
           </div>
 
           <div class="grid grid-cols-3 gap-3">
-            <label class="relative flex flex-col p-4 border-2 border-blue-600 bg-blue-50/40 rounded-xl cursor-pointer transition hover:border-blue-500">
-              <input type="radio" name="category" value="100" checked class="sr-only" onchange="updatePrice(100, '2-Wheeler Document Card')" />
+            <label id="cat100" class="relative flex flex-col p-4 border-2 border-blue-600 bg-blue-50/40 rounded-xl cursor-pointer transition">
+              <input type="radio" name="category" value="100" checked class="sr-only" onchange="updatePrice(100, '2-Wheeler Fleet Record', this)" />
               <span class="text-xl">🛵</span>
               <span class="font-bold text-xs text-slate-900 mt-1">2-Wheeler</span>
               <span class="text-xs font-bold text-blue-600 mt-0.5">₹100</span>
             </label>
 
-            <label class="relative flex flex-col p-4 border border-slate-200 bg-slate-50 rounded-xl cursor-pointer transition hover:border-slate-300">
-              <input type="radio" name="category" value="300" class="sr-only" onchange="updatePrice(300, '3-Wheeler Document Card')" />
+            <label id="cat300" class="relative flex flex-col p-4 border border-slate-200 bg-slate-50 rounded-xl cursor-pointer transition">
+              <input type="radio" name="category" value="300" class="sr-only" onchange="updatePrice(300, '3-Wheeler Fleet Record', this)" />
               <span class="text-xl">🛺</span>
               <span class="font-bold text-xs text-slate-900 mt-1">3-Wheeler</span>
               <span class="text-xs font-bold text-slate-600 mt-0.5">₹300</span>
             </label>
 
-            <label class="relative flex flex-col p-4 border border-slate-200 bg-slate-50 rounded-xl cursor-pointer transition hover:border-slate-300">
-              <input type="radio" name="category" value="400" class="sr-only" onchange="updatePrice(400, '4-Wheeler+ Document Card')" />
+            <label id="cat400" class="relative flex flex-col p-4 border border-slate-200 bg-slate-50 rounded-xl cursor-pointer transition">
+              <input type="radio" name="category" value="400" class="sr-only" onchange="updatePrice(400, '4-Wheeler+ Fleet Record', this)" />
               <span class="text-xl">🚗</span>
               <span class="font-bold text-xs text-slate-900 mt-1">4-Wheeler+</span>
               <span class="text-xs font-bold text-slate-600 mt-0.5">₹400</span>
@@ -112,7 +110,7 @@
 
       </div>
 
-      <!-- Right Panel: Order Summary & Action -->
+      <!-- Checkout & Summary Panel -->
       <div class="lg:col-span-5 bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm flex flex-col justify-between">
         <div>
           <div class="flex justify-between items-center pb-4 border-b border-slate-100">
@@ -122,7 +120,7 @@
 
           <div class="py-4 space-y-3 text-xs sm:text-sm">
             <div class="flex justify-between text-slate-600">
-              <span id="summaryItemName">2-Wheeler Document Card</span>
+              <span id="summaryItemName">2-Wheeler Fleet Record</span>
               <span id="summaryItemPrice" class="font-bold text-slate-900">₹100.00</span>
             </div>
             <div class="flex justify-between text-slate-600">
@@ -143,40 +141,54 @@
 
         <button 
           id="btnSubmit"
-          onclick="initiateCheckout()"
+          type="button"
+          onclick="initiateGenerate()"
           class="w-full py-4 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition flex items-center justify-center gap-2 text-sm sm:text-base">
           ⚡ Generate & Download PDF (<span id="btnAmount">₹100</span>)
         </button>
 
         <p class="text-[11px] text-center text-slate-400 mt-3">
-          🔒 Secure 256-bit encrypted checkout via Unified UPI & Cards
+          🔒 Secure 256-bit encrypted processing via Unified Engine
         </p>
       </div>
 
     </div>
   </main>
 
-  <!-- Clean Compliance Footer -->
-  <footer class="w-full bg-white border-t border-slate-200 py-6 px-6 text-center text-xs text-slate-500">
-    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-      <div>
-        © 2026 DocuBoss (R1 BIKES). All rights reserved.
+  <!-- Footer with Parent Entity & Non-Affiliation Disclaimer -->
+  <footer class="w-full bg-white border-t border-slate-200 py-8 px-6 text-xs text-slate-500">
+    <div class="max-w-6xl mx-auto space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-slate-100 pb-4">
+        <div>
+          <span class="font-bold text-slate-800">RTOBoss</span> is a commercial brand and operating unit of <span class="font-semibold text-slate-700">R1 BIKES</span>.
+        </div>
+        <div class="flex gap-6 text-slate-600 font-medium">
+          <a href="/privacy-policy" class="hover:text-blue-600">Privacy Policy</a>
+          <a href="/terms" class="hover:text-blue-600">Terms of Service</a>
+          <a href="/refund-policy" class="hover:text-blue-600">Refund Policy</a>
+          <a href="/contact" class="hover:text-blue-600">Contact Us</a>
+        </div>
       </div>
-      <div class="flex gap-6 text-slate-600 font-medium">
-        <a href="javascript:void(0)" class="hover:text-blue-600">Privacy Policy</a>
-        <a href="javascript:void(0)" class="hover:text-blue-600">Terms of Service</a>
-        <a href="javascript:void(0)" class="hover:text-blue-600">Refund Policy</a>
-        <a href="javascript:void(0)" class="hover:text-blue-600">Contact Us</a>
+
+      <!-- Legal Compliance & Non-Affiliation Disclaimer -->
+      <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-slate-500 leading-relaxed text-left">
+        <p class="font-bold text-slate-600 mb-1">Important Legal Disclaimer:</p>
+        RTOBoss and R1 BIKES are private digital technology and document formatting service providers. We are not affiliated with, endorsed by, or operating on behalf of the Government of India, the Ministry of Road Transport and Highways (MoRTH), Parivahan Sewa, or any State Regional Transport Office (RTO). Official government records, applications, and documents can be accessed directly through their respective official portals.
+      </div>
+
+      <div class="text-center text-[11px] text-slate-400">
+        © 2026 RTOBoss (R1 BIKES). All rights reserved.
       </div>
     </div>
   </footer>
 
   <script>
     let currentPrice = 100;
-    let currentItem = "2-Wheeler Document Card";
+    let currentItem = "2-Wheeler Fleet Record";
+    let activeTab = "vehicle";
 
-    // Clean hashless tab switching
     function switchTab(type) {
+      activeTab = type;
       const btnVehicle = document.getElementById('tabVehicle');
       const btnOperator = document.getElementById('tabOperator');
       const input = document.getElementById('docIdentifier');
@@ -186,19 +198,16 @@
         btnVehicle.className = "flex-1 py-2.5 px-4 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-slate-900 transition flex items-center justify-center gap-2";
         btnOperator.className = "flex-1 py-2.5 px-4 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-2";
         input.placeholder = "KA01AB1234";
-        helper.innerText = "Karnataka (KA) — Standard & Smart Card layouts supported";
+        helper.innerText = "Karnataka (KA) — Standard & Electronic print layouts supported";
       } else {
         btnOperator.className = "flex-1 py-2.5 px-4 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-slate-900 transition flex items-center justify-center gap-2";
         btnVehicle.className = "flex-1 py-2.5 px-4 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-2";
-        input.placeholder = "KA0120200001234";
-        helper.innerText = "All State operator and fleet IDs supported";
+        input.placeholder = "KA1320170004921";
+        helper.innerText = "All State operator & fleet records supported";
       }
-      // Guarantee no URL hash mutation
-      history.replaceState(null, null, ' ');
     }
 
-    // Dynamic price updater
-    function updatePrice(amount, itemName) {
+    function updatePrice(amount, itemName, element) {
       currentPrice = amount;
       currentItem = itemName;
       document.getElementById('summaryItemName').innerText = itemName;
@@ -206,24 +215,62 @@
       document.getElementById('summaryTotal').innerText = `₹${amount}`;
       document.getElementById('btnAmount').innerText = `₹${amount}`;
 
-      // Update active border style
-      document.querySelectorAll('label:has(input[name="category"])').forEach(el => {
-        el.className = "relative flex flex-col p-4 border border-slate-200 bg-slate-50 rounded-xl cursor-pointer transition hover:border-slate-300";
+      ['cat100', 'cat300', 'cat400'].forEach(id => {
+        document.getElementById(id).className = "relative flex flex-col p-4 border border-slate-200 bg-slate-50 rounded-xl cursor-pointer transition";
       });
-      event.currentTarget.closest('label').className = "relative flex flex-col p-4 border-2 border-blue-600 bg-blue-50/40 rounded-xl cursor-pointer transition hover:border-blue-500";
+      element.closest('label').className = "relative flex flex-col p-4 border-2 border-blue-600 bg-blue-50/40 rounded-xl cursor-pointer transition";
     }
 
-    function updatePreview(val) {
-      // Input sanitization
-    }
-
-    function initiateCheckout() {
+    async function initiateGenerate() {
       const reg = document.getElementById('docIdentifier').value.trim();
       if (!reg) {
-        alert("Please enter a valid record identifier to proceed.");
+        alert("Please enter a registration or record identifier to proceed.");
         return;
       }
-      alert(`Proceeding to payment of ₹${currentPrice} for ID: ${reg}`);
+
+      const btn = document.getElementById('btnSubmit');
+      const originalHtml = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = "⏳ Generating Document...";
+
+      try {
+        const response = await fetch('/api/generate-rc-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            vehicleNumber: reg,
+            type: activeTab,
+            amount: currentPrice,
+            rcFormat: 'NEW'
+          })
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || !contentType.includes('application/pdf')) {
+          let errorMsg = `Server error (${response.status})`;
+          if (contentType.includes('application/json')) {
+            const errJson = await response.json();
+            errorMsg = errJson.message || errorMsg;
+          }
+          throw new Error(errorMsg);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${reg.toUpperCase()}_Document.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+
+      } catch (error) {
+        alert("Generation Error: " + error.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }
     }
   </script>
 </body>
