@@ -7,11 +7,39 @@ const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_MASTER_SECRET = 'ADMIN_MASTER_SECRET';
+const crypto = require('crypto');
 
-app.use(cors());
+const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
+const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
+const PAYMENT_MODE = process.env.PAYMENT_MODE || 'DEMO'; // DEMO | DISABLED | TEST
+const PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'NONE'; // RAZORPAY | PAYTM | NONE
+
+function isLocalTestPayment(req) {
+  return PAYMENT_MODE === 'TEST' && !['production'].includes(process.env.NODE_ENV) &&
+    ['localhost', '127.0.0.1', '::1'].includes(req.hostname);
+}
+
+function isDemoPayment() {
+  return PAYMENT_MODE === 'DEMO';
+}
+
+if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
+  throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
+}
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(v => v.trim()) : true,
+  credentials: false
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
+
+// Serve the main app and legal pages from the project root.
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 
 // In-Memory Storage
 const orders = new Map();
@@ -491,23 +519,7 @@ app.post('/api/agent/register', (req, res) => {
   };
 
   agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500 });
-});
-
-// Agent Onboarding Payment Verification
-app.post('/api/agent/verify-onboarding', (req, res) => {
-  const { agentId } = req.body;
-  const agent = agents.get(agentId);
-  if (!agent) {
-    return res.status(404).json({ error: 'Agent record not found' });
-  }
-
-  agent.status = 'PENDING_APPROVAL';
-  res.json({
-    success: true,
-    status: 'PENDING_APPROVAL',
-    message: 'Onboarding payment received. Account is now under admin review.'
-  });
+  res.json({ success: true, agentId, amount: 500, paymentProvider: PAYMENT_PROVIDER, paymentMode: PAYMENT_MODE });
 });
 
 // Agent Login
@@ -533,7 +545,8 @@ app.post('/api/agent/login', (req, res) => {
     return res.status(403).json({ error: 'Account application rejected by admin', status: 'REJECTED' });
   }
 
-  const token = 'TOK_AGT_' + agent.agentId;
+  const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
+  agent.sessionToken = token;
   res.json({
     success: true,
     token,
@@ -548,8 +561,8 @@ app.post('/api/agent/login', (req, res) => {
 // Admin Login
 app.post('/api/admin/login', (req, res) => {
   const { secretKey } = req.body;
-  if (secretKey === ADMIN_MASTER_SECRET) {
-    return res.json({ success: true, token: 'ADMIN_SUPER_TOKEN' });
+  if (ADMIN_MASTER_SECRET && secretKey === ADMIN_MASTER_SECRET) {
+    return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
   }
   return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
 });
@@ -557,7 +570,7 @@ app.post('/api/admin/login', (req, res) => {
 // Admin: Get All Agents
 app.get('/api/admin/agents', (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== 'Bearer ADMIN_SUPER_TOKEN') {
+  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
   res.json({ success: true, agents: Array.from(agents.values()) });
@@ -566,7 +579,7 @@ app.get('/api/admin/agents', (req, res) => {
 // Admin: Update Agent Status
 app.post('/api/admin/update-agent-status', (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== 'Bearer ADMIN_SUPER_TOKEN') {
+  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
@@ -583,7 +596,7 @@ app.post('/api/admin/update-agent-status', (req, res) => {
 // Admin: Clear In-Memory Data for Testing
 app.post('/api/admin/clear-data', (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== 'Bearer ADMIN_SUPER_TOKEN') {
+  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
@@ -601,11 +614,10 @@ app.post('/api/create-order', (req, res) => {
   const authHeader = req.headers['authorization'] || '';
 
   let role = 'PUBLIC';
-  if (authHeader === 'Bearer ADMIN_SUPER_TOKEN') {
+  if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
     role = 'ADMIN';
   } else if (authHeader.startsWith('Bearer TOK_AGT_')) {
-    const agtId = authHeader.replace('Bearer TOK_AGT_', '');
-    const agt = agents.get(agtId);
+    const agt = Array.from(agents.values()).find(a => a.sessionToken === authHeader.replace('Bearer ', ''));
     if (agt && agt.status === 'ACTIVE') {
       role = 'AGENT';
     }
@@ -637,10 +649,13 @@ app.post('/api/create-order', (req, res) => {
     dob,
     rcFormat: rcFormat || 'OLD',
     status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
+    paymentProvider: role === 'ADMIN' ? 'INTERNAL' : PAYMENT_PROVIDER,
+    currency: 'INR',
+    paidAt: role === 'ADMIN' ? new Date() : null,
     createdAt: new Date()
   });
 
-  res.json({ success: true, orderId, amount: finalAmount, role });
+  res.json({ success: true, orderId, amount: finalAmount, role, paymentProvider: role === 'ADMIN' ? 'INTERNAL' : PAYMENT_PROVIDER, paymentMode: role === 'ADMIN' ? 'INTERNAL' : (isDemoPayment() ? 'DEMO' : (isLocalTestPayment(req) ? 'TEST' : 'DISABLED')) });
 });
 
 app.post('/api/verify-payment', (req, res) => {
@@ -651,26 +666,39 @@ app.post('/api/verify-payment', (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  order.status = 'SUCCESS';
+  // Admin/internal orders are free and do not represent a customer payment.
+  if (order.role === 'ADMIN') {
+    order.status = 'SUCCESS';
+  } else {
+    // DEMO mode is intentionally provider-neutral and is used while the site
+    // is being evaluated before Paytm/Razorpay production approval.
+    if (isDemoPayment()) {
+      order.status = 'SUCCESS';
+      order.paymentId = 'DEMO_' + crypto.randomBytes(12).toString('hex');
+      order.gatewayStatus = 'DEMO_SUCCESS';
+      order.paidAt = new Date();
+    } else if (isLocalTestPayment(req)) {
+      order.status = 'SUCCESS';
+      order.paymentId = 'TEST_' + crypto.randomBytes(12).toString('hex');
+      order.gatewayStatus = 'TEST_SUCCESS';
+      order.paidAt = new Date();
+    } else {
+      return res.status(503).json({
+        error: 'Payment checkout is currently unavailable.',
+        code: 'PAYMENT_GATEWAY_NOT_CONFIGURED'
+      });
+    }
+  }
 
   const lookupKey = order.targetNumber.replace(/[^A-Z0-9]/g, '');
-  let report = mockDatabase[lookupKey];
+  const report = mockDatabase[lookupKey];
 
+  // Do not fabricate a record from another person's data.
   if (!report) {
-    const state = lookupKey.substring(0, 2);
-    if (order.docType === 'DL') {
-      report = {
-        ...mockDatabase['KA1320170004921'],
-        dlNo: order.targetNumber,
-        rtoAuthority: `${STATE_NAMES[state] || 'STATE'} RTO`
-      };
-    } else {
-      report = {
-        ...mockDatabase['KA40EF5093'],
-        regNo: order.targetNumber,
-        rto: `${STATE_NAMES[state] || 'STATE'} RTO`
-      };
-    }
+    return res.status(404).json({
+      error: 'No record is available for this reference in the current data source.',
+      code: 'RECORD_NOT_FOUND'
+    });
   }
 
   res.json({
@@ -679,8 +707,40 @@ app.post('/api/verify-payment', (req, res) => {
     docType: order.docType,
     rcFormat: order.rcFormat,
     amount: order.amount,
+    currency: order.currency,
     role: order.role,
+    paymentProvider: order.paymentProvider,
+    paymentId: order.paymentId || null,
     report
+  });
+});
+
+// Agent onboarding payment verification.
+// DEMO mode keeps the public onboarding flow reviewable until a real
+// Paytm/Razorpay payment order + verification webhook is connected.
+app.post('/api/agent/verify-onboarding', (req, res) => {
+  const { agentId } = req.body;
+  const agent = agents.get(agentId);
+  if (!agent) {
+    return res.status(404).json({ error: 'Agent record not found' });
+  }
+
+  if (!isDemoPayment() && !isLocalTestPayment(req)) {
+    return res.status(503).json({
+      error: 'Payment checkout is currently unavailable.',
+      code: 'PAYMENT_GATEWAY_NOT_CONFIGURED'
+    });
+  }
+
+  agent.status = 'PENDING_APPROVAL';
+  agent.onboardingPaymentId = (isDemoPayment() ? 'DEMO_' : 'TEST_') + crypto.randomBytes(12).toString('hex');
+  agent.onboardingPaidAt = new Date();
+  res.json({
+    success: true,
+    status: 'PENDING_APPROVAL',
+    message: isDemoPayment()
+      ? 'Demo payment recorded. Account is now under admin review.'
+      : 'Development test payment recorded. Account is now under admin review.'
   });
 });
 
@@ -689,10 +749,28 @@ app.post('/api/verify-payment', (req, res) => {
 // =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
-    const { report, rcFormat, docType } = req.body;
-    if (!report) {
-      return res.status(400).json({ error: 'Report data is required' });
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
     }
+
+    const order = orders.get(orderId);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.status !== 'SUCCESS') {
+      return res.status(403).json({ error: 'Payment has not been verified for this order.' });
+    }
+
+    const lookupKey = order.targetNumber.replace(/[^A-Z0-9]/g, '');
+    const report = mockDatabase[lookupKey];
+    if (!report) {
+      return res.status(404).json({ error: 'Record not found.' });
+    }
+
+    const rcFormat = order.rcFormat;
+    const docType = order.docType;
 
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([595.28, 841.89]);
