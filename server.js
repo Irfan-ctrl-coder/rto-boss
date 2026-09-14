@@ -680,8 +680,8 @@ app.post('/api/verify-payment', (req, res) => {
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
-    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    const payload = rawBody.toUpperCase();
+   const rawBody = typeof req.body === 'string' ? req.body : (req.body?.message || req.body?.MESSAGE || JSON.stringify(req.body || ''));
+    const payload = String(rawBody || '').toUpperCase();
     console.log("📥 Incoming Bank Signal:", payload);
 
     if (
