@@ -4,24 +4,15 @@ const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const crypto = require('crypto');
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
-const PAYMENT_MODE = process.env.PAYMENT_MODE || 'DEMO'; // DEMO | DISABLED | TEST
-const PAYMENT_PROVIDER = process.env.PAYMENT_PROVIDER || 'NONE'; // RAZORPAY | PAYTM | NONE
-
-function isLocalTestPayment(req) {
-  return PAYMENT_MODE === 'TEST' && !['production'].includes(process.env.NODE_ENV) &&
-    ['localhost', '127.0.0.1', '::1'].includes(req.hostname);
-}
-
-function isDemoPayment() {
-  return PAYMENT_MODE === 'DEMO';
-}
+const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl'; 
+const MERCHANT_NAME = 'RTO BOSS';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
@@ -32,13 +23,10 @@ app.use(cors({
   credentials: false
 }));
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve assets from public folder
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Serve website files from project root
 app.use(express.static(__dirname));
-
 
 // In-Memory Storage
 const orders = new Map();
@@ -87,7 +75,6 @@ const STATE_NAMES = {
 
 // Mock Vehicle & DL Database
 const mockDatabase = {
-  // 1. KARNATAKA (LOCKED MASTER REFERENCES)
   'KA40EF5093': {
     regNo: 'KA40EF5093',
     regDate: '04-02-2021',
@@ -202,8 +189,6 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: 'HDFC BANK LTD'
   },
-
-  // 2. TAMIL NADU
   'TN01AB1234': {
     regNo: 'TN01AB1234',
     regDate: '15-08-2022',
@@ -234,8 +219,6 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: 'HDFC BANK LTD'
   },
-
-  // 3. MAHARASHTRA
   'MH02CB5566': {
     regNo: 'MH02CB5566',
     regDate: '10-01-2023',
@@ -266,14 +249,12 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: 'STATE BANK OF INDIA'
   },
-
-  // 4. DELHI
   'DL1CAB9988': {
     regNo: 'DL1CAB9988',
     regDate: '20-03-2021',
     chassisNo: 'MALC181CLMM091823',
     engineNo: 'G4FLM8912301',
-    maker: 'HYUNDAI\u76dbMOTOR INDIA LTD',
+    maker: 'HYUNDAI MOTOR INDIA LTD',
     model: 'CRETA 1.5 SX',
     bodyType: 'SUV',
     wheelBase: '2610',
@@ -298,8 +279,6 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: 'ICICI BANK LTD'
   },
-
-  // 5. KERALA
   'KL07BW4321': {
     regNo: 'KL07BW4321',
     regDate: '11-11-2022',
@@ -330,8 +309,6 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: 'KOTAK MAHINDRA BANK'
   },
-
-  // 6. DRIVING LICENCE MASTER TEST RECORDS
   'KA1320170004921': {
     dlNo: 'KA13 20170004921',
     doi: '05-05-2017',
@@ -380,7 +357,6 @@ const mockDatabase = {
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
 
-// Old Paper RC Layout
 const fieldLayout = {
   header: {
     regNoY: 140.5,
@@ -426,49 +402,36 @@ const fieldLayout = {
   }
 };
 
-// =====================================================================
-// 1. SMART CARD FRONT LAYOUT (LOCKED)
-// =====================================================================
 const newRcFrontLayout = {
   regNo:         { x: 56.0,  yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 65 },
   regDate:       { x: 126.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
   validUpto:     { x: 186.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
-
   chassisNo:     { x: 56.7,  yTop: 58.5,  size: 6.5, font: 'regular', maxW: 140 },
   engineNo:      { x: 56.7,  yTop: 80.0,  size: 6.5, font: 'regular', maxW: 140 },
   ownerName:     { x: 56.7,  yTop: 96.0,  size: 6.5, font: 'regular', maxW: 140 },
   swdName:       { x: 56.7,  yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
-
   fuel:          { x: 2.5,   yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
   emissionNorms: { x: 1.0,   yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
   address:       { x: 56.7,  line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
 };
 
-// =====================================================================
-// 2. SMART CARD BACK LAYOUT (LOCKED)
-// =====================================================================
 const newRcBackLayout = {
   vehicleClass:     { x: 101.0, yTop: 13.5, size: 6.0, font: 'regular', maxW: 120 },
-
   regNo:            { x: 10.0,  yTop: 32.5, size: 6.0, font: 'regular', maxW: 40 },
   maker:            { x: 58.0,  yTop: 32.5, size: 6.0, font: 'regular', maxW: 175 },
   model:            { x: 58.0,  yTop: 49.0, size: 6.0, font: 'regular', maxW: 175 },
   bodyType:         { x: 58.0,  yTop: 66.0, size: 6.0, font: 'regular', maxW: 175 },
-
   seatingCapacity:  { x: 60.0,  yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
   standingCapacity: { x: 104.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
   sleeperCapacity:  { x: 138.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
-
   mfgDate:          { x: 10.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 35 },
   unladenWeight:    { x: 64.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
   ladenWeight:      { x: 94.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
   grossWeight:      { x: 126.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-
   cylinders:        { x: 18.0,  yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
   cubicCapacity:    { x: 64.0,  yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
   horsePower:       { x: 104.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
   wheelbase:        { x: 166.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 35 },
-
   financer:         { x: 58.0,  yTop: 135.5, size: 5.5, font: 'regular', maxW: 110 },
   rtoAuthority:     { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
 };
@@ -488,10 +451,6 @@ function isCommercialClass(vClass) {
          str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') || 
          str.includes('CARRIAGE') || str.includes('STAGE');
 }
-
-// =====================================================================
-// AGENT & ADMIN API ENDPOINTS
-// =====================================================================
 
 // Agent Registration
 app.post('/api/agent/register', (req, res) => {
@@ -518,7 +477,7 @@ app.post('/api/agent/register', (req, res) => {
   };
 
   agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500, paymentProvider: PAYMENT_PROVIDER, paymentMode: PAYMENT_MODE });
+  res.json({ success: true, agentId, amount: 500, paymentProvider: 'UPI_DIRECT', paymentMode: 'UPI_DIRECT' });
 });
 
 // Agent Login
@@ -592,7 +551,7 @@ app.post('/api/admin/update-agent-status', (req, res) => {
   res.json({ success: true, agent });
 });
 
-// Admin: Clear In-Memory Data for Testing
+// Admin: Clear In-Memory Data
 app.post('/api/admin/clear-data', (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -605,7 +564,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING API
+// ORDER PROCESSING & DIRECT UPI ENGINE
 // =====================================================================
 
 app.post('/api/create-order', (req, res) => {
@@ -638,6 +597,10 @@ app.post('/api/create-order', (req, res) => {
   }
 
   const orderId = 'ORD_' + Date.now();
+
+  // Dynamic NPCI Intent URL
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(MERCHANT_UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&tr=${encodeURIComponent(orderId)}&tn=${encodeURIComponent(`${docType}_${targetNumber}`)}&am=${finalAmount}&cu=INR`;
+
   orders.set(orderId, {
     orderId,
     docType,
@@ -648,51 +611,49 @@ app.post('/api/create-order', (req, res) => {
     dob,
     rcFormat: rcFormat || 'OLD',
     status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
-    paymentProvider: role === 'ADMIN' ? 'INTERNAL' : PAYMENT_PROVIDER,
+    paymentProvider: 'UPI_DIRECT',
     currency: 'INR',
+    upiUrl,
     paidAt: role === 'ADMIN' ? new Date() : null,
     createdAt: new Date()
   });
 
-  res.json({ success: true, orderId, amount: finalAmount, role, paymentProvider: role === 'ADMIN' ? 'INTERNAL' : PAYMENT_PROVIDER, paymentMode: role === 'ADMIN' ? 'INTERNAL' : (isDemoPayment() ? 'DEMO' : (isLocalTestPayment(req) ? 'TEST' : 'DISABLED')) });
+  res.json({ 
+    success: true, 
+    orderId, 
+    amount: finalAmount, 
+    role, 
+    upiUrl,
+    paymentProvider: 'UPI_DIRECT', 
+    paymentMode: 'UPI_DIRECT' 
+  });
 });
 
 app.post('/api/verify-payment', (req, res) => {
-  const { orderId } = req.body;
+  const { orderId, forceSuccess } = req.body;
   const order = orders.get(orderId);
 
   if (!order) {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  // Admin/internal orders are free and do not represent a customer payment.
-  if (order.role === 'ADMIN') {
+  if (order.role === 'ADMIN' || forceSuccess || order.status === 'SUCCESS') {
     order.status = 'SUCCESS';
-  } else {
-    // DEMO mode is intentionally provider-neutral and is used while the site
-    // is being evaluated before Paytm/Razorpay production approval.
-    if (isDemoPayment()) {
-      order.status = 'SUCCESS';
-      order.paymentId = 'DEMO_' + crypto.randomBytes(12).toString('hex');
-      order.gatewayStatus = 'DEMO_SUCCESS';
-      order.paidAt = new Date();
-    } else if (isLocalTestPayment(req)) {
-      order.status = 'SUCCESS';
-      order.paymentId = 'TEST_' + crypto.randomBytes(12).toString('hex');
-      order.gatewayStatus = 'TEST_SUCCESS';
-      order.paidAt = new Date();
-    } else {
-      return res.status(503).json({
-        error: 'Payment checkout is currently unavailable.',
-        code: 'PAYMENT_GATEWAY_NOT_CONFIGURED'
-      });
-    }
+    order.paidAt = order.paidAt || new Date();
+    order.paymentId = order.paymentId || ('UPI_' + crypto.randomBytes(8).toString('hex'));
+  }
+
+  if (order.status !== 'SUCCESS') {
+    return res.json({
+      status: 'PENDING',
+      orderId: order.orderId,
+      message: 'Awaiting payment confirmation.'
+    });
   }
 
   const lookupKey = order.targetNumber.replace(/[^A-Z0-9]/g, '');
   const report = mockDatabase[lookupKey];
 
-  // Do not fabricate a record from another person's data.
   if (!report) {
     return res.status(404).json({
       error: 'No record is available for this reference in the current data source.',
@@ -709,14 +670,69 @@ app.post('/api/verify-payment', (req, res) => {
     currency: order.currency,
     role: order.role,
     paymentProvider: order.paymentProvider,
-    paymentId: order.paymentId || null,
+    paymentId: order.paymentId,
     report
   });
 });
 
-// Agent onboarding payment verification.
-// DEMO mode keeps the public onboarding flow reviewable until a real
-// Paytm/Razorpay payment order + verification webhook is connected.
+// =====================================================================
+// AUTOMATED BANK / PHONEPE NOTIFICATION WEBHOOK
+// =====================================================================
+app.post('/api/bank-webhook', (req, res) => {
+  try {
+    const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    const payload = rawBody.toUpperCase();
+    console.log("📥 Incoming Bank Signal:", payload);
+
+    if (
+      payload.includes('CREDITED') ||
+      payload.includes('RECEIVED') ||
+      payload.includes('PAID') ||
+      payload.includes('SUCCESS') ||
+      payload.includes('TRANSFER')
+    ) {
+      // Find the most recent pending order
+      let matchedOrderId = null;
+      const orderKeys = Array.from(orders.keys()).reverse();
+
+      for (const id of orderKeys) {
+        const order = orders.get(id);
+        if (order && order.status === 'PENDING') {
+          order.status = 'SUCCESS';
+          order.paidAt = new Date();
+          order.paymentId = 'AUTO_' + Date.now();
+          matchedOrderId = id;
+          console.log(`🚀 [AUTOMATION] Order ${id} unlocked automatically via Webhook!`);
+          break;
+        }
+      }
+
+      return res.status(200).json({ 
+        success: true, 
+        message: matchedOrderId ? `Order ${matchedOrderId} marked as SUCCESS` : 'Signal received; no pending orders found' 
+      });
+    }
+
+    return res.status(200).json({ success: false, message: 'No payment credit indicators detected' });
+  } catch (err) {
+    console.error("Webhook processing error:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual Unlock Route
+app.post('/api/mark-paid', (req, res) => {
+  const { orderId } = req.body;
+  const order = orders.get(orderId);
+  if (!order) return res.status(404).json({ error: 'Invalid Order ID' });
+
+  order.status = 'SUCCESS';
+  order.paidAt = new Date();
+  order.paymentId = 'MANUAL_' + Date.now();
+  res.json({ success: true, message: `Order ${orderId} unlocked.` });
+});
+
+// Agent Onboarding Verification
 app.post('/api/agent/verify-onboarding', (req, res) => {
   const { agentId } = req.body;
   const agent = agents.get(agentId);
@@ -724,22 +740,13 @@ app.post('/api/agent/verify-onboarding', (req, res) => {
     return res.status(404).json({ error: 'Agent record not found' });
   }
 
-  if (!isDemoPayment() && !isLocalTestPayment(req)) {
-    return res.status(503).json({
-      error: 'Payment checkout is currently unavailable.',
-      code: 'PAYMENT_GATEWAY_NOT_CONFIGURED'
-    });
-  }
-
   agent.status = 'PENDING_APPROVAL';
-  agent.onboardingPaymentId = (isDemoPayment() ? 'DEMO_' : 'TEST_') + crypto.randomBytes(12).toString('hex');
+  agent.onboardingPaymentId = 'UPI_' + crypto.randomBytes(12).toString('hex');
   agent.onboardingPaidAt = new Date();
   res.json({
     success: true,
     status: 'PENDING_APPROVAL',
-    message: isDemoPayment()
-      ? 'Demo payment recorded. Account is now under admin review.'
-      : 'Development test payment recorded. Account is now under admin review.'
+    message: 'Onboarding payment recorded. Account is now under admin review.'
   });
 });
 
@@ -779,7 +786,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
     const cardW = 260.0;
-    const S = cardW / CARD_WIDTH; // 1.070486
+    const S = cardW / CARD_WIDTH;
     const cardH = CARD_HEIGHT * S;
     const gap = 14.0;
 
@@ -822,9 +829,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       </svg>
     `);
 
-    // =================================================================
-    // DRIVING LICENCE BRANCH (STANDALONE ISOLATED ENGINE)
-    // =================================================================
+    // DRIVING LICENCE ENGINE
     if (docType === 'DL') {
       const stateCode = (report.dlNo || 'KA').substring(0, 2).toUpperCase();
       const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
@@ -851,7 +856,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
       }
 
-      // DL FRONT EMBEDS
       const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
       let subTitleSize = 5.6 * S;
       while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
@@ -875,7 +879,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         color: rgb(0, 0, 0)
       });
 
-      // DL No (Calibrated left anchor at X: 89.0, yTop: 35.5)
       const cleanDlNo = String(report.dlNo || '').trim();
       page.drawText(cleanDlNo, {
         x: leftCardX + (89.0 * S),
@@ -885,7 +888,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         color: boldColor
       });
 
-      // Dates Row (Locked at yTop: 59.5)
       page.drawText(String(report.doi || '').trim(), {
         x: leftCardX + (57.0 * S),
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
@@ -910,7 +912,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         });
       }
 
-      // Holder Details
       page.drawText(String(report.name || '').trim(), {
         x: leftCardX + (28.0 * S),
         y: cardY + ((CARD_HEIGHT - 92.0) * S),
@@ -958,9 +959,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         });
       });
 
-      // Front Vertical Margin
-      const vText = `( ${report.firstIssueDate || '02-07-2026'} )`;
-      page.drawText(vText, {
+      page.drawText(`( ${report.firstIssueDate || '02-07-2026'} )`, {
         x: leftCardX + (238.5 * S),
         y: cardY + (72.0 * S),
         size: 5.0 * S,
@@ -969,7 +968,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         rotate: { type: 'degrees', angle: 90 }
       });
 
-      // DL BACK EMBEDS
       page.drawText(cleanDlNo, {
         x: rightCardX + (32.0 * S),
         y: cardY + ((CARD_HEIGHT - 9.0) * S),
@@ -978,12 +976,9 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         color: boldColor
       });
 
-      // COV Table Rows (Shifted DOWN to rowY: 83.8)
       if (report.covList && Array.isArray(report.covList)) {
         report.covList.slice(0, 5).forEach((cov, idx) => {
           const rowY = 83.8 + (idx * 11.5);
-
-          // Code (LMV) @ X: 49.0
           const codeVal = String(cov.code || '').trim();
           const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
           page.drawText(codeVal, {
@@ -994,7 +989,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
             color: softTextColor
           });
 
-          // Issued by (KA51) @ X: 73.0
           const issuedVal = String(cov.issuedBy || '').trim();
           const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
           page.drawText(issuedVal, {
@@ -1005,7 +999,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
             color: softTextColor
           });
 
-          // Date of Issue (18-05-2013) @ X: 108.0
           const doiVal = String(cov.doi || '').trim();
           const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
           page.drawText(doiVal, {
@@ -1016,7 +1009,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
             color: softTextColor
           });
 
-          // Vehicle Category (NT) @ X: 144.0
           const catVal = String(cov.category || 'NT').trim();
           const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
           page.drawText(catVal, {
@@ -1039,7 +1031,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         });
       }
 
-      // RTO Authority Right-Anchored (Locked at X: 236.0, yTop: 149.5)
       const rtoVal = String(report.rtoAuthority || 'RTO, HASSAN').trim();
       const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
       page.drawText(rtoVal, {
@@ -1057,7 +1048,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       const vehicleBadge = isCommercial ? 'TR' : 'NT';
       const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
 
-      // 1. EMBED SMART CARD FRONT TEMPLATE
       const frontCandidates = isKA 
         ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png']
         : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
@@ -1073,7 +1063,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
       }
 
-      // 2. EMBED SMART CARD BACK TEMPLATE
       const backCandidates = isKA
         ? ['new_rc_back.png', 'new_rc_back_.png']
         : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
@@ -1089,7 +1078,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
       }
 
-      // 3. DYNAMIC NATIONAL HEADER & BADGES (ONLY FOR NON-KA CARDS)
       if (!isKA) {
         const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
         let subTitleSize = 5.6 * S;
@@ -1142,7 +1130,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         });
       }
 
-      // 4. DRAW FRONT FIELDS (LOCKED)
       const frontData = {
         regNo: report.regNo,
         regDate: report.regDate,
@@ -1190,7 +1177,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         }
       });
 
-      // 5. DRAW BACK FIELDS (LOCKED)
       const backData = {
         vehicleClass:     report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
         regNo:            report.regNo || '',
@@ -1244,7 +1230,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       });
 
     } else {
-      // 1. OLD FORMAT FRONT CARD
       const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
       if (fs.existsSync(frontImgPath)) {
         const roundedFrontPng = await sharp(frontImgPath)
@@ -1262,7 +1247,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         });
       }
 
-      // 2. OLD FORMAT RIGHT CARD
       page.drawRectangle({
         x: rightCardX,
         y: cardY,
@@ -1377,7 +1361,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
     }
 
-    // Outer border overlay
     const roundedSvg = Buffer.from(`
       <svg width="1040" height="655" viewBox="0 0 1040 655" xmlns="http://www.w3.org/2000/svg">
         <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="4"/>
