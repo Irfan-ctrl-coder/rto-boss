@@ -188,7 +188,6 @@
                 />
               </div>
 
-              <!-- DL TEST DATA -->
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
                 <div class="font-bold text-slate-800">🧪 DL Test Reference Records:</div>
                 <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> (Harishakumara C — LMV Reference)</div>
@@ -325,39 +324,61 @@
       </div>
     </div>
 
-    <!-- PAYMENT MODAL -->
+    <!-- DIRECT UPI PAYMENT MODAL -->
     <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">₹</div>
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
+          ⚡
+        </div>
+        
         <div>
-          <h3 class="text-lg font-black text-brand-navy" id="paymentModalTitle">Payment Gateway</h3>
+          <h3 class="text-lg font-black text-brand-navy">Instant UPI Payment</h3>
           <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
         </div>
 
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2">
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-left text-xs space-y-1.5">
           <div class="flex justify-between text-slate-500">
-            <span>Target:</span>
+            <span>Target Record:</span>
             <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
           </div>
           <div class="flex justify-between text-slate-500">
             <span>Amount:</span>
-            <span class="font-black text-brand-primary text-sm" id="modalAmount">---</span>
+            <span class="font-black text-brand-primary text-base" id="modalAmount">---</span>
           </div>
         </div>
 
-        <button 
-          id="simPaymentBtn" 
-          disabled
-          class="w-full bg-slate-300 text-slate-600 font-extrabold py-3.5 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2">
-          <span>⌛</span> Preparing Checkout...
-        </button>
-        <p id="paymentModeNote" class="text-[10px] text-slate-400 leading-relaxed">Secure checkout is being prepared.</p>
+        <!-- DYNAMIC QR CODE DISPLAY -->
+        <div class="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2">
+          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-40 h-40 rounded-lg shadow-sm border border-slate-100" />
+          <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
+        </div>
 
-        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+        <!-- DIRECT MOBILE APP OPEN BUTTON -->
+        <a 
+          id="upiIntentLink" 
+          href="#" 
+          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
+          <span>📱</span> Pay via UPI App (Mobile)
+        </a>
+
+        <!-- LIVE AUTO-POLLING STATUS BADGE -->
+        <div class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>Awaiting payment confirmation...</span>
+        </div>
+
+        <!-- TESTING SHORTCUT: Simulate Payment -->
+        <button 
+          onclick="simulateInstantSuccess()" 
+          class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-100 transition-all w-full">
+          🧪 [Dev Test] Simulate Instant Payment Received
+        </button>
+
+        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel Order</button>
       </div>
     </div>
 
-    <!-- AGENT MODAL (LOGIN & REGISTER) -->
+    <!-- AGENT MODAL -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -431,7 +452,7 @@
           </div>
         </div>
 
-        <!-- AGENT HOLD STATUS VIEW -->
+        <!-- AGENT HOLD VIEW -->
         <div id="agentHoldView" class="hidden text-center py-4 space-y-3">
           <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
             ⏳
@@ -445,7 +466,7 @@
       </div>
     </div>
 
-    <!-- MASTER ADMIN MODAL (ACCESSIBLE VIA /#admin) -->
+    <!-- MASTER ADMIN MODAL -->
     <div id="adminModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -499,8 +520,6 @@
   <!-- FOOTER -->
   <footer class="w-full border-t border-slate-200 bg-white py-8 mt-8 no-print">
     <div class="max-w-4xl mx-auto px-4 space-y-4 text-center">
-      
-      <!-- Legal Links -->
       <div class="flex flex-wrap justify-center gap-6 text-xs font-semibold text-slate-600">
         <a href="/about.html" class="hover:text-brand-primary transition-colors">About Us</a>
         <a href="/privacy.html" class="hover:text-brand-primary transition-colors">Privacy Policy</a>
@@ -509,16 +528,13 @@
         <a href="/contact.html" class="hover:text-brand-primary transition-colors">Contact Us</a>
       </div>
 
-      <!-- Copyright -->
       <div class="text-xs text-slate-500 font-medium">
         © 2026 RTOBoss. All rights reserved.
       </div>
 
-      <!-- Payment Gateway Non-Affiliation Disclaimer -->
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-400 leading-relaxed text-left sm:text-center">
         <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by the Government of India, MoRTH, Parivahan Sewa, or any State Transport Department / RTO. The PDFs generated by this service are formatted digital copies for the customer's personal or business use and are not government-issued documents.
       </div>
-
     </div>
   </footer>
 
@@ -570,13 +586,13 @@
     let activeOrderId = null;
     let activeReportData = null;
     let pendingOnboardingAgentId = null;
+    let currentUpiUrl = '';
+    let paymentPollInterval = null;
 
-    // Role Session State: 'PUBLIC' | 'AGENT' | 'ADMIN'
     let currentRole = 'PUBLIC';
     let sessionToken = null;
     let sessionAgentData = null;
 
-    // SPA Navigation with Browser History
     function navigateTo(viewName, addToHistory = true) {
       document.getElementById('view-input-state').classList.add('hidden');
       document.getElementById('view-success-state').classList.add('hidden');
@@ -594,7 +610,6 @@
       }
     }
 
-    // Check for Secret Admin Route (/#admin or /admin)
     function checkAdminRoute() {
       if (window.location.hash === '#admin' || window.location.pathname === '/admin') {
         openAdminModal();
@@ -657,7 +672,6 @@
         ? 'Generate & Download Instant PDF (₹0)' 
         : `Proceed to Format & Download (₹${activePrice})`;
 
-      // Header Badge
       const badgeCont = document.getElementById('roleBadgeContainer');
       if (currentRole === 'ADMIN') {
         badgeCont.className = "flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold text-purple-700";
@@ -789,27 +803,84 @@
         const data = await res.json();
         if (data.success) {
           activeOrderId = data.orderId;
+          currentUpiUrl = data.upiUrl;
 
-          // Admin free access is a server-side internal tool and does not represent a customer payment.
+          // Store current order state in localStorage
+          localStorage.setItem('rto_active_order', JSON.stringify({
+            orderId: activeOrderId,
+            targetNumber,
+            amount: data.amount,
+            docType: currentService,
+            rcFormat: chosenFormat,
+            upiUrl: currentUpiUrl
+          }));
+
           if (data.role === 'ADMIN' || data.amount === 0) {
             await completeOrderWithoutPayment();
             return;
           }
 
-          document.getElementById('paymentModalTitle').innerText = 'Payment Gateway';
           document.getElementById('modalOrderId').innerText = data.orderId;
           document.getElementById('modalTarget').innerText = targetNumber;
           document.getElementById('modalAmount').innerText = '₹' + data.amount;
+
+          // Render dynamic QR code via QR Server API
+          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentUpiUrl)}`;
+          document.getElementById('upiIntentLink').href = currentUpiUrl;
+
           document.getElementById('paymentModal').classList.remove('hidden');
-          setPaymentMode(data.paymentMode);
+
+          startPaymentPolling(activeOrderId);
         }
       } catch (e) {
         alert('Could not initiate order: ' + e.message);
       }
     }
 
-    // Demo payment flow. This keeps the public site fully reviewable until
-    // Paytm or Razorpay production credentials are connected.
+    function startPaymentPolling(orderId) {
+      if (paymentPollInterval) clearInterval(paymentPollInterval);
+
+      paymentPollInterval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId })
+          });
+          const data = await res.json();
+
+          if (data.status === 'SUCCESS') {
+            clearInterval(paymentPollInterval);
+            closePaymentModal();
+            localStorage.setItem(`order_${orderId}_status`, 'PAID');
+            await showCompletedOrder(data);
+          }
+        } catch (err) {
+          console.error("Polling check failed", err);
+        }
+      }, 2500);
+    }
+
+    async function simulateInstantSuccess() {
+      if (!activeOrderId) return;
+      try {
+        const res = await fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: activeOrderId, forceSuccess: true })
+        });
+        const data = await res.json();
+        if (data.status === 'SUCCESS') {
+          if (paymentPollInterval) clearInterval(paymentPollInterval);
+          closePaymentModal();
+          localStorage.setItem(`order_${activeOrderId}_status`, 'PAID');
+          await showCompletedOrder(data);
+        }
+      } catch (e) {
+        alert('Simulation failed: ' + e.message);
+      }
+    }
+
     async function completeOrderWithoutPayment() {
       try {
         const res = await fetch('/api/verify-payment', {
@@ -828,44 +899,6 @@
       }
     }
 
-    async function handleDemoPayment() {
-      const button = document.getElementById('simPaymentBtn');
-      if (!button || button.disabled) return;
-      button.disabled = true;
-      try {
-        if (pendingOnboardingAgentId) {
-          const res = await fetch('/api/agent/verify-onboarding', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentId: pendingOnboardingAgentId })
-          });
-          const d = await res.json();
-          if (!d.success) throw new Error(d.error || 'Onboarding payment failed.');
-          pendingOnboardingAgentId = null;
-          closePaymentModal();
-          openAgentModal();
-          toggleAgentAuthView('hold');
-          return;
-        }
-
-        const res = await fetch('/api/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: activeOrderId })
-        });
-        const data = await res.json();
-        if (data.status === 'SUCCESS') {
-          await showCompletedOrder(data);
-        } else {
-          alert(data.error || 'Demo payment could not be completed.');
-        }
-      } catch (e) {
-        alert('Demo payment failed: ' + e.message);
-      } finally {
-        button.disabled = false;
-      }
-    }
-
     async function showCompletedOrder(data) {
       activeReportData = data.report;
       document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
@@ -875,7 +908,6 @@
       navigateTo('complete');
     }
 
-    // Digital PDF Download Stream
     async function downloadDigitalPdf() {
       if (!activeReportData) return;
 
@@ -904,9 +936,6 @@
       }
     }
 
-    // =========================================================================
-    // AGENT & ADMIN PORTAL CLIENT LOGIC
-    // =========================================================================
     function openAgentModal() {
       document.getElementById('agentModal').classList.remove('hidden');
       toggleAgentAuthView('login');
@@ -955,13 +984,15 @@
           pendingOnboardingAgentId = d.agentId;
           closeAgentModal();
 
-          // Open Payment Gateway for ₹500 fee
-          document.getElementById('paymentModalTitle').innerText = 'Agent Onboarding Fee (₹500)';
           document.getElementById('modalOrderId').innerText = d.agentId;
           document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
           document.getElementById('modalAmount').innerText = '₹500.00';
+          
+          const agentUpi = `upi://pay?pa=${encodeURIComponent('yourbusinessvpa@cnrb')}&pn=RTO_BOSS&tr=${d.agentId}&tn=Agent_Registration&am=500&cu=INR`;
+          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(agentUpi)}`;
+          document.getElementById('upiIntentLink').href = agentUpi;
+
           document.getElementById('paymentModal').classList.remove('hidden');
-          setPaymentMode(d.paymentMode);
         } else {
           alert(d.error || 'Registration failed');
         }
@@ -989,8 +1020,7 @@
 
         if (d.success) {
           currentRole = 'AGENT';
-          sessionToken = d.token.replace('TOK_AGT_', '');
-          sessionToken = `TOK_AGT_${sessionToken}`;
+          sessionToken = d.token;
           sessionAgentData = d.agent;
           closeAgentModal();
           updatePriceUI();
@@ -1018,6 +1048,7 @@
         document.getElementById('adminDashboardView').classList.add('hidden');
       }
     }
+
     function closeAdminModal() {
       document.getElementById('adminModal').classList.add('hidden');
       if (window.location.hash === '#admin') {
@@ -1128,43 +1159,33 @@
       alert('Logged out to public mode.');
     }
 
-
-    function setPaymentMode(mode) {
-      const button = document.getElementById('simPaymentBtn');
-      const note = document.getElementById('paymentModeNote');
-      if (!button) return;
-
-      if (mode === 'DEMO') {
-        button.disabled = false;
-        button.onclick = handleDemoPayment;
-        button.className = 'w-full bg-brand-primary hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2';
-        button.innerHTML = '<span>💳</span> Continue to Demo Payment';
-        if (note) note.innerText = 'Demo checkout for website evaluation. No real money is charged. A production gateway will replace this step after approval.';
-        return;
-      }
-
-      if (mode === 'TEST') {
-        button.disabled = false;
-        button.onclick = handleDemoPayment;
-        button.className = 'w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2';
-        button.innerHTML = '<span>🧪</span> Complete Test Payment';
-        if (note) note.innerText = 'Development test mode. No real money is charged.';
-        return;
-      }
-
-      button.disabled = true;
-      button.onclick = null;
-      button.className = 'w-full bg-slate-300 text-slate-600 font-extrabold py-3.5 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2';
-      button.innerHTML = '<span>⌛</span> Checkout Unavailable';
-      if (note) note.innerText = 'Payment checkout is currently unavailable.';
-    }
-
     function closeFormatModal() {
       document.getElementById('formatChooserModal').classList.add('hidden');
     }
+
     function closePaymentModal() {
+      if (paymentPollInterval) clearInterval(paymentPollInterval);
       document.getElementById('paymentModal').classList.add('hidden');
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && activeOrderId) {
+        fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: activeOrderId })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'SUCCESS') {
+            if (paymentPollInterval) clearInterval(paymentPollInterval);
+            closePaymentModal();
+            showCompletedOrder(data);
+          }
+        })
+        .catch(console.error);
+      }
+    });
   </script>
 </body>
 </html>
