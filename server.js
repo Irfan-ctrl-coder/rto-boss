@@ -687,7 +687,7 @@ app.post('/api/bank-webhook', (req, res) => {
     if (
       payload.includes('CREDITED') ||
       payload.includes('RECEIVED') ||
-      payload.includes('PAID') ||
+      payload.includes('PAID') || 
       payload.includes('SUCCESS') ||
       payload.includes('TRANSFER')
     ) {
