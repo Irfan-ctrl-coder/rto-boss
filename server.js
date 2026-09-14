@@ -32,13 +32,12 @@ app.use(cors({
   credentials: false
 }));
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(__dirname));
 
-// Serve the main app and legal pages from the project root.
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+// Serve assets from public folder
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve website files from project root
+app.use(express.static(__dirname));
 
 
 // In-Memory Storage
