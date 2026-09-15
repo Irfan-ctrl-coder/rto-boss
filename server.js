@@ -598,37 +598,42 @@ app.post('/api/create-order', async (req, res) => {
       else finalAmount = 100;
     }
 
-    const orderId = 'ORD_' + Date.now();
+    const orderId = 'ORD' + Date.now();
     let paymentUrl = null;
     let upiIntentUrl = null;
 
-    // Direct Intent Fallback
-    const fallbackUpiUrl = `upi://pay?pa=${encodeURIComponent(MERCHANT_UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&tr=${encodeURIComponent(orderId)}&tn=${encodeURIComponent(`${docType}_${targetNumber}`)}&am=${finalAmount}&cu=INR`;
+    const cleanNote = `${docType || 'DOC'}${targetNumber ? targetNumber.replace(/[^A-Z0-9]/g, '') : ''}`;
+    const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}`;
 
-    // Connect to EkQR if regular order
+    // Connect to EkQR API
     if (role !== 'ADMIN' && finalAmount > 0) {
       try {
         const ekqrPayload = {
           key: EKQR_API_KEY,
           client_txn_id: orderId,
           amount: String(finalAmount),
-          p_info: `${docType || 'DOC'}_${targetNumber || 'ORDER'}`,
+          p_info: cleanNote,
           customer_name: 'Customer',
-          customer_email: customerEmail || 'customer@rtoboss.in',
-          customer_mobile: customerMobile || '9999999999',
+          customer_email: customerEmail || 'support@rtoboss.in',
+          customer_mobile: customerMobile || '8660584245',
           redirect_url: `https://www.rtoboss.in?order_id=${orderId}`
         };
 
         const response = await fetch('https://api.ekqr.in/api/create_order', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           body: JSON.stringify(ekqrPayload)
         });
 
         const ekqrData = await response.json();
+        console.log('[EkQR Server Response]:', JSON.stringify(ekqrData));
+
         if (ekqrData.status === true || ekqrData.status === 'success') {
           paymentUrl = ekqrData.data?.payment_url;
-          upiIntentUrl = ekqrData.data?.upi_intent?.upi_link || ekqrData.data?.upi_intent;
+          upiIntentUrl = ekqrData.data?.upi_intent?.upi_link || ekqrData.data?.upi_intent || ekqrData.data?.payment_url;
         } else {
           console.warn('[EkQR Warning] Order creation returned:', ekqrData);
         }
@@ -636,6 +641,8 @@ app.post('/api/create-order', async (req, res) => {
         console.error('[EkQR Connection Error]:', gatewayErr.message);
       }
     }
+
+    const effectiveUpi = upiIntentUrl || fallbackUpiUrl;
 
     orders.set(orderId, {
       orderId,
@@ -649,8 +656,8 @@ app.post('/api/create-order', async (req, res) => {
       status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
       paymentProvider: 'EKQR',
       currency: 'INR',
-      paymentUrl: paymentUrl || fallbackUpiUrl,
-      upiUrl: upiIntentUrl || fallbackUpiUrl,
+      paymentUrl: paymentUrl || effectiveUpi,
+      upiUrl: effectiveUpi,
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
     });
@@ -660,8 +667,8 @@ app.post('/api/create-order', async (req, res) => {
       orderId, 
       amount: finalAmount, 
       role, 
-      paymentUrl: paymentUrl || fallbackUpiUrl,
-      upiUrl: upiIntentUrl || fallbackUpiUrl,
+      paymentUrl: paymentUrl || effectiveUpi,
+      upiUrl: effectiveUpi,
       paymentProvider: 'EKQR', 
       paymentMode: 'UPI' 
     });
@@ -671,12 +678,40 @@ app.post('/api/create-order', async (req, res) => {
   }
 });
 
-app.post('/api/verify-payment', (req, res) => {
+// =====================================================================
+// PAYMENT VERIFICATION (DUAL-LAYER: MEMORY CHECK + ACTIVE EKQR POLL)
+// =====================================================================
+app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
   const order = orders.get(orderId);
 
   if (!order) {
     return res.status(404).json({ error: 'Order not found' });
+  }
+
+  // Active status check directly against EkQR if payment is still recorded as pending
+  if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
+    try {
+      const checkRes = await fetch('https://api.ekqr.in/api/check_order_status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: EKQR_API_KEY,
+          client_txn_id: orderId
+        })
+      });
+      const checkData = await checkRes.json();
+      console.log(`[EkQR Active Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
+
+      if (checkData.status === true && (checkData.data?.status === 'success' || checkData.data?.status === 'COMPLETED')) {
+        order.status = 'SUCCESS';
+        order.paidAt = new Date();
+        order.paymentId = checkData.data?.txn_id || ('EKQR_' + Date.now());
+        console.log(`🚀 [ACTIVE CHECK SUCCESS] Order ${orderId} marked SUCCESS via EkQR status poll!`);
+      }
+    } catch (e) {
+      console.error('EkQR Check Status Query Failed:', e.message);
+    }
   }
 
   if (order.role === 'ADMIN' || forceSuccess || order.status === 'SUCCESS') {
@@ -753,7 +788,7 @@ app.post('/api/bank-webhook', (req, res) => {
         matchedOrder.paidAt = new Date();
         matchedOrder.paymentId = body.id || body.txn_id || ('EKQR_' + Date.now());
         matchedOrder.payerVpa = customer_vpa;
-        console.log(`🚀 [AUTOMATION] Order ${matchedOrder.orderId} marked SUCCESS! Amount: ₹${amount}`);
+        console.log(`🚀 [AUTOMATION] Order ${matchedOrder.orderId} marked SUCCESS via Webhook! Amount: ₹${amount}`);
         return res.status(200).send('OK');
       }
     }

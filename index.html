@@ -324,60 +324,6 @@
       </div>
     </div>
 
-    <!-- DIRECT UPI PAYMENT MODAL -->
-    <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
-          ⚡
-        </div>
-        
-        <div>
-          <h3 class="text-lg font-black text-brand-navy">Instant UPI Payment</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
-        </div>
-
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-left text-xs space-y-1.5">
-          <div class="flex justify-between text-slate-500">
-            <span>Target Record:</span>
-            <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
-          </div>
-          <div class="flex justify-between text-slate-500">
-            <span>Amount:</span>
-            <span class="font-black text-brand-primary text-base" id="modalAmount">---</span>
-          </div>
-        </div>
-
-        <!-- DYNAMIC QR CODE DISPLAY -->
-        <div class="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2">
-          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-40 h-40 rounded-lg shadow-sm border border-slate-100" />
-          <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
-        </div>
-
-        <!-- DIRECT MOBILE APP OPEN BUTTON -->
-        <a 
-          id="upiIntentLink" 
-          href="#" 
-          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
-          <span>📱</span> Pay via UPI App (Mobile)
-        </a>
-
-        <!-- LIVE AUTO-POLLING STATUS BADGE -->
-        <div class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>Awaiting payment confirmation...</span>
-        </div>
-
-        <!-- TESTING SHORTCUT: Simulate Payment -->
-        <button 
-          onclick="simulateInstantSuccess()" 
-          class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-100 transition-all w-full">
-          🧪 [Dev Test] Simulate Instant Payment Received
-        </button>
-
-        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel Order</button>
-      </div>
-    </div>
-
     <!-- AGENT MODAL -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
@@ -586,8 +532,6 @@
     let activeOrderId = null;
     let activeReportData = null;
     let pendingOnboardingAgentId = null;
-    let currentUpiUrl = '';
-    let paymentPollInterval = null;
 
     let currentRole = 'PUBLIC';
     let sessionToken = null;
@@ -597,7 +541,6 @@
       document.getElementById('view-input-state').classList.add('hidden');
       document.getElementById('view-success-state').classList.add('hidden');
       closeFormatModal();
-      closePaymentModal();
       closeAgentModal();
       closeAdminModal();
 
@@ -629,12 +572,33 @@
       checkAdminRoute();
     });
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       checkAdminRoute();
       if (!window.location.hash) {
         history.replaceState({ view: 'search' }, '', '#search');
       }
       updatePriceUI();
+
+      // Check for return redirect from EkQR (?order_id=ORD...)
+      const urlParams = new URLSearchParams(window.location.search);
+      const returnedOrderId = urlParams.get('order_id');
+      if (returnedOrderId) {
+        try {
+          const res = await fetch('/api/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: returnedOrderId })
+          });
+          const data = await res.json();
+          if (data.status === 'SUCCESS') {
+            activeOrderId = returnedOrderId;
+            localStorage.setItem(`order_${returnedOrderId}_status`, 'PAID');
+            showCompletedOrder(data);
+          }
+        } catch (e) {
+          console.error("Order return verification error:", e);
+        }
+      }
     });
 
     function getRate(tier) {
@@ -785,6 +749,11 @@
         dob = document.getElementById('dlDob').value;
       }
 
+      const payBtn = document.getElementById('payBtn');
+      const originalText = document.getElementById('btnText').innerText;
+      document.getElementById('btnText').innerText = 'Redirecting to Gateway...';
+      payBtn.disabled = true;
+
       const headers = { 'Content-Type': 'application/json' };
       if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
 
@@ -801,83 +770,42 @@
           })
         });
         const data = await res.json();
+        
         if (data.success) {
           activeOrderId = data.orderId;
-          currentUpiUrl = data.upiUrl;
 
-          // Store current order state in localStorage
-          localStorage.setItem('rto_active_order', JSON.stringify({
-            orderId: activeOrderId,
-            targetNumber,
-            amount: data.amount,
-            docType: currentService,
-            rcFormat: chosenFormat,
-            upiUrl: currentUpiUrl
-          }));
-
+          // If Admin / ₹0 Free Bypass, complete immediately
           if (data.role === 'ADMIN' || data.amount === 0) {
             await completeOrderWithoutPayment();
             return;
           }
 
-          document.getElementById('modalOrderId').innerText = data.orderId;
-          document.getElementById('modalTarget').innerText = targetNumber;
-          document.getElementById('modalAmount').innerText = '₹' + data.amount;
+          // Store current order state for redirect return
+          localStorage.setItem('rto_active_order', JSON.stringify({
+            orderId: activeOrderId,
+            targetNumber,
+            amount: data.amount,
+            docType: currentService,
+            rcFormat: chosenFormat
+          }));
 
-          // Render dynamic QR code via QR Server API
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(currentUpiUrl)}`;
-          document.getElementById('upiIntentLink').href = currentUpiUrl;
-
-          document.getElementById('paymentModal').classList.remove('hidden');
-
-          startPaymentPolling(activeOrderId);
+          // Redirect directly to EkQR's official payment page
+          if (data.paymentUrl && data.paymentUrl.startsWith('http')) {
+            window.location.href = data.paymentUrl;
+          } else {
+            alert('Payment link could not be generated. Please try again.');
+            document.getElementById('btnText').innerText = originalText;
+            payBtn.disabled = false;
+          }
+        } else {
+          alert(data.error || 'Failed to initialize payment');
+          document.getElementById('btnText').innerText = originalText;
+          payBtn.disabled = false;
         }
       } catch (e) {
         alert('Could not initiate order: ' + e.message);
-      }
-    }
-
-    function startPaymentPolling(orderId) {
-      if (paymentPollInterval) clearInterval(paymentPollInterval);
-
-      paymentPollInterval = setInterval(async () => {
-        try {
-          const res = await fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId })
-          });
-          const data = await res.json();
-
-          if (data.status === 'SUCCESS') {
-            clearInterval(paymentPollInterval);
-            closePaymentModal();
-            localStorage.setItem(`order_${orderId}_status`, 'PAID');
-            await showCompletedOrder(data);
-          }
-        } catch (err) {
-          console.error("Polling check failed", err);
-        }
-      }, 2500);
-    }
-
-    async function simulateInstantSuccess() {
-      if (!activeOrderId) return;
-      try {
-        const res = await fetch('/api/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: activeOrderId, forceSuccess: true })
-        });
-        const data = await res.json();
-        if (data.status === 'SUCCESS') {
-          if (paymentPollInterval) clearInterval(paymentPollInterval);
-          closePaymentModal();
-          localStorage.setItem(`order_${activeOrderId}_status`, 'PAID');
-          await showCompletedOrder(data);
-        }
-      } catch (e) {
-        alert('Simulation failed: ' + e.message);
+        document.getElementById('btnText').innerText = originalText;
+        payBtn.disabled = false;
       }
     }
 
@@ -984,15 +912,25 @@
           pendingOnboardingAgentId = d.agentId;
           closeAgentModal();
 
-          document.getElementById('modalOrderId').innerText = d.agentId;
-          document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
-          document.getElementById('modalAmount').innerText = '₹500.00';
-          
-          const agentUpi = `upi://pay?pa=${encodeURIComponent('yourbusinessvpa@cnrb')}&pn=RTO_BOSS&tr=${d.agentId}&tn=Agent_Registration&am=500&cu=INR`;
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(agentUpi)}`;
-          document.getElementById('upiIntentLink').href = agentUpi;
+          // Create an EkQR checkout link for the onboarding fee
+          const orderRes = await fetch('/api/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              docType: 'AGENT_ONBOARDING',
+              targetNumber: d.agentId,
+              tier: '2-Wheeler',
+              customerMobile: mobile,
+              customerEmail: email
+            })
+          });
+          const orderData = await orderRes.json();
 
-          document.getElementById('paymentModal').classList.remove('hidden');
+          if (orderData.paymentUrl && orderData.paymentUrl.startsWith('http')) {
+            window.location.href = orderData.paymentUrl;
+          } else {
+            alert('Failed to launch onboarding payment link.');
+          }
         } else {
           alert(d.error || 'Registration failed');
         }
@@ -1162,30 +1100,6 @@
     function closeFormatModal() {
       document.getElementById('formatChooserModal').classList.add('hidden');
     }
-
-    function closePaymentModal() {
-      if (paymentPollInterval) clearInterval(paymentPollInterval);
-      document.getElementById('paymentModal').classList.add('hidden');
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && activeOrderId) {
-        fetch('/api/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: activeOrderId })
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'SUCCESS') {
-            if (paymentPollInterval) clearInterval(paymentPollInterval);
-            closePaymentModal();
-            showCompletedOrder(data);
-          }
-        })
-        .catch(console.error);
-      }
-    });
   </script>
 </body>
 </html>
