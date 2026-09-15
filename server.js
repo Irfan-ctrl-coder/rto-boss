@@ -632,7 +632,7 @@ app.post('/api/create-order', async (req, res) => {
 
         if (ekqrData.status === true || ekqrData.status === 'success') {
           paymentUrl = ekqrData.data?.payment_url;
-          // Priority to BHIM UPI link which PhonePe/GPay apps scan without issue
+          // Priority to BHIM link which PhonePe/GPay apps scan without issue
           upiIntentUrl = ekqrData.data?.upi_intent?.bhim_link || ekqrData.data?.upi_intent?.upi_link || fallbackUpiUrl;
         } else {
           console.warn('[EkQR Warning] Order creation returned:', ekqrData);
@@ -692,12 +692,19 @@ app.post('/api/verify-payment', async (req, res) => {
   // Active status check directly against EkQR if payment is still pending
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const year = now.getFullYear();
+      const formattedTxnDate = `${day}-${month}-${year}`;
+
       const checkRes = await fetch('https://api.ekqr.in/api/check_order_status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           key: EKQR_API_KEY,
-          client_txn_id: orderId
+          client_txn_id: orderId,
+          txn_date: formattedTxnDate
         })
       });
       const checkData = await checkRes.json();
@@ -706,7 +713,7 @@ app.post('/api/verify-payment', async (req, res) => {
       if (checkData.status === true && (checkData.data?.status === 'success' || checkData.data?.status === 'COMPLETED')) {
         order.status = 'SUCCESS';
         order.paidAt = new Date();
-        order.paymentId = checkData.data?.txn_id || ('EKQR_' + Date.now());
+        order.paymentId = checkData.data?.txn_id || checkData.data?.upi_txn_id || ('EKQR_' + Date.now());
         console.log(`🚀 [ACTIVE CHECK SUCCESS] Order ${orderId} marked SUCCESS via EkQR status poll!`);
       }
     } catch (e) {
