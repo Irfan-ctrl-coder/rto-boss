@@ -13,6 +13,7 @@ const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
 const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl'; 
 const MERCHANT_NAME = 'RTO BOSS';
+const EKQR_API_KEY = process.env.EKQR_API_KEY || '02dade28-b987-4590-8d0e-7799f43ae065';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
@@ -477,7 +478,7 @@ app.post('/api/agent/register', (req, res) => {
   };
 
   agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500, paymentProvider: 'UPI_DIRECT', paymentMode: 'UPI_DIRECT' });
+  res.json({ success: true, agentId, amount: 500, paymentProvider: 'EKQR', paymentMode: 'UPI' });
 });
 
 // Agent Login
@@ -564,69 +565,110 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & DIRECT UPI ENGINE
+// ORDER PROCESSING & EKQR DYNAMIC UPI GATEWAY INTEGRATION
 // =====================================================================
 
-app.post('/api/create-order', (req, res) => {
-  const { docType, targetNumber, tier, dob, rcFormat } = req.body;
-  const authHeader = req.headers['authorization'] || '';
+app.post('/api/create-order', async (req, res) => {
+  try {
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail } = req.body;
+    const authHeader = req.headers['authorization'] || '';
 
-  let role = 'PUBLIC';
-  if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
-    role = 'ADMIN';
-  } else if (authHeader.startsWith('Bearer TOK_AGT_')) {
-    const agt = Array.from(agents.values()).find(a => a.sessionToken === authHeader.replace('Bearer ', ''));
-    if (agt && agt.status === 'ACTIVE') {
-      role = 'AGENT';
+    let role = 'PUBLIC';
+    if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
+      role = 'ADMIN';
+    } else if (authHeader.startsWith('Bearer TOK_AGT_')) {
+      const agt = Array.from(agents.values()).find(a => a.sessionToken === authHeader.replace('Bearer ', ''));
+      if (agt && agt.status === 'ACTIVE') {
+        role = 'AGENT';
+      }
     }
+
+    let finalAmount = 100;
+    if (role === 'ADMIN') {
+      finalAmount = 0;
+    } else if (role === 'AGENT') {
+      if (docType === 'DL') finalAmount = 80;
+      else if (tier === '3-Wheeler') finalAmount = 240;
+      else if (tier === '4-Wheeler+') finalAmount = 320;
+      else finalAmount = 80;
+    } else {
+      if (docType === 'DL') finalAmount = 100;
+      else if (tier === '3-Wheeler') finalAmount = 300;
+      else if (tier === '4-Wheeler+') finalAmount = 400;
+      else finalAmount = 100;
+    }
+
+    const orderId = 'ORD_' + Date.now();
+    let paymentUrl = null;
+    let upiIntentUrl = null;
+
+    // Direct Intent Fallback
+    const fallbackUpiUrl = `upi://pay?pa=${encodeURIComponent(MERCHANT_UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&tr=${encodeURIComponent(orderId)}&tn=${encodeURIComponent(`${docType}_${targetNumber}`)}&am=${finalAmount}&cu=INR`;
+
+    // Connect to EkQR if regular order
+    if (role !== 'ADMIN' && finalAmount > 0) {
+      try {
+        const ekqrPayload = {
+          key: EKQR_API_KEY,
+          client_txn_id: orderId,
+          amount: String(finalAmount),
+          p_info: `${docType || 'DOC'}_${targetNumber || 'ORDER'}`,
+          customer_name: 'Customer',
+          customer_email: customerEmail || 'customer@rtoboss.in',
+          customer_mobile: customerMobile || '9999999999',
+          redirect_url: `https://www.rtoboss.in?order_id=${orderId}`
+        };
+
+        const response = await fetch('https://api.ekqr.in/api/create_order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ekqrPayload)
+        });
+
+        const ekqrData = await response.json();
+        if (ekqrData.status === true || ekqrData.status === 'success') {
+          paymentUrl = ekqrData.data?.payment_url;
+          upiIntentUrl = ekqrData.data?.upi_intent?.upi_link || ekqrData.data?.upi_intent;
+        } else {
+          console.warn('[EkQR Warning] Order creation returned:', ekqrData);
+        }
+      } catch (gatewayErr) {
+        console.error('[EkQR Connection Error]:', gatewayErr.message);
+      }
+    }
+
+    orders.set(orderId, {
+      orderId,
+      docType,
+      targetNumber,
+      tier,
+      amount: finalAmount,
+      role,
+      dob,
+      rcFormat: rcFormat || 'OLD',
+      status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
+      paymentProvider: 'EKQR',
+      currency: 'INR',
+      paymentUrl: paymentUrl || fallbackUpiUrl,
+      upiUrl: upiIntentUrl || fallbackUpiUrl,
+      paidAt: role === 'ADMIN' ? new Date() : null,
+      createdAt: new Date()
+    });
+
+    res.json({ 
+      success: true, 
+      orderId, 
+      amount: finalAmount, 
+      role, 
+      paymentUrl: paymentUrl || fallbackUpiUrl,
+      upiUrl: upiIntentUrl || fallbackUpiUrl,
+      paymentProvider: 'EKQR', 
+      paymentMode: 'UPI' 
+    });
+  } catch (err) {
+    console.error('Create Order Error:', err);
+    res.status(500).json({ error: 'Failed to create payment order' });
   }
-
-  let finalAmount = 100;
-  if (role === 'ADMIN') {
-    finalAmount = 0;
-  } else if (role === 'AGENT') {
-    if (docType === 'DL') finalAmount = 80;
-    else if (tier === '3-Wheeler') finalAmount = 240;
-    else if (tier === '4-Wheeler+') finalAmount = 320;
-    else finalAmount = 80;
-  } else {
-    if (docType === 'DL') finalAmount = 100;
-    else if (tier === '3-Wheeler') finalAmount = 300;
-    else if (tier === '4-Wheeler+') finalAmount = 400;
-    else finalAmount = 100;
-  }
-
-  const orderId = 'ORD_' + Date.now();
-
-  // Dynamic NPCI Intent URL
-  const upiUrl = `upi://pay?pa=${encodeURIComponent(MERCHANT_UPI_ID)}&pn=${encodeURIComponent(MERCHANT_NAME)}&tr=${encodeURIComponent(orderId)}&tn=${encodeURIComponent(`${docType}_${targetNumber}`)}&am=${finalAmount}&cu=INR`;
-
-  orders.set(orderId, {
-    orderId,
-    docType,
-    targetNumber,
-    tier,
-    amount: finalAmount,
-    role,
-    dob,
-    rcFormat: rcFormat || 'OLD',
-    status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
-    paymentProvider: 'UPI_DIRECT',
-    currency: 'INR',
-    upiUrl,
-    paidAt: role === 'ADMIN' ? new Date() : null,
-    createdAt: new Date()
-  });
-
-  res.json({ 
-    success: true, 
-    orderId, 
-    amount: finalAmount, 
-    role, 
-    upiUrl,
-    paymentProvider: 'UPI_DIRECT', 
-    paymentMode: 'UPI_DIRECT' 
-  });
 });
 
 app.post('/api/verify-payment', (req, res) => {
@@ -676,46 +718,49 @@ app.post('/api/verify-payment', (req, res) => {
 });
 
 // =====================================================================
-// AUTOMATED BANK / PHONEPE NOTIFICATION WEBHOOK
+// AUTOMATED EKQR PAYMENT WEBHOOK (URL-ENCODED & JSON READY)
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
-   const rawBody = typeof req.body === 'string' ? req.body : (req.body?.message || req.body?.MESSAGE || JSON.stringify(req.body || ''));
-    const payload = String(rawBody || '').toUpperCase();
-    console.log("📥 Incoming Bank Signal:", payload);
+    console.log('📥 [EkQR Webhook Received Body]:', req.body);
 
-    if (
-      payload.includes('CREDITED') ||
-      payload.includes('RECEIVED') ||
-      payload.includes('PAID') || 
-      payload.includes('SUCCESS') ||
-      payload.includes('TRANSFER')
-    ) {
-      // Find the most recent pending order
-      let matchedOrderId = null;
-      const orderKeys = Array.from(orders.keys()).reverse();
+    const body = req.body || {};
+    const status = String(body.status || '').toLowerCase();
+    const client_txn_id = body.client_txn_id;
+    const amount = body.amount;
+    const customer_vpa = body.customer_vpa || '';
 
-      for (const id of orderKeys) {
-        const order = orders.get(id);
-        if (order && order.status === 'PENDING') {
-          order.status = 'SUCCESS';
-          order.paidAt = new Date();
-          order.paymentId = 'AUTO_' + Date.now();
-          matchedOrderId = id;
-          console.log(`🚀 [AUTOMATION] Order ${id} unlocked automatically via Webhook!`);
-          break;
+    // Check if EkQR confirmed successful transaction
+    if (status === 'success' || status === 'true') {
+      let matchedOrder = null;
+
+      if (client_txn_id && orders.has(client_txn_id)) {
+        matchedOrder = orders.get(client_txn_id);
+      } else {
+        // Fallback: match most recent pending order if ID is missing
+        const orderKeys = Array.from(orders.keys()).reverse();
+        for (const id of orderKeys) {
+          const ord = orders.get(id);
+          if (ord && ord.status === 'PENDING') {
+            matchedOrder = ord;
+            break;
+          }
         }
       }
 
-      return res.status(200).json({ 
-        success: true, 
-        message: matchedOrderId ? `Order ${matchedOrderId} marked as SUCCESS` : 'Signal received; no pending orders found' 
-      });
+      if (matchedOrder) {
+        matchedOrder.status = 'SUCCESS';
+        matchedOrder.paidAt = new Date();
+        matchedOrder.paymentId = body.id || body.txn_id || ('EKQR_' + Date.now());
+        matchedOrder.payerVpa = customer_vpa;
+        console.log(`🚀 [AUTOMATION] Order ${matchedOrder.orderId} marked SUCCESS! Amount: ₹${amount}`);
+        return res.status(200).send('OK');
+      }
     }
 
-    return res.status(200).json({ success: false, message: 'No payment credit indicators detected' });
+    return res.status(200).send('IGNORED_OR_FAILED');
   } catch (err) {
-    console.error("Webhook processing error:", err);
+    console.error('EkQR Webhook Processing Error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
