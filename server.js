@@ -567,7 +567,6 @@ app.post('/api/admin/clear-data', (req, res) => {
 // =====================================================================
 // ORDER PROCESSING & EKQR DYNAMIC UPI GATEWAY INTEGRATION
 // =====================================================================
-
 app.post('/api/create-order', async (req, res) => {
   try {
     const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail } = req.body;
@@ -633,7 +632,8 @@ app.post('/api/create-order', async (req, res) => {
 
         if (ekqrData.status === true || ekqrData.status === 'success') {
           paymentUrl = ekqrData.data?.payment_url;
-          upiIntentUrl = ekqrData.data?.upi_intent?.upi_link || ekqrData.data?.upi_intent || ekqrData.data?.payment_url;
+          // Priority to BHIM UPI link which PhonePe/GPay apps scan without issue
+          upiIntentUrl = ekqrData.data?.upi_intent?.bhim_link || ekqrData.data?.upi_intent?.upi_link || fallbackUpiUrl;
         } else {
           console.warn('[EkQR Warning] Order creation returned:', ekqrData);
         }
@@ -689,7 +689,7 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  // Active status check directly against EkQR if payment is still recorded as pending
+  // Active status check directly against EkQR if payment is still pending
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
       const checkRes = await fetch('https://api.ekqr.in/api/check_order_status', {
