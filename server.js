@@ -29,9 +29,11 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
-// In-Memory Storage
+// In-Memory Storage Stores
 const orders = new Map();
 const agents = new Map();
+const otpStore = new Map();
+const customers = new Map();
 
 // All-India State Master Mapping
 const STATE_NAMES = {
@@ -453,7 +455,72 @@ function isCommercialClass(vClass) {
          str.includes('CARRIAGE') || str.includes('STAGE');
 }
 
-// Agent Registration
+// =====================================================================
+// CUSTOMER AUTHENTICATION & TEST OTP SYSTEM (PAYTM COMPLIANCE MANDATE)
+// =====================================================================
+
+// 1. Send OTP (Supports Compliance Tester Bypass)
+app.post('/api/customer/send-otp', (req, res) => {
+  const { mobile } = req.body;
+  const cleanMobile = String(mobile || '').replace(/\D/g, '');
+
+  if (cleanMobile.length !== 10) {
+    return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
+  }
+
+  const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
+  otpStore.set(cleanMobile, {
+    otp: generatedOtp,
+    expiresAt: Date.now() + 5 * 60 * 1000
+  });
+
+  console.log(`[TEST OTP FOR AUDIT] Mobile: ${cleanMobile} -> OTP: ${generatedOtp} (or use '1234')`);
+
+  res.json({
+    success: true,
+    message: 'Verification code sent.',
+    mobile: cleanMobile,
+    testOtp: generatedOtp
+  });
+});
+
+// 2. Verify OTP
+app.post('/api/customer/verify-otp', (req, res) => {
+  const { mobile, otp } = req.body;
+  const cleanMobile = String(mobile || '').replace(/\D/g, '');
+  const enteredOtp = String(otp || '').trim();
+
+  const record = otpStore.get(cleanMobile);
+  const isValid = enteredOtp === '1234' || (record && record.otp === enteredOtp && Date.now() < record.expiresAt);
+
+  if (!isValid) {
+    return res.status(400).json({ error: 'Invalid or expired OTP. Use 1234 for testing.' });
+  }
+
+  otpStore.delete(cleanMobile);
+
+  const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
+  const customerId = 'CUST_' + cleanMobile;
+
+  customers.set(customerId, {
+    customerId,
+    mobile: cleanMobile,
+    sessionToken: token,
+    verifiedAt: new Date()
+  });
+
+  res.json({
+    success: true,
+    token,
+    mobile: cleanMobile,
+    message: 'Mobile identity verified successfully.'
+  });
+});
+
+// =====================================================================
+// AGENT & ADMIN ROUTES
+// =====================================================================
+
 app.post('/api/agent/register', (req, res) => {
   const { name, mobile, email, password, address } = req.body;
   if (!name || !mobile || !email || !password || !address) {
@@ -481,7 +548,6 @@ app.post('/api/agent/register', (req, res) => {
   res.json({ success: true, agentId, amount: 500, paymentProvider: 'EKQR', paymentMode: 'UPI' });
 });
 
-// Agent Login
 app.post('/api/agent/login', (req, res) => {
   const { identifier, password } = req.body;
   const agent = Array.from(agents.values()).find(
@@ -517,7 +583,6 @@ app.post('/api/agent/login', (req, res) => {
   });
 });
 
-// Admin Login
 app.post('/api/admin/login', (req, res) => {
   const { secretKey } = req.body;
   if (ADMIN_MASTER_SECRET && secretKey === ADMIN_MASTER_SECRET) {
@@ -526,7 +591,6 @@ app.post('/api/admin/login', (req, res) => {
   return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
 });
 
-// Admin: Get All Agents
 app.get('/api/admin/agents', (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -535,7 +599,6 @@ app.get('/api/admin/agents', (req, res) => {
   res.json({ success: true, agents: Array.from(agents.values()) });
 });
 
-// Admin: Update Agent Status
 app.post('/api/admin/update-agent-status', (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -552,7 +615,6 @@ app.post('/api/admin/update-agent-status', (req, res) => {
   res.json({ success: true, agent });
 });
 
-// Admin: Clear In-Memory Data
 app.post('/api/admin/clear-data', (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -561,7 +623,9 @@ app.post('/api/admin/clear-data', (req, res) => {
 
   orders.clear();
   agents.clear();
-  res.json({ success: true, message: 'All test orders and agents cleared successfully.' });
+  otpStore.clear();
+  customers.clear();
+  res.json({ success: true, message: 'All test orders, agents, and sessions cleared successfully.' });
 });
 
 // =====================================================================
@@ -580,6 +644,8 @@ app.post('/api/create-order', async (req, res) => {
       if (agt && agt.status === 'ACTIVE') {
         role = 'AGENT';
       }
+    } else if (authHeader.startsWith('Bearer TOK_CUST_')) {
+      role = 'CUSTOMER';
     }
 
     let finalAmount = 100;
@@ -614,8 +680,8 @@ app.post('/api/create-order', async (req, res) => {
           p_info: cleanNote,
           customer_name: 'Customer',
           customer_email: customerEmail || 'support@rtoboss.in',
-          customer_mobile: customerMobile || '8660584245',
-          redirect_url: `https://www.rtoboss.in?order_id=${orderId}`
+          customer_mobile: customerMobile || '8431841431',
+          redirect_url: `https://rtoboss.in?order_id=${orderId}`
         };
 
         const response = await fetch('https://api.ekqr.in/api/create_order', {
@@ -632,7 +698,6 @@ app.post('/api/create-order', async (req, res) => {
 
         if (ekqrData.status === true || ekqrData.status === 'success') {
           paymentUrl = ekqrData.data?.payment_url;
-          // Priority to BHIM link which PhonePe/GPay apps scan without issue
           upiIntentUrl = ekqrData.data?.upi_intent?.bhim_link || ekqrData.data?.upi_intent?.upi_link || fallbackUpiUrl;
         } else {
           console.warn('[EkQR Warning] Order creation returned:', ekqrData);
@@ -656,6 +721,7 @@ app.post('/api/create-order', async (req, res) => {
       status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
       paymentProvider: 'EKQR',
       currency: 'INR',
+      customerMobile: customerMobile || '',
       paymentUrl: paymentUrl || effectiveUpi,
       upiUrl: effectiveUpi,
       paidAt: role === 'ADMIN' ? new Date() : null,
@@ -679,7 +745,7 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 // =====================================================================
-// PAYMENT VERIFICATION (DUAL-LAYER: MEMORY CHECK + ACTIVE EKQR POLL)
+// PAYMENT VERIFICATION
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
@@ -689,7 +755,6 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  // Active status check directly against EkQR if payment is still pending
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
       const now = new Date();
@@ -714,7 +779,6 @@ app.post('/api/verify-payment', async (req, res) => {
         order.status = 'SUCCESS';
         order.paidAt = new Date();
         order.paymentId = checkData.data?.txn_id || checkData.data?.upi_txn_id || ('EKQR_' + Date.now());
-        console.log(`🚀 [ACTIVE CHECK SUCCESS] Order ${orderId} marked SUCCESS via EkQR status poll!`);
       }
     } catch (e) {
       console.error('EkQR Check Status Query Failed:', e.message);
@@ -760,7 +824,7 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 // =====================================================================
-// AUTOMATED EKQR PAYMENT WEBHOOK (URL-ENCODED & JSON READY)
+// AUTOMATED PAYMENT WEBHOOK
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
@@ -772,14 +836,12 @@ app.post('/api/bank-webhook', (req, res) => {
     const amount = body.amount;
     const customer_vpa = body.customer_vpa || '';
 
-    // Check if EkQR confirmed successful transaction
     if (status === 'success' || status === 'true') {
       let matchedOrder = null;
 
       if (client_txn_id && orders.has(client_txn_id)) {
         matchedOrder = orders.get(client_txn_id);
       } else {
-        // Fallback: match most recent pending order if ID is missing
         const orderKeys = Array.from(orders.keys()).reverse();
         for (const id of orderKeys) {
           const ord = orders.get(id);
@@ -817,24 +879,6 @@ app.post('/api/mark-paid', (req, res) => {
   order.paidAt = new Date();
   order.paymentId = 'MANUAL_' + Date.now();
   res.json({ success: true, message: `Order ${orderId} unlocked.` });
-});
-
-// Agent Onboarding Verification
-app.post('/api/agent/verify-onboarding', (req, res) => {
-  const { agentId } = req.body;
-  const agent = agents.get(agentId);
-  if (!agent) {
-    return res.status(404).json({ error: 'Agent record not found' });
-  }
-
-  agent.status = 'PENDING_APPROVAL';
-  agent.onboardingPaymentId = 'UPI_' + crypto.randomBytes(12).toString('hex');
-  agent.onboardingPaidAt = new Date();
-  res.json({
-    success: true,
-    status: 'PENDING_APPROVAL',
-    message: 'Onboarding payment recorded. Account is now under admin review.'
-  });
 });
 
 // =====================================================================

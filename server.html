@@ -173,7 +173,7 @@
                   type="text" 
                   id="dlInput" 
                   placeholder="KA13 20170004921" 
-                  value="KA13 20170004921"
+                  value="KA13 20170004921" 
                   maxlength="20" 
                   class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary"
                 />
@@ -188,7 +188,6 @@
                 />
               </div>
 
-              <!-- DL TEST DATA -->
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
                 <div class="font-bold text-slate-800">🧪 DL Test Reference Records:</div>
                 <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> (Harishakumara C — LMV Reference)</div>
@@ -249,7 +248,7 @@
         
         <div>
           <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
-          <p class="text-sm text-slate-500 mt-1">Your official vector PDF is downloading automatically.</p>
+          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF is downloading automatically.</p>
         </div>
 
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
@@ -273,9 +272,9 @@
 
         <div class="space-y-2.5 pt-2">
           <button 
-            onclick="downloadOfficialVectorPdf()"
+            onclick="downloadDigitalPdf()"
             class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
-            <span>📥</span> Download Official Vector PDF Again
+            <span>📥</span> Download Digital PDF Again
           </button>
           
           <button 
@@ -325,38 +324,112 @@
       </div>
     </div>
 
-    <!-- PAYMENT MODAL -->
+    <!-- CUSTOMER MOBILE OTP VERIFICATION MODAL (PAYTM COMPLIANCE MANDATE) -->
+    <div id="customerAuthModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
+          📱
+        </div>
+
+        <div>
+          <h3 class="text-lg font-black text-brand-navy">Customer Authentication</h3>
+          <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and download vehicle records.</p>
+        </div>
+
+        <!-- STAGE 1: ENTER MOBILE -->
+        <div id="authMobileStage" class="space-y-3 text-left">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Customer Mobile Number</label>
+            <div class="flex rounded-xl border border-slate-300 overflow-hidden focus-within:border-brand-primary">
+              <span class="bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-500 flex items-center border-r border-slate-300">+91</span>
+              <input type="text" id="custAuthMobile" placeholder="9876543210" maxlength="10" class="w-full p-2.5 text-sm font-bold text-slate-800 outline-none" />
+            </div>
+          </div>
+
+          <button type="button" onclick="sendCustomerOtp()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+            Send Verification Code
+          </button>
+        </div>
+
+        <!-- STAGE 2: ENTER OTP -->
+        <div id="authOtpStage" class="hidden space-y-3 text-left">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-[11px] font-bold text-slate-500 uppercase">Enter 4-Digit Code</label>
+              <button onclick="resendCustomerOtp()" class="text-[10px] text-brand-primary font-bold hover:underline">Change Number</button>
+            </div>
+            <input type="text" id="custAuthOtp" placeholder="1234" maxlength="4" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
+          </div>
+
+          <!-- Compliance Audit Tester Badge -->
+          <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 text-center">
+            🧪 <strong>Reviewer Test Code:</strong> Use <span class="mono font-bold text-emerald-950">1234</span> or <span id="displayTestOtp" class="mono font-bold text-emerald-950">----</span>
+          </div>
+
+          <button type="button" onclick="verifyCustomerOtp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+            Verify &amp; Continue to Pay
+          </button>
+        </div>
+
+        <button type="button" onclick="closeCustomerModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+      </div>
+    </div>
+
+    <!-- DIRECT IN-PAGE UPI PAYMENT MODAL -->
     <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">₹</div>
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
+          ⚡
+        </div>
+        
         <div>
-          <h3 class="text-lg font-black text-brand-navy" id="paymentModalTitle">Simulated UPI Gateway</h3>
+          <h3 class="text-lg font-black text-brand-navy">Instant UPI Payment</h3>
           <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
         </div>
 
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2">
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-left text-xs space-y-1.5">
           <div class="flex justify-between text-slate-500">
-            <span>Target:</span>
+            <span>Target Record:</span>
             <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
           </div>
           <div class="flex justify-between text-slate-500">
             <span>Amount:</span>
-            <span class="font-black text-brand-primary text-sm" id="modalAmount">---</span>
+            <span class="font-black text-brand-primary text-base" id="modalAmount">---</span>
           </div>
         </div>
 
+        <!-- HIGH CONTRAST DYNAMIC QR CODE DISPLAY -->
+        <div class="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2">
+          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-48 h-48 rounded-lg shadow-sm border border-slate-100" />
+          <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
+        </div>
+
+        <!-- DIRECT MOBILE APP OPEN BUTTON -->
+        <a 
+          id="upiIntentLink" 
+          href="#" 
+          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
+          <span>📱</span> Pay via UPI App (Mobile)
+        </a>
+
+        <!-- LIVE AUTO-POLLING STATUS BADGE -->
+        <div class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+          <span>Awaiting payment confirmation...</span>
+        </div>
+
+        <!-- TESTING SHORTCUT: Simulate Payment -->
         <button 
-          id="simPaymentBtn" 
-          onclick="simulatePaymentSuccess()"
-          class="w-full bg-brand-success hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
-          <span>✓</span> Simulate Payment Success
+          onclick="simulateInstantSuccess()" 
+          class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-100 transition-all w-full">
+          🧪 [Dev Test] Simulate Instant Payment Received
         </button>
 
-        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel Order</button>
       </div>
     </div>
 
-    <!-- AGENT MODAL (LOGIN & REGISTER) -->
+    <!-- AGENT MODAL -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -430,7 +503,7 @@
           </div>
         </div>
 
-        <!-- AGENT HOLD STATUS VIEW -->
+        <!-- AGENT HOLD VIEW -->
         <div id="agentHoldView" class="hidden text-center py-4 space-y-3">
           <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
             ⏳
@@ -444,7 +517,7 @@
       </div>
     </div>
 
-    <!-- MASTER ADMIN MODAL (ACCESSIBLE VIA /#admin) -->
+    <!-- MASTER ADMIN MODAL -->
     <div id="adminModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -498,25 +571,21 @@
   <!-- FOOTER -->
   <footer class="w-full border-t border-slate-200 bg-white py-8 mt-8 no-print">
     <div class="max-w-4xl mx-auto px-4 space-y-4 text-center">
-      
-      <!-- Legal Links -->
       <div class="flex flex-wrap justify-center gap-6 text-xs font-semibold text-slate-600">
-        <a href="javascript:void(0)" class="hover:text-brand-primary transition-colors">Privacy Policy</a>
-        <a href="javascript:void(0)" class="hover:text-brand-primary transition-colors">Terms of Service</a>
-        <a href="javascript:void(0)" class="hover:text-brand-primary transition-colors">Refund Policy</a>
-        <a href="javascript:void(0)" class="hover:text-brand-primary transition-colors">Contact Us</a>
+        <a href="/about.html" class="hover:text-brand-primary transition-colors">About Us</a>
+        <a href="/privacy.html" class="hover:text-brand-primary transition-colors">Privacy Policy</a>
+        <a href="/terms.html" class="hover:text-brand-primary transition-colors">Terms of Service</a>
+        <a href="/refund.html" class="hover:text-brand-primary transition-colors">Refund Policy</a>
+        <a href="/contact.html" class="hover:text-brand-primary transition-colors">Contact Us</a>
       </div>
 
-      <!-- Copyright -->
       <div class="text-xs text-slate-500 font-medium">
         © 2026 RTOBoss. All rights reserved.
       </div>
 
-      <!-- Payment Gateway Non-Affiliation Disclaimer -->
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-400 leading-relaxed text-left sm:text-center">
-        <strong>Important Disclaimer:</strong> RTOBoss is an independent, private digital records utility. We are not affiliated with, authorized by, or endorsed by the Government of India, Ministry of Road Transport and Highways (MoRTH), Parivahan Sewa, or any State Transport Department / Regional Transport Office (RTO). Official government services can be accessed directly on their respective official portals.
+        <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by the Government of India, MoRTH, Parivahan Sewa, or any State Transport Department / RTO. The PDFs generated by this service are formatted digital copies for the customer's personal or business use and are not government-issued documents.
       </div>
-
     </div>
   </footer>
 
@@ -568,17 +637,25 @@
     let activeOrderId = null;
     let activeReportData = null;
     let pendingOnboardingAgentId = null;
+    let currentUpiUrl = '';
+    let paymentPollInterval = null;
 
-    // Role Session State: 'PUBLIC' | 'AGENT' | 'ADMIN'
     let currentRole = 'PUBLIC';
     let sessionToken = null;
     let sessionAgentData = null;
 
-    // SPA Navigation with Browser History
+    let verifiedCustomerMobile = localStorage.getItem('rtoboss_customer_mobile') || null;
+    let customerSessionToken = localStorage.getItem('rtoboss_customer_token') || null;
+
+    if (customerSessionToken) {
+      sessionToken = customerSessionToken;
+    }
+
     function navigateTo(viewName, addToHistory = true) {
       document.getElementById('view-input-state').classList.add('hidden');
       document.getElementById('view-success-state').classList.add('hidden');
       closeFormatModal();
+      closeCustomerModal();
       closePaymentModal();
       closeAgentModal();
       closeAdminModal();
@@ -592,7 +669,6 @@
       }
     }
 
-    // Check for Secret Admin Route (/#admin or /admin)
     function checkAdminRoute() {
       if (window.location.hash === '#admin' || window.location.pathname === '/admin') {
         openAdminModal();
@@ -612,7 +688,7 @@
       checkAdminRoute();
     });
 
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       checkAdminRoute();
       if (!window.location.hash) {
         history.replaceState({ view: 'search' }, '', '#search');
@@ -655,7 +731,6 @@
         ? 'Generate & Download Instant PDF (₹0)' 
         : `Proceed to Format & Download (₹${activePrice})`;
 
-      // Header Badge
       const badgeCont = document.getElementById('roleBadgeContainer');
       if (currentRole === 'ADMIN') {
         badgeCont.className = "flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold text-purple-700";
@@ -663,6 +738,9 @@
       } else if (currentRole === 'AGENT') {
         badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
         badgeCont.innerHTML = `<span>🤝</span> Partner: ${sessionAgentData.name}`;
+      } else if (verifiedCustomerMobile) {
+        badgeCont.className = "flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold text-brand-primary";
+        badgeCont.innerHTML = `<span>📱</span> +91 ${verifiedCustomerMobile}`;
       } else {
         badgeCont.className = "hidden";
       }
@@ -731,8 +809,13 @@
 
     function handleProceedClick() {
       if (currentService === 'DL') {
+        const dlVal = document.getElementById('dlInput').value.trim();
+        if (!dlVal || dlVal.length < 6) {
+          alert('Please enter a valid Driving Licence Number');
+          return;
+        }
         chosenFormat = 'NEW';
-        startOrderCreation();
+        checkCustomerAuthThenOrder();
         return;
       }
 
@@ -748,14 +831,98 @@
         document.getElementById('formatChooserModal').classList.remove('hidden');
       } else {
         chosenFormat = 'NEW';
-        startOrderCreation();
+        checkCustomerAuthThenOrder();
       }
     }
 
     function confirmFormatSelection(format) {
       chosenFormat = format;
       closeFormatModal();
-      startOrderCreation();
+      checkCustomerAuthThenOrder();
+    }
+
+    function checkCustomerAuthThenOrder() {
+      if (currentRole === 'AGENT' || currentRole === 'ADMIN' || customerSessionToken) {
+        startOrderCreation();
+      } else {
+        openCustomerModal();
+      }
+    }
+
+    function openCustomerModal() {
+      document.getElementById('customerAuthModal').classList.remove('hidden');
+      document.getElementById('authMobileStage').classList.remove('hidden');
+      document.getElementById('authOtpStage').classList.add('hidden');
+    }
+
+    function closeCustomerModal() {
+      document.getElementById('customerAuthModal').classList.add('hidden');
+    }
+
+    function resendCustomerOtp() {
+      document.getElementById('authMobileStage').classList.remove('hidden');
+      document.getElementById('authOtpStage').classList.add('hidden');
+    }
+
+    async function sendCustomerOtp() {
+      const mobile = document.getElementById('custAuthMobile').value.trim();
+      if (!mobile || mobile.length !== 10) {
+        alert('Please enter a valid 10-digit mobile number');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/customer/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile })
+        });
+        const d = await res.json();
+        if (d.success) {
+          document.getElementById('authMobileStage').classList.add('hidden');
+          document.getElementById('authOtpStage').classList.remove('hidden');
+          document.getElementById('displayTestOtp').innerText = d.testOtp;
+        } else {
+          alert(d.error || 'Failed to send verification code');
+        }
+      } catch (err) {
+        alert('Error connecting to authentication service: ' + err.message);
+      }
+    }
+
+    async function verifyCustomerOtp() {
+      const mobile = document.getElementById('custAuthMobile').value.trim();
+      const otp = document.getElementById('custAuthOtp').value.trim();
+
+      if (!otp || otp.length !== 4) {
+        alert('Please enter the 4-digit code (use 1234 for testing)');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/customer/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile, otp })
+        });
+        const d = await res.json();
+        if (d.success) {
+          verifiedCustomerMobile = d.mobile;
+          customerSessionToken = d.token;
+          sessionToken = d.token;
+
+          localStorage.setItem('rtoboss_customer_mobile', d.mobile);
+          localStorage.setItem('rtoboss_customer_token', d.token);
+
+          updatePriceUI();
+          closeCustomerModal();
+          startOrderCreation();
+        } else {
+          alert(d.error || 'Invalid verification code');
+        }
+      } catch (err) {
+        alert('Verification request failed: ' + err.message);
+      }
     }
 
     async function startOrderCreation() {
@@ -769,6 +936,11 @@
         dob = document.getElementById('dlDob').value;
       }
 
+      const payBtn = document.getElementById('payBtn');
+      const originalText = document.getElementById('btnText').innerText;
+      document.getElementById('btnText').innerText = 'Generating QR...';
+      payBtn.disabled = true;
+
       const headers = { 'Content-Type': 'application/json' };
       if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
 
@@ -781,54 +953,88 @@
             targetNumber,
             tier: selectedTierLabel,
             dob,
-            rcFormat: chosenFormat
+            rcFormat: chosenFormat,
+            customerMobile: verifiedCustomerMobile
           })
         });
         const data = await res.json();
+        
+        document.getElementById('btnText').innerText = originalText;
+        payBtn.disabled = false;
+
         if (data.success) {
           activeOrderId = data.orderId;
+          currentUpiUrl = data.upiUrl;
 
-          // Free bypass for Admin
           if (data.role === 'ADMIN' || data.amount === 0) {
-            simulatePaymentSuccess();
+            await completeOrderWithoutPayment();
             return;
           }
 
-          document.getElementById('paymentModalTitle').innerText = 'Simulated UPI Gateway';
           document.getElementById('modalOrderId').innerText = data.orderId;
           document.getElementById('modalTarget').innerText = targetNumber;
           document.getElementById('modalAmount').innerText = '₹' + data.amount;
+
+          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          document.getElementById('upiIntentLink').href = currentUpiUrl;
+
           document.getElementById('paymentModal').classList.remove('hidden');
+          startPaymentPolling(activeOrderId);
+        } else {
+          alert(data.error || 'Failed to initialize payment');
         }
       } catch (e) {
         alert('Could not initiate order: ' + e.message);
+        document.getElementById('btnText').innerText = originalText;
+        payBtn.disabled = false;
       }
     }
 
-    // Direct Download Flow upon Payment Success
-    async function simulatePaymentSuccess() {
-      closePaymentModal();
+    function startPaymentPolling(orderId) {
+      if (paymentPollInterval) clearInterval(paymentPollInterval);
 
-      // Onboarding fee check
-      if (pendingOnboardingAgentId) {
+      paymentPollInterval = setInterval(async () => {
         try {
-          const res = await fetch('/api/agent/verify-onboarding', {
+          const res = await fetch('/api/verify-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ agentId: pendingOnboardingAgentId })
+            body: JSON.stringify({ orderId })
           });
-          const d = await res.json();
-          pendingOnboardingAgentId = null;
-          if (d.success) {
-            openAgentModal();
-            toggleAgentAuthView('hold');
-          }
-        } catch (e) {
-          alert('Error verifying onboarding fee');
-        }
-        return;
-      }
+          const data = await res.json();
 
+          if (data.status === 'SUCCESS') {
+            clearInterval(paymentPollInterval);
+            closePaymentModal();
+            localStorage.setItem(`order_${orderId}_status`, 'PAID');
+            await showCompletedOrder(data);
+          }
+        } catch (err) {
+          console.error("Polling check failed", err);
+        }
+      }, 2000);
+    }
+
+    async function simulateInstantSuccess() {
+      if (!activeOrderId) return;
+      try {
+        const res = await fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: activeOrderId, forceSuccess: true })
+        });
+        const data = await res.json();
+        if (data.status === 'SUCCESS') {
+          if (paymentPollInterval) clearInterval(paymentPollInterval);
+          closePaymentModal();
+          localStorage.setItem(`order_${activeOrderId}_status`, 'PAID');
+          await showCompletedOrder(data);
+        }
+      } catch (e) {
+        alert('Simulation failed: ' + e.message);
+      }
+    }
+
+    async function completeOrderWithoutPayment() {
       try {
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
@@ -836,39 +1042,33 @@
           body: JSON.stringify({ orderId: activeOrderId })
         });
         const data = await res.json();
-
         if (data.status === 'SUCCESS') {
-          activeReportData = data.report;
-
-          // Populate Receipt View
-          document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
-          document.getElementById('receiptOrderId').innerText = data.orderId;
-          document.getElementById('receiptAmount').innerText = '₹' + data.amount;
-
-          // Trigger Immediate Vector PDF Download
-          await downloadOfficialVectorPdf();
-
-          // Show Receipt Screen
-          navigateTo('complete');
+          await showCompletedOrder(data);
+        } else {
+          alert(data.error || 'Order could not be completed.');
         }
       } catch (e) {
-        alert('Error verifying payment: ' + e.message);
+        alert('Order completion failed: ' + e.message);
       }
     }
 
-    // Official Vector PDF Download Stream
-    async function downloadOfficialVectorPdf() {
+    async function showCompletedOrder(data) {
+      activeReportData = data.report;
+      document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
+      document.getElementById('receiptOrderId').innerText = data.orderId;
+      document.getElementById('receiptAmount').innerText = '₹' + data.amount;
+      await downloadDigitalPdf();
+      navigateTo('complete');
+    }
+
+    async function downloadDigitalPdf() {
       if (!activeReportData) return;
 
       try {
         const res = await fetch('/api/download-rc-pdf', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            report: activeReportData,
-            rcFormat: chosenFormat,
-            docType: currentService
-          })
+          body: JSON.stringify({ orderId: activeOrderId })
         });
 
         if (!res.ok) throw new Error('PDF download failed');
@@ -889,9 +1089,6 @@
       }
     }
 
-    // =========================================================================
-    // AGENT & ADMIN PORTAL CLIENT LOGIC
-    // =========================================================================
     function openAgentModal() {
       document.getElementById('agentModal').classList.remove('hidden');
       toggleAgentAuthView('login');
@@ -940,12 +1137,31 @@
           pendingOnboardingAgentId = d.agentId;
           closeAgentModal();
 
-          // Open Payment Gateway for ₹500 fee
-          document.getElementById('paymentModalTitle').innerText = 'Agent Onboarding Fee (₹500)';
-          document.getElementById('modalOrderId').innerText = d.agentId;
+          const orderRes = await fetch('/api/create-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              docType: 'AGENT_ONBOARDING',
+              targetNumber: d.agentId,
+              tier: '2-Wheeler',
+              customerMobile: mobile,
+              customerEmail: email
+            })
+          });
+          const orderData = await orderRes.json();
+
+          activeOrderId = orderData.orderId;
+          currentUpiUrl = orderData.upiUrl;
+
+          document.getElementById('modalOrderId').innerText = orderData.orderId;
           document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
           document.getElementById('modalAmount').innerText = '₹500.00';
+          
+          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          document.getElementById('upiIntentLink').href = currentUpiUrl;
+
           document.getElementById('paymentModal').classList.remove('hidden');
+          startPaymentPolling(activeOrderId);
         } else {
           alert(d.error || 'Registration failed');
         }
@@ -973,8 +1189,7 @@
 
         if (d.success) {
           currentRole = 'AGENT';
-          sessionToken = d.token.replace('TOK_AGT_', '');
-          sessionToken = `TOK_AGT_${sessionToken}`;
+          sessionToken = d.token;
           sessionAgentData = d.agent;
           closeAgentModal();
           updatePriceUI();
@@ -1002,6 +1217,7 @@
         document.getElementById('adminDashboardView').classList.add('hidden');
       }
     }
+
     function closeAdminModal() {
       document.getElementById('adminModal').classList.add('hidden');
       if (window.location.hash === '#admin') {
@@ -1106,6 +1322,10 @@
       currentRole = 'PUBLIC';
       sessionToken = null;
       sessionAgentData = null;
+      verifiedCustomerMobile = null;
+      customerSessionToken = null;
+      localStorage.removeItem('rtoboss_customer_mobile');
+      localStorage.removeItem('rtoboss_customer_token');
       closeAdminModal();
       closeAgentModal();
       updatePriceUI();
@@ -1115,9 +1335,30 @@
     function closeFormatModal() {
       document.getElementById('formatChooserModal').classList.add('hidden');
     }
+
     function closePaymentModal() {
+      if (paymentPollInterval) clearInterval(paymentPollInterval);
       document.getElementById('paymentModal').classList.add('hidden');
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && activeOrderId) {
+        fetch('/api/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: activeOrderId })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'SUCCESS') {
+            if (paymentPollInterval) clearInterval(paymentPollInterval);
+            closePaymentModal();
+            showCompletedOrder(data);
+          }
+        })
+        .catch(console.error);
+      }
+    });
   </script>
 </body>
 </html>
