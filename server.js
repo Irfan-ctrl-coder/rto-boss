@@ -17,8 +17,8 @@ const MERCHANT_NAME = 'RTO BOSS';
 // =====================================================================
 // VYAPARGATEWAY CREDENTIALS (PASTE YOUR KEYS HERE)
 // =====================================================================
-const VYAPAR_API_KEY = process.env.VYAPAR_API_KEY || 'PASTE_YOUR_VG_LIVE_KEY_HERE';
-const VYAPAR_WEBHOOK_SECRET = process.env.VYAPAR_WEBHOOK_SECRET || 'PASTE_YOUR_WHSEC_KEY_HERE';
+const VYAPAR_API_KEY = process.env.VYAPAR_API_KEY || 'vg_live_Co8j6DaFiAkX-O7cUs9bfjF8';
+const VYAPAR_WEBHOOK_SECRET = process.env.VYAPAR_WEBHOOK_SECRET || 'whsec_M2kzZGvl6cCLS7bMz9FfvHht22A9PO64';
 const VYAPAR_BASE_URL = 'https://vyapargateway.com';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
