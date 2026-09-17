@@ -15,10 +15,10 @@ const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Paytm.s3xfs8b@pty';
 const MERCHANT_NAME = 'RTO BOSS';
 
 // =====================================================================
-// VYAPARGATEWAY CREDENTIALS (PASTE YOUR KEYS HERE)
+// VYAPARGATEWAY CREDENTIALS (PASTE YOUR KEYS HERE ON LINES 17 & 18)
 // =====================================================================
-const VYAPAR_API_KEY = process.env.VYAPAR_API_KEY || 'vg_live_Co8j6DaFiAkX-O7cUs9bfjF8';
-const VYAPAR_WEBHOOK_SECRET = process.env.VYAPAR_WEBHOOK_SECRET || 'whsec_M2kzZGvl6cCLS7bMz9FfvHht22A9PO64';
+const VYAPAR_API_KEY = process.env.VYAPAR_API_KEY || 'vg_live_TMmE7SqzYZVyFcU0wuHLSZox';
+const VYAPAR_WEBHOOK_SECRET = process.env.VYAPAR_WEBHOOK_SECRET || 'whsec_CMIz326R7YLP0hjGz-h0f4dxVln5kYiA';
 const VYAPAR_BASE_URL = 'https://vyapargateway.com';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
@@ -667,14 +667,14 @@ app.post('/api/create-order', async (req, res) => {
       else finalAmount = 100;
     }
 
-   const orderId = 'ORD' + Date.now();
+    const orderId = 'ORD' + Date.now();
     let qrCodeBase64 = null;
     let upiIntentUrl = null;
     let gatewayOrderId = null;
     let upiIntent = null;
 
     const cleanNote = `${docType || 'DOC'}${targetNumber ? targetNumber.replace(/[^A-Z0-9]/g, '') : ''}`;
-    const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}`;
+    const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}&mode=02`;
 
     // Connect to VyaparGateway API
     if (role !== 'ADMIN' && finalAmount > 0) {
@@ -703,7 +703,7 @@ app.post('/api/create-order', async (req, res) => {
         const vgData = await response.json();
         console.log('[VyaparGateway Order Response]:', JSON.stringify(vgData));
 
-       if (vgData.status === true && vgData.data) {
+        if (vgData.status === true && vgData.data) {
           gatewayOrderId = vgData.data.order_id;
           qrCodeBase64 = vgData.data.qr_code;
           upiIntent = vgData.data.upi_intent || null;
@@ -715,7 +715,8 @@ app.post('/api/create-order', async (req, res) => {
         console.error('[VyaparGateway Connection Error]:', gatewayErr.message);
       }
     }
-let effectiveUpi = upiIntentUrl || fallbackUpiUrl;
+
+    let effectiveUpi = upiIntentUrl || fallbackUpiUrl;
     if (!effectiveUpi.includes('mode=02')) {
       effectiveUpi += (effectiveUpi.includes('?') ? '&mode=02' : '?mode=02');
     }
@@ -741,7 +742,7 @@ let effectiveUpi = upiIntentUrl || fallbackUpiUrl;
       createdAt: new Date()
     });
 
-  res.json({ 
+    res.json({ 
       success: true, 
       orderId, 
       amount: finalAmount, 
@@ -862,7 +863,7 @@ app.post('/api/bank-webhook', (req, res) => {
       }
     }
 
-    const { client_txn_id, status, upi_txn_id, amount, customer_mobile } = payload;
+    const { client_txn_id, status, upi_txn_id, amount } = payload;
 
     // Handle successful payment
     if (status === 'success') {
