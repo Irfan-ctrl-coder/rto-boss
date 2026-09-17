@@ -395,7 +395,7 @@
 
         <!-- HIGH CONTRAST DYNAMIC QR CODE DISPLAY -->
         <div class="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2">
-          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-48 h-48 rounded-lg shadow-sm border border-slate-100" />
+          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-48 h-48 rounded-lg shadow-sm border border-slate-100 object-contain" />
           <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
         </div>
 
@@ -881,6 +881,7 @@
       }
     }
 
+    // ORDER CREATION & VYAPARGATEWAY QR DISPLAY
     async function startOrderCreation() {
       let targetNumber = '';
       let dob = null;
@@ -931,7 +932,13 @@
           document.getElementById('modalTarget').innerText = targetNumber;
           document.getElementById('modalAmount').innerText = '₹' + data.amount;
 
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          // Native VyaparGateway Base64 QR Image Support
+          if (data.qrCodeBase64) {
+            document.getElementById('upiQrImage').src = data.qrCodeBase64;
+          } else {
+            document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          }
+
           document.getElementById('upiIntentLink').href = currentUpiUrl;
 
           document.getElementById('paymentModal').classList.remove('hidden');
@@ -1113,7 +1120,11 @@
           document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
           document.getElementById('modalAmount').innerText = '₹500.00';
           
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          if (orderData.qrCodeBase64) {
+            document.getElementById('upiQrImage').src = orderData.qrCodeBase64;
+          } else {
+            document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          }
           document.getElementById('upiIntentLink').href = currentUpiUrl;
 
           document.getElementById('paymentModal').classList.remove('hidden');

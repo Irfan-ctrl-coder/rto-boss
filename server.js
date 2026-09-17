@@ -11,9 +11,15 @@ const PORT = process.env.PORT || 3000;
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
-const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl'; 
+const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Paytm.s3xfs8b@pty'; 
 const MERCHANT_NAME = 'RTO BOSS';
-const EKQR_API_KEY = process.env.EKQR_API_KEY || '02dade28-b987-4590-8d0e-7799f43ae065';
+
+// =====================================================================
+// VYAPARGATEWAY CREDENTIALS (PASTE YOUR KEYS HERE)
+// =====================================================================
+const VYAPAR_API_KEY = process.env.VYAPAR_API_KEY || 'PASTE_YOUR_VG_LIVE_KEY_HERE';
+const VYAPAR_WEBHOOK_SECRET = process.env.VYAPAR_WEBHOOK_SECRET || 'PASTE_YOUR_WHSEC_KEY_HERE';
+const VYAPAR_BASE_URL = 'https://vyapargateway.com';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
@@ -456,10 +462,9 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION & TEST OTP SYSTEM (PAYTM COMPLIANCE MANDATE)
+// CUSTOMER AUTHENTICATION & TEST OTP SYSTEM
 // =====================================================================
 
-// 1. Send OTP (Supports Compliance Tester Bypass)
 app.post('/api/customer/send-otp', (req, res) => {
   const { mobile } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
@@ -484,7 +489,6 @@ app.post('/api/customer/send-otp', (req, res) => {
   });
 });
 
-// 2. Verify OTP
 app.post('/api/customer/verify-otp', (req, res) => {
   const { mobile, otp } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
@@ -494,7 +498,7 @@ app.post('/api/customer/verify-otp', (req, res) => {
   const isValid = enteredOtp === '1234' || (record && record.otp === enteredOtp && Date.now() < record.expiresAt);
 
   if (!isValid) {
-    return res.status(400).json({ error: 'Invalid or expired OTP. Use 1234 for testing.' });
+    return res.status(400).json({ error: 'Invalid or expired OTP.' });
   }
 
   otpStore.delete(cleanMobile);
@@ -545,7 +549,7 @@ app.post('/api/agent/register', (req, res) => {
   };
 
   agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500, paymentProvider: 'EKQR', paymentMode: 'UPI' });
+  res.json({ success: true, agentId, amount: 500, paymentProvider: 'VYAPARGATEWAY', paymentMode: 'UPI' });
 });
 
 app.post('/api/agent/login', (req, res) => {
@@ -629,7 +633,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & EKQR DYNAMIC UPI GATEWAY INTEGRATION
+// ORDER PROCESSING & VYAPARGATEWAY DYNAMIC UPI INTEGRATION
 // =====================================================================
 app.post('/api/create-order', async (req, res) => {
   try {
@@ -664,46 +668,49 @@ app.post('/api/create-order', async (req, res) => {
     }
 
     const orderId = 'ORD' + Date.now();
-    let paymentUrl = null;
+    let qrCodeBase64 = null;
     let upiIntentUrl = null;
+    let gatewayOrderId = null;
 
     const cleanNote = `${docType || 'DOC'}${targetNumber ? targetNumber.replace(/[^A-Z0-9]/g, '') : ''}`;
     const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}`;
 
-    // Connect to EkQR API
+    // Connect to VyaparGateway API
     if (role !== 'ADMIN' && finalAmount > 0) {
       try {
-        const ekqrPayload = {
-          key: EKQR_API_KEY,
+        const vgPayload = {
+          key: VYAPAR_API_KEY,
           client_txn_id: orderId,
-          amount: String(finalAmount),
+          amount: finalAmount,
           p_info: cleanNote,
           customer_name: 'Customer',
-          customer_email: customerEmail || 'support@rtoboss.in',
           customer_mobile: customerMobile || '8431841431',
-          redirect_url: `https://rtoboss.in?order_id=${orderId}`
+          customer_email: customerEmail || 'support@rtoboss.in',
+          callback_url: 'https://www.rtoboss.in/api/bank-webhook',
+          redirect_url: `https://www.rtoboss.in?order_id=${orderId}`
         };
 
-        const response = await fetch('https://api.ekqr.in/api/create_order', {
+        const response = await fetch(`${VYAPAR_BASE_URL}/api/v1/create_order`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify(ekqrPayload)
+          body: JSON.stringify(vgPayload)
         });
 
-        const ekqrData = await response.json();
-        console.log('[EkQR Server Response]:', JSON.stringify(ekqrData));
+        const vgData = await response.json();
+        console.log('[VyaparGateway Order Response]:', JSON.stringify(vgData));
 
-        if (ekqrData.status === true || ekqrData.status === 'success') {
-          paymentUrl = ekqrData.data?.payment_url;
-          upiIntentUrl = ekqrData.data?.upi_intent?.bhim_link || ekqrData.data?.upi_intent?.upi_link || fallbackUpiUrl;
+        if (vgData.status === true && vgData.data) {
+          gatewayOrderId = vgData.data.order_id;
+          qrCodeBase64 = vgData.data.qr_code;
+          upiIntentUrl = vgData.data.upi_string || vgData.data.upi_intent?.bhim_link;
         } else {
-          console.warn('[EkQR Warning] Order creation returned:', ekqrData);
+          console.warn('[VyaparGateway Warning] Order creation returned:', vgData.msg);
         }
       } catch (gatewayErr) {
-        console.error('[EkQR Connection Error]:', gatewayErr.message);
+        console.error('[VyaparGateway Connection Error]:', gatewayErr.message);
       }
     }
 
@@ -711,6 +718,7 @@ app.post('/api/create-order', async (req, res) => {
 
     orders.set(orderId, {
       orderId,
+      gatewayOrderId,
       docType,
       targetNumber,
       tier,
@@ -719,10 +727,11 @@ app.post('/api/create-order', async (req, res) => {
       dob,
       rcFormat: rcFormat || 'OLD',
       status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
-      paymentProvider: 'EKQR',
+      paymentProvider: 'VYAPARGATEWAY',
       currency: 'INR',
       customerMobile: customerMobile || '',
-      paymentUrl: paymentUrl || effectiveUpi,
+      qrCodeBase64,
+      paymentUrl: effectiveUpi,
       upiUrl: effectiveUpi,
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
@@ -733,9 +742,10 @@ app.post('/api/create-order', async (req, res) => {
       orderId, 
       amount: finalAmount, 
       role, 
-      paymentUrl: paymentUrl || effectiveUpi,
+      qrCodeBase64,
+      paymentUrl: effectiveUpi,
       upiUrl: effectiveUpi,
-      paymentProvider: 'EKQR', 
+      paymentProvider: 'VYAPARGATEWAY', 
       paymentMode: 'UPI' 
     });
   } catch (err) {
@@ -745,7 +755,7 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 // =====================================================================
-// PAYMENT VERIFICATION
+// PAYMENT VERIFICATION (DUAL-LAYER: ACTIVE VYAPARGATEWAY STATUS CHECK)
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
@@ -755,33 +765,29 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
+  // Active check against VyaparGateway API
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
-      const formattedTxnDate = `${day}-${month}-${year}`;
-
-      const checkRes = await fetch('https://api.ekqr.in/api/check_order_status', {
+      const checkRes = await fetch(`${VYAPAR_BASE_URL}/api/v1/check_order_status`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          key: EKQR_API_KEY,
+          key: VYAPAR_API_KEY,
           client_txn_id: orderId,
-          txn_date: formattedTxnDate
+          order_id: order.gatewayOrderId || undefined
         })
       });
       const checkData = await checkRes.json();
-      console.log(`[EkQR Active Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
+      console.log(`[VyaparGateway Active Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
 
-      if (checkData.status === true && (checkData.data?.status === 'success' || checkData.data?.status === 'COMPLETED')) {
+      if (checkData.status === true && checkData.data?.status === 'success') {
         order.status = 'SUCCESS';
         order.paidAt = new Date();
-        order.paymentId = checkData.data?.txn_id || checkData.data?.upi_txn_id || ('EKQR_' + Date.now());
+        order.paymentId = checkData.data?.upi_txn_id || checkData.data?.order_id || ('VG_' + Date.now());
+        console.log(`🚀 [STATUS CHECK SUCCESS] Order ${orderId} confirmed via poll!`);
       }
     } catch (e) {
-      console.error('EkQR Check Status Query Failed:', e.message);
+      console.error('VyaparGateway Check Status Query Failed:', e.message);
     }
   }
 
@@ -824,19 +830,37 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 // =====================================================================
-// AUTOMATED PAYMENT WEBHOOK
+// AUTOMATED VYAPARGATEWAY WEBHOOK WITH HMAC-SHA256 SIGNATURE CHECK
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
-    console.log('📥 [EkQR Webhook Received Body]:', req.body);
+    const signature = req.headers['x-vyapargateway-signature'];
+    const timestamp = req.headers['x-vyapargateway-timestamp'];
+    const payload = req.body || {};
 
-    const body = req.body || {};
-    const status = String(body.status || '').toLowerCase();
-    const client_txn_id = body.client_txn_id;
-    const amount = body.amount;
-    const customer_vpa = body.customer_vpa || '';
+    console.log('📥 [VyaparGateway Webhook Received]:', JSON.stringify(payload));
 
-    if (status === 'success' || status === 'true') {
+    // HMAC Security Verification
+    if (VYAPAR_WEBHOOK_SECRET && VYAPAR_WEBHOOK_SECRET !== 'PASTE_YOUR_WHSEC_KEY_HERE' && signature && timestamp) {
+      try {
+        const payloadJson = JSON.stringify(payload, Object.keys(payload).sort());
+        const stringToSign = `${timestamp}.${payloadJson}`;
+        const expected = crypto.createHmac('sha256', VYAPAR_WEBHOOK_SECRET).update(stringToSign).digest('hex');
+
+        const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+        if (!isValid) {
+          console.warn('⚠️ [Webhook Security] Invalid signature rejected');
+          return res.status(401).json({ error: 'Invalid signature' });
+        }
+      } catch (sigErr) {
+        console.warn('⚠️ [Webhook Security] Signature match error:', sigErr.message);
+      }
+    }
+
+    const { client_txn_id, status, upi_txn_id, amount, customer_mobile } = payload;
+
+    // Handle successful payment
+    if (status === 'success') {
       let matchedOrder = null;
 
       if (client_txn_id && orders.has(client_txn_id)) {
@@ -855,16 +879,14 @@ app.post('/api/bank-webhook', (req, res) => {
       if (matchedOrder) {
         matchedOrder.status = 'SUCCESS';
         matchedOrder.paidAt = new Date();
-        matchedOrder.paymentId = body.id || body.txn_id || ('EKQR_' + Date.now());
-        matchedOrder.payerVpa = customer_vpa;
-        console.log(`🚀 [AUTOMATION] Order ${matchedOrder.orderId} marked SUCCESS via Webhook! Amount: ₹${amount}`);
-        return res.status(200).send('OK');
+        matchedOrder.paymentId = upi_txn_id || payload.order_id || ('VG_' + Date.now());
+        console.log(`🚀 [WEBHOOK SUCCESS] Order ${matchedOrder.orderId} marked SUCCESS! Amount: ₹${amount}`);
       }
     }
 
-    return res.status(200).send('IGNORED_OR_FAILED');
+    return res.status(200).json({ received: true });
   } catch (err) {
-    console.error('EkQR Webhook Processing Error:', err);
+    console.error('VyaparGateway Webhook Processing Error:', err);
     return res.status(500).json({ error: err.message });
   }
 });

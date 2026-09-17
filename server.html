@@ -324,7 +324,7 @@
       </div>
     </div>
 
-    <!-- CUSTOMER MOBILE OTP VERIFICATION MODAL (PAYTM COMPLIANCE MANDATE) -->
+    <!-- CUSTOMER MOBILE OTP VERIFICATION MODAL -->
     <div id="customerAuthModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
         <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
@@ -342,7 +342,7 @@
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Customer Mobile Number</label>
             <div class="flex rounded-xl border border-slate-300 overflow-hidden focus-within:border-brand-primary">
               <span class="bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-500 flex items-center border-r border-slate-300">+91</span>
-              <input type="text" id="custAuthMobile" placeholder="9876543210" maxlength="10" class="w-full p-2.5 text-sm font-bold text-slate-800 outline-none" />
+              <input type="text" id="custAuthMobile" placeholder="Enter 10-digit mobile" maxlength="10" class="w-full p-2.5 text-sm font-bold text-slate-800 outline-none" />
             </div>
           </div>
 
@@ -358,12 +358,7 @@
               <label class="text-[11px] font-bold text-slate-500 uppercase">Enter 4-Digit Code</label>
               <button onclick="resendCustomerOtp()" class="text-[10px] text-brand-primary font-bold hover:underline">Change Number</button>
             </div>
-            <input type="text" id="custAuthOtp" placeholder="1234" maxlength="4" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
-          </div>
-
-          <!-- Compliance Audit Tester Badge -->
-          <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] text-emerald-800 text-center">
-            🧪 <strong>Reviewer Test Code:</strong> Use <span class="mono font-bold text-emerald-950">1234</span> or <span id="displayTestOtp" class="mono font-bold text-emerald-950">----</span>
+            <input type="text" id="custAuthOtp" placeholder="••••" maxlength="4" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
           </div>
 
           <button type="button" onclick="verifyCustomerOtp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
@@ -591,43 +586,13 @@
 
   <script>
     const STATE_NAMES_CLIENT = {
-      AN: 'ANDAMAN AND NICOBAR',
-      AP: 'ANDHRA PRADESH',
-      AR: 'ARUNACHAL PRADESH',
-      AS: 'ASSAM',
-      BR: 'BIHAR',
-      CG: 'CHHATTISGARH',
-      CH: 'CHANDIGARH',
-      DD: 'DAMAN AND DIU',
-      DL: 'DELHI',
-      DN: 'DADRA AND NAGAR HAVELI',
-      GA: 'GOA',
-      GJ: 'GUJARAT',
-      HP: 'HIMACHAL PRADESH',
-      HR: 'HARYANA',
-      JH: 'JHARKHAND',
-      JK: 'JAMMU AND KASHMIR',
-      KA: 'KARNATAKA',
-      KL: 'KERALA',
-      LA: 'LADAKH',
-      LD: 'LAKSHADWEEP',
-      MH: 'MAHARASHTRA',
-      ML: 'MEGHALAYA',
-      MN: 'MANIPUR',
-      MP: 'MADHYA PRADESH',
-      MZ: 'MIZORAM',
-      NL: 'NAGALAND',
-      OD: 'ODISHA',
-      PB: 'PUNJAB',
-      PY: 'PUDUCHERRY',
-      RJ: 'RAJASTHAN',
-      SK: 'SIKKIM',
-      TN: 'TAMIL NADU',
-      TR: 'TRIPURA',
-      TS: 'TELANGANA',
-      UK: 'UTTARAKHAND',
-      UP: 'UTTAR PRADESH',
-      WB: 'WEST BENGAL'
+      AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
+      BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
+      DN: 'DADRA AND NAGAR HAVELI', GA: 'GOA', GJ: 'GUJARAT', HP: 'HIMACHAL PRADESH', HR: 'HARYANA',
+      JH: 'JHARKHAND', JK: 'JAMMU AND KASHMIR', KA: 'KARNATAKA', KL: 'KERALA', LA: 'LADAKH',
+      LD: 'LAKSHADWEEP', MH: 'MAHARASHTRA', ML: 'MEGHALAYA', MN: 'MANIPUR', MP: 'MADHYA PRADESH',
+      MZ: 'MIZORAM', NL: 'NAGALAND', OD: 'ODISHA', PB: 'PUNJAB', PY: 'PUDUCHERRY', RJ: 'RAJASTHAN',
+      SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
     };
 
     let currentService = 'RC';
@@ -644,12 +609,8 @@
     let sessionToken = null;
     let sessionAgentData = null;
 
-    let verifiedCustomerMobile = localStorage.getItem('rtoboss_customer_mobile') || null;
-    let customerSessionToken = localStorage.getItem('rtoboss_customer_token') || null;
-
-    if (customerSessionToken) {
-      sessionToken = customerSessionToken;
-    }
+    let verifiedCustomerMobile = null;
+    let customerSessionToken = null;
 
     function navigateTo(viewName, addToHistory = true) {
       document.getElementById('view-input-state').classList.add('hidden');
@@ -682,10 +643,6 @@
       } else {
         navigateTo('search', false);
       }
-    });
-
-    window.addEventListener('hashchange', () => {
-      checkAdminRoute();
     });
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -815,44 +772,46 @@
           return;
         }
         chosenFormat = 'NEW';
-        checkCustomerAuthThenOrder();
-        return;
-      }
-
-      const reg = document.getElementById('rcInput').value.trim().toUpperCase();
-      if (!reg || reg.length < 5) {
-        alert('Please enter a valid Registration Number');
-        return;
-      }
-
-      const state = reg.substring(0, 2);
-      if (state === 'KA') {
-        document.getElementById('formatChooserBadge').innerText = 'KARNATAKA (KA) VEHICLE';
-        document.getElementById('formatChooserModal').classList.remove('hidden');
       } else {
-        chosenFormat = 'NEW';
-        checkCustomerAuthThenOrder();
+        const reg = document.getElementById('rcInput').value.trim().toUpperCase();
+        if (!reg || reg.length < 5) {
+          alert('Please enter a valid Registration Number');
+          return;
+        }
       }
+
+      if (currentRole === 'AGENT' || currentRole === 'ADMIN' || customerSessionToken) {
+        checkFormatThenOrder();
+      } else {
+        openCustomerModal();
+      }
+    }
+
+    function checkFormatThenOrder() {
+      if (currentService === 'RC') {
+        const reg = document.getElementById('rcInput').value.trim().toUpperCase();
+        const state = reg.substring(0, 2);
+        if (state === 'KA') {
+          document.getElementById('formatChooserBadge').innerText = 'KARNATAKA (KA) VEHICLE';
+          document.getElementById('formatChooserModal').classList.remove('hidden');
+          return;
+        }
+      }
+      chosenFormat = 'NEW';
+      startOrderCreation();
     }
 
     function confirmFormatSelection(format) {
       chosenFormat = format;
       closeFormatModal();
-      checkCustomerAuthThenOrder();
-    }
-
-    function checkCustomerAuthThenOrder() {
-      if (currentRole === 'AGENT' || currentRole === 'ADMIN' || customerSessionToken) {
-        startOrderCreation();
-      } else {
-        openCustomerModal();
-      }
+      startOrderCreation();
     }
 
     function openCustomerModal() {
       document.getElementById('customerAuthModal').classList.remove('hidden');
       document.getElementById('authMobileStage').classList.remove('hidden');
       document.getElementById('authOtpStage').classList.add('hidden');
+      document.getElementById('custAuthOtp').value = '';
     }
 
     function closeCustomerModal() {
@@ -862,6 +821,7 @@
     function resendCustomerOtp() {
       document.getElementById('authMobileStage').classList.remove('hidden');
       document.getElementById('authOtpStage').classList.add('hidden');
+      document.getElementById('custAuthOtp').value = '';
     }
 
     async function sendCustomerOtp() {
@@ -881,7 +841,6 @@
         if (d.success) {
           document.getElementById('authMobileStage').classList.add('hidden');
           document.getElementById('authOtpStage').classList.remove('hidden');
-          document.getElementById('displayTestOtp').innerText = d.testOtp;
         } else {
           alert(d.error || 'Failed to send verification code');
         }
@@ -895,7 +854,7 @@
       const otp = document.getElementById('custAuthOtp').value.trim();
 
       if (!otp || otp.length !== 4) {
-        alert('Please enter the 4-digit code (use 1234 for testing)');
+        alert('Please enter the 4-digit verification code');
         return;
       }
 
@@ -911,12 +870,9 @@
           customerSessionToken = d.token;
           sessionToken = d.token;
 
-          localStorage.setItem('rtoboss_customer_mobile', d.mobile);
-          localStorage.setItem('rtoboss_customer_token', d.token);
-
           updatePriceUI();
           closeCustomerModal();
-          startOrderCreation();
+          checkFormatThenOrder();
         } else {
           alert(d.error || 'Invalid verification code');
         }
@@ -1324,8 +1280,6 @@
       sessionAgentData = null;
       verifiedCustomerMobile = null;
       customerSessionToken = null;
-      localStorage.removeItem('rtoboss_customer_mobile');
-      localStorage.removeItem('rtoboss_customer_token');
       closeAdminModal();
       closeAgentModal();
       updatePriceUI();
