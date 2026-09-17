@@ -667,10 +667,11 @@ app.post('/api/create-order', async (req, res) => {
       else finalAmount = 100;
     }
 
-    const orderId = 'ORD' + Date.now();
+   const orderId = 'ORD' + Date.now();
     let qrCodeBase64 = null;
     let upiIntentUrl = null;
     let gatewayOrderId = null;
+    let upiIntent = null;
 
     const cleanNote = `${docType || 'DOC'}${targetNumber ? targetNumber.replace(/[^A-Z0-9]/g, '') : ''}`;
     const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}`;
@@ -702,9 +703,10 @@ app.post('/api/create-order', async (req, res) => {
         const vgData = await response.json();
         console.log('[VyaparGateway Order Response]:', JSON.stringify(vgData));
 
-        if (vgData.status === true && vgData.data) {
+       if (vgData.status === true && vgData.data) {
           gatewayOrderId = vgData.data.order_id;
           qrCodeBase64 = vgData.data.qr_code;
+          upiIntent = vgData.data.upi_intent || null;
           upiIntentUrl = vgData.data.upi_string || vgData.data.upi_intent?.bhim_link;
         } else {
           console.warn('[VyaparGateway Warning] Order creation returned:', vgData.msg);
@@ -713,8 +715,10 @@ app.post('/api/create-order', async (req, res) => {
         console.error('[VyaparGateway Connection Error]:', gatewayErr.message);
       }
     }
-
-    const effectiveUpi = upiIntentUrl || fallbackUpiUrl;
+let effectiveUpi = upiIntentUrl || fallbackUpiUrl;
+    if (!effectiveUpi.includes('mode=02')) {
+      effectiveUpi += (effectiveUpi.includes('?') ? '&mode=02' : '?mode=02');
+    }
 
     orders.set(orderId, {
       orderId,
@@ -737,7 +741,7 @@ app.post('/api/create-order', async (req, res) => {
       createdAt: new Date()
     });
 
-    res.json({ 
+  res.json({ 
       success: true, 
       orderId, 
       amount: finalAmount, 
@@ -745,6 +749,7 @@ app.post('/api/create-order', async (req, res) => {
       qrCodeBase64,
       paymentUrl: effectiveUpi,
       upiUrl: effectiveUpi,
+      upiIntent,
       paymentProvider: 'VYAPARGATEWAY', 
       paymentMode: 'UPI' 
     });

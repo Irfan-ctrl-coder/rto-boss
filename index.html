@@ -939,7 +939,15 @@
             document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
           }
 
-          document.getElementById('upiIntentLink').href = currentUpiUrl;
+          // Route PhonePe directly to bypass credit card / wallet check
+          if (data.upiIntent && data.upiIntent.phonepe_link) {
+            document.getElementById('upiIntentLink').href = data.upiIntent.phonepe_link;
+          } else {
+            const safeUpiUrl = currentUpiUrl.includes('mode=02') 
+              ? currentUpiUrl 
+              : (currentUpiUrl.includes('?') ? `${currentUpiUrl}&mode=02` : `${currentUpiUrl}?mode=02`);
+            document.getElementById('upiIntentLink').href = safeUpiUrl;
+          }
 
           document.getElementById('paymentModal').classList.remove('hidden');
           startPaymentPolling(activeOrderId);
