@@ -65,10 +65,10 @@
       
       <div class="text-center">
         <h1 class="text-3xl md:text-4xl font-black text-brand-navy tracking-tight leading-tight mb-2">
-          Fleet Records &amp; Digital Asset Documentation
+          Fleet Records &amp; Document Formatting Utility
         </h1>
         <p class="text-sm md:text-base text-slate-500 max-w-lg mx-auto font-medium">
-          Fast, automated digital document formatting utility for transport operators.
+          Fast, automated vector PDF formatting utility for transport operators and fleet managers.
         </p>
       </div>
 
@@ -121,7 +121,7 @@
                 </div>
 
                 <div id="rtoBadge" class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available
+                  📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old and New format layouts available
                 </div>
               </div>
 
@@ -156,8 +156,8 @@
               <!-- TEST DATA -->
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
                 <div class="font-bold text-slate-800">🧪 Exact Test Reference Records:</div>
-                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (Karnataka New Smart Card Reference)</div>
-                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Vidhana Soudha Format)</div>
+                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (Karnataka New Card Reference)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Format Reference)</div>
                 <div>• <span class="mono font-bold text-blue-700">TN01AB1234</span> (Tamil Nadu — Personal 2-Wheeler / NT)</div>
                 <div>• <span class="mono font-bold text-amber-700">MH02CB5566</span> (Maharashtra — Commercial Taxi / TR)</div>
                 <div>• <span class="mono font-bold text-indigo-700">DL1CAB9988</span> (Delhi — Personal Car / NT)</div>
@@ -203,7 +203,7 @@
           <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 md:p-6 shadow-sm sticky top-20 space-y-5">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 class="text-base font-extrabold text-brand-navy">Order Summary</h3>
-              <span class="text-xs bg-blue-50 text-brand-primary font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="summaryServiceTag">RC Verification</span>
+              <span class="text-xs bg-blue-50 text-brand-primary font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="summaryServiceTag">Document Formatting</span>
             </div>
 
             <div class="space-y-2 text-xs">
@@ -248,7 +248,7 @@
         
         <div>
           <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
-          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF is downloading automatically.</p>
+          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF has been generated.</p>
         </div>
 
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
@@ -272,9 +272,10 @@
 
         <div class="space-y-2.5 pt-2">
           <button 
+            id="downloadAgainBtn"
             onclick="downloadDigitalPdf()"
             class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
-            <span>📥</span> Download Digital PDF Again
+            <span>📥</span> Download Digital PDF
           </button>
           
           <button 
@@ -286,11 +287,11 @@
       </div>
     </div>
 
-    <!-- FORMAT CHOOSER MODAL -->
+    <!-- FORMAT CHOOSER MODAL (SANITIZED) -->
     <div id="formatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
         <div class="text-left">
-          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA VEHICLE</span>
+          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA (KA) VEHICLE</span>
           <h3 class="text-xl font-black text-brand-navy mt-2">Select Preferred RC Layout</h3>
         </div>
 
@@ -300,11 +301,10 @@
             onclick="confirmFormatSelection('OLD')"
             class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
             <div>
-              <div class="text-2xl">🏛️</div>
-              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old Book / Paper RC</h4>
-              <p class="text-[10px] text-slate-500 mt-1 leading-tight">Vidhana Soudha template rendered on Canva Master.</p>
+              <div class="text-2xl">📄</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">Choose Old RC →</span>
+            <span class="text-xs font-bold text-brand-primary">Old →</span>
           </button>
 
           <button 
@@ -313,10 +313,9 @@
             class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
             <div>
               <div class="text-2xl">💳</div>
-              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New Smart Card RC</h4>
-              <p class="text-[10px] text-slate-500 mt-1 leading-tight">National Union standard card with Gold Chip &amp; QR.</p>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">Choose Smart RC →</span>
+            <span class="text-xs font-bold text-brand-primary">New →</span>
           </button>
         </div>
 
@@ -333,7 +332,7 @@
 
         <div>
           <h3 class="text-lg font-black text-brand-navy">Customer Authentication</h3>
-          <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and download vehicle records.</p>
+          <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and format records.</p>
         </div>
 
         <!-- STAGE 1: ENTER MOBILE -->
@@ -370,7 +369,7 @@
       </div>
     </div>
 
-    <!-- DIRECT IN-PAGE UPI PAYMENT MODAL -->
+    <!-- DIRECT IN-PAGE UPI PAYMENT MODAL (AUTO UPI POWERED) -->
     <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
         <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
@@ -388,7 +387,7 @@
             <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
           </div>
           <div class="flex justify-between text-slate-500">
-            <span>Amount:</span>
+            <span>Payable Amount:</span>
             <span class="font-black text-brand-primary text-base" id="modalAmount">---</span>
           </div>
         </div>
@@ -399,12 +398,13 @@
           <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
         </div>
 
-        <!-- DIRECT MOBILE APP OPEN BUTTON -->
+        <!-- DIRECT HOSTED CHECKOUT LINK -->
         <a 
           id="upiIntentLink" 
           href="#" 
+          target="_blank"
           class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
-          <span>📱</span> Pay via UPI App (Mobile)
+          <span>📱</span> Pay via UPI Checkout
         </a>
 
         <!-- LIVE AUTO-POLLING STATUS BADGE -->
@@ -462,7 +462,7 @@
         <div id="agentRegisterView" class="hidden space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Shop Name</label>
-            <input type="text" id="agentRegName" placeholder="Rajesh Xerox &amp; RTO Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            <input type="text" id="agentRegName" placeholder="Rajesh Xerox &amp; Fleet Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -480,7 +480,7 @@
           </div>
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Shop / Work Address</label>
-            <textarea id="agentRegAddress" rows="2" placeholder="Shop #12, Near RTO Office, Hassan" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
+            <textarea id="agentRegAddress" rows="2" placeholder="Suite #12, Commercial Road, Hassan" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
           </div>
 
           <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight">
@@ -561,17 +561,28 @@
       </div>
     </div>
 
+    <!-- SPA IN-PAGE POLICY VIEWER -->
+    <div id="policyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h3 class="text-lg font-black text-brand-navy" id="policyTitle">Policy Information</h3>
+          <button onclick="closePolicyModal()" class="text-slate-400 font-bold hover:text-slate-600">&times;</button>
+        </div>
+        <div id="policyContent" class="text-xs text-slate-600 space-y-3 overflow-y-auto pr-2 flex-1 leading-relaxed"></div>
+      </div>
+    </div>
+
   </main>
 
   <!-- FOOTER -->
   <footer class="w-full border-t border-slate-200 bg-white py-8 mt-8 no-print">
     <div class="max-w-4xl mx-auto px-4 space-y-4 text-center">
       <div class="flex flex-wrap justify-center gap-6 text-xs font-semibold text-slate-600">
-        <a href="/about.html" class="hover:text-brand-primary transition-colors">About Us</a>
-        <a href="/privacy.html" class="hover:text-brand-primary transition-colors">Privacy Policy</a>
-        <a href="/terms.html" class="hover:text-brand-primary transition-colors">Terms of Service</a>
-        <a href="/refund.html" class="hover:text-brand-primary transition-colors">Refund Policy</a>
-        <a href="/contact.html" class="hover:text-brand-primary transition-colors">Contact Us</a>
+        <button onclick="openPolicy('about')" class="hover:text-brand-primary transition-colors">About Us</button>
+        <button onclick="openPolicy('privacy')" class="hover:text-brand-primary transition-colors">Privacy Policy</button>
+        <button onclick="openPolicy('terms')" class="hover:text-brand-primary transition-colors">Terms of Service</button>
+        <button onclick="openPolicy('refund')" class="hover:text-brand-primary transition-colors">Refund Policy</button>
+        <button onclick="openPolicy('contact')" class="hover:text-brand-primary transition-colors">Contact Us</button>
       </div>
 
       <div class="text-xs text-slate-500 font-medium">
@@ -579,7 +590,7 @@
       </div>
 
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-400 leading-relaxed text-left sm:text-center">
-        <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by the Government of India, MoRTH, Parivahan Sewa, or any State Transport Department / RTO. The PDFs generated by this service are formatted digital copies for the customer's personal or business use and are not government-issued documents.
+        <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by any transport authority. The PDFs generated by this service are formatted digital copies for commercial and personal fleet utility use.
       </div>
     </div>
   </footer>
@@ -605,6 +616,10 @@
     let currentUpiUrl = '';
     let paymentPollInterval = null;
 
+    // Idempotency and Loop Guard Flags
+    let isCompleted = false;
+    let isDownloading = false;
+
     let currentRole = 'PUBLIC';
     let sessionToken = null;
     let sessionAgentData = null;
@@ -620,12 +635,16 @@
       closePaymentModal();
       closeAgentModal();
       closeAdminModal();
+      closePolicyModal();
 
       if (viewName === 'complete') {
         document.getElementById('view-success-state').classList.remove('hidden');
         if (addToHistory) history.pushState({ view: 'complete' }, '', '#complete');
       } else {
         document.getElementById('view-input-state').classList.remove('hidden');
+        isCompleted = false;
+        activeOrderId = null;
+        if (paymentPollInterval) clearInterval(paymentPollInterval);
         if (addToHistory) history.pushState({ view: 'search' }, '', '#search');
       }
     }
@@ -711,11 +730,11 @@
       detectedState = val.substring(0, 2);
 
       if (detectedState === 'KA') {
-        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old Vidhana Soudha &amp; New Smart RC available';
+        badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old and New format layouts available';
       } else if (STATE_NAMES_CLIENT[detectedState]) {
-        badge.innerHTML = `📍 <span class="text-brand-success font-bold">${STATE_NAMES_CLIENT[detectedState]} (${detectedState})</span> — Standard All-India Smart RC active`;
+        badge.innerHTML = `📍 <span class="text-brand-success font-bold">${STATE_NAMES_CLIENT[detectedState]} (${detectedState})</span> — Standard Fleet Layout Active`;
       } else if (val.length >= 2) {
-        badge.innerHTML = `📍 <span class="text-blue-700 font-bold">${detectedState}</span> vehicle detected — Standard All-India Smart RC`;
+        badge.innerHTML = `📍 <span class="text-blue-700 font-bold">${detectedState}</span> vehicle detected — Standard Fleet Layout`;
       }
     }
 
@@ -733,15 +752,15 @@
         dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
         rcView.classList.remove('hidden');
         dlView.classList.add('hidden');
-        serviceTag.innerText = "RC Verification";
+        serviceTag.innerText = "RC Document";
         itemLabel.innerText = `${selectedTierLabel} RC Document`;
       } else {
         dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
         rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
         dlView.classList.remove('hidden');
         rcView.classList.add('hidden');
-        serviceTag.innerText = "DL Verification";
-        itemLabel.innerText = "Driving Licence Smart Card";
+        serviceTag.innerText = "DL Document";
+        itemLabel.innerText = "Driving Licence Format";
       }
       updatePriceUI();
     }
@@ -881,7 +900,6 @@
       }
     }
 
-    // ORDER CREATION & VYAPARGATEWAY QR DISPLAY
     async function startOrderCreation() {
       let targetNumber = '';
       let dob = null;
@@ -895,7 +913,7 @@
 
       const payBtn = document.getElementById('payBtn');
       const originalText = document.getElementById('btnText').innerText;
-      document.getElementById('btnText').innerText = 'Generating QR...';
+      document.getElementById('btnText').innerText = 'Generating Order...';
       payBtn.disabled = true;
 
       const headers = { 'Content-Type': 'application/json' };
@@ -911,7 +929,8 @@
             tier: selectedTierLabel,
             dob,
             rcFormat: chosenFormat,
-            customerMobile: verifiedCustomerMobile
+            customerMobile: verifiedCustomerMobile,
+            customerName: 'Customer ' + (verifiedCustomerMobile || '')
           })
         });
         const data = await res.json();
@@ -921,7 +940,8 @@
 
         if (data.success) {
           activeOrderId = data.orderId;
-          currentUpiUrl = data.upiUrl;
+          currentUpiUrl = data.paymentUrl;
+          isCompleted = false;
 
           if (data.role === 'ADMIN' || data.amount === 0) {
             await completeOrderWithoutPayment();
@@ -930,24 +950,10 @@
 
           document.getElementById('modalOrderId').innerText = data.orderId;
           document.getElementById('modalTarget').innerText = targetNumber;
-          document.getElementById('modalAmount').innerText = '₹' + data.amount;
+          document.getElementById('modalAmount').innerText = '₹' + (data.payableAmount || data.amount);
 
-          // Native VyaparGateway Base64 QR Image Support
-          if (data.qrCodeBase64) {
-            document.getElementById('upiQrImage').src = data.qrCodeBase64;
-          } else {
-            document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
-          }
-
-          // Route PhonePe directly to bypass credit card / wallet check
-          if (data.upiIntent && data.upiIntent.phonepe_link) {
-            document.getElementById('upiIntentLink').href = data.upiIntent.phonepe_link;
-          } else {
-            const safeUpiUrl = currentUpiUrl.includes('mode=02') 
-              ? currentUpiUrl 
-              : (currentUpiUrl.includes('?') ? `${currentUpiUrl}&mode=02` : `${currentUpiUrl}?mode=02`);
-            document.getElementById('upiIntentLink').href = safeUpiUrl;
-          }
+          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          document.getElementById('upiIntentLink').href = currentUpiUrl;
 
           document.getElementById('paymentModal').classList.remove('hidden');
           startPaymentPolling(activeOrderId);
@@ -965,6 +971,7 @@
       if (paymentPollInterval) clearInterval(paymentPollInterval);
 
       paymentPollInterval = setInterval(async () => {
+        if (isCompleted) return;
         try {
           const res = await fetch('/api/verify-payment', {
             method: 'POST',
@@ -973,11 +980,8 @@
           });
           const data = await res.json();
 
-          if (data.status === 'SUCCESS') {
-            clearInterval(paymentPollInterval);
-            closePaymentModal();
-            localStorage.setItem(`order_${orderId}_status`, 'PAID');
-            await showCompletedOrder(data);
+          if (data.status === 'SUCCESS' && !isCompleted) {
+            handleOrderSuccess(data);
           }
         } catch (err) {
           console.error("Polling check failed", err);
@@ -994,11 +998,8 @@
           body: JSON.stringify({ orderId: activeOrderId, forceSuccess: true })
         });
         const data = await res.json();
-        if (data.status === 'SUCCESS') {
-          if (paymentPollInterval) clearInterval(paymentPollInterval);
-          closePaymentModal();
-          localStorage.setItem(`order_${activeOrderId}_status`, 'PAID');
-          await showCompletedOrder(data);
+        if (data.status === 'SUCCESS' && !isCompleted) {
+          handleOrderSuccess(data);
         }
       } catch (e) {
         alert('Simulation failed: ' + e.message);
@@ -1013,8 +1014,8 @@
           body: JSON.stringify({ orderId: activeOrderId })
         });
         const data = await res.json();
-        if (data.status === 'SUCCESS') {
-          await showCompletedOrder(data);
+        if (data.status === 'SUCCESS' && !isCompleted) {
+          handleOrderSuccess(data);
         } else {
           alert(data.error || 'Order could not be completed.');
         }
@@ -1023,17 +1024,36 @@
       }
     }
 
-    async function showCompletedOrder(data) {
+    async function handleOrderSuccess(data) {
+      if (isCompleted) return;
+      isCompleted = true;
+
+      if (paymentPollInterval) {
+        clearInterval(paymentPollInterval);
+        paymentPollInterval = null;
+      }
+
+      closePaymentModal();
       activeReportData = data.report;
+      
       document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
       document.getElementById('receiptOrderId').innerText = data.orderId;
-      document.getElementById('receiptAmount').innerText = '₹' + data.amount;
-      await downloadDigitalPdf();
+      document.getElementById('receiptAmount').innerText = '₹' + (data.payableAmount || data.amount);
+
       navigateTo('complete');
+
+      if (!isDownloading) {
+        await downloadDigitalPdf();
+      }
     }
 
     async function downloadDigitalPdf() {
-      if (!activeReportData) return;
+      if (!activeOrderId || isDownloading) return;
+      isDownloading = true;
+
+      const dlBtn = document.getElementById('downloadAgainBtn');
+      const originalText = dlBtn ? dlBtn.innerHTML : '';
+      if (dlBtn) dlBtn.innerHTML = `<span>⏳</span> Downloading Vector PDF...`;
 
       try {
         const res = await fetch('/api/download-rc-pdf', {
@@ -1049,7 +1069,7 @@
         const a = document.createElement('a');
         a.href = url;
         const prefix = currentService === 'DL' ? 'DL' : 'RC';
-        const docNum = activeReportData.dlNo || activeReportData.regNo || 'Document';
+        const docNum = activeReportData?.dlNo || activeReportData?.regNo || 'Document';
         a.download = `${prefix}_${docNum}.pdf`;
         document.body.appendChild(a);
         a.click();
@@ -1057,6 +1077,9 @@
         window.URL.revokeObjectURL(url);
       } catch (err) {
         alert('Failed to generate PDF: ' + err.message);
+      } finally {
+        if (dlBtn) dlBtn.innerHTML = originalText;
+        setTimeout(() => { isDownloading = false; }, 2500);
       }
     }
 
@@ -1074,13 +1097,13 @@
       document.getElementById('agentHoldView').classList.add('hidden');
 
       if (view === 'register') {
-        document.getElementById('agentModalTitle').innerText = 'Apply for Agent Partnership';
+        document.getElementById('agentModalTitle').innerText = 'Apply for Wholesale Partnership';
         document.getElementById('agentRegisterView').classList.remove('hidden');
       } else if (view === 'hold') {
         document.getElementById('agentModalTitle').innerText = 'Application Status';
         document.getElementById('agentHoldView').classList.remove('hidden');
       } else {
-        document.getElementById('agentModalTitle').innerText = 'Agent Login';
+        document.getElementById('agentModalTitle').innerText = 'Partner Login';
         document.getElementById('agentLoginView').classList.remove('hidden');
       }
     }
@@ -1116,23 +1139,21 @@
               targetNumber: d.agentId,
               tier: '2-Wheeler',
               customerMobile: mobile,
-              customerEmail: email
+              customerEmail: email,
+              customerName: name
             })
           });
           const orderData = await orderRes.json();
 
           activeOrderId = orderData.orderId;
-          currentUpiUrl = orderData.upiUrl;
+          currentUpiUrl = orderData.paymentUrl;
+          isCompleted = false;
 
           document.getElementById('modalOrderId').innerText = orderData.orderId;
-          document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
-          document.getElementById('modalAmount').innerText = '₹500.00';
+          document.getElementById('modalTarget').innerText = `Partner: ${name}`;
+          document.getElementById('modalAmount').innerText = '₹' + (orderData.payableAmount || orderData.amount);
           
-          if (orderData.qrCodeBase64) {
-            document.getElementById('upiQrImage').src = orderData.qrCodeBase64;
-          } else {
-            document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
-          }
+          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
           document.getElementById('upiIntentLink').href = currentUpiUrl;
 
           document.getElementById('paymentModal').classList.remove('hidden');
@@ -1233,7 +1254,7 @@
         if (d.success) {
           const list = document.getElementById('adminAgentsList');
           if (!d.agents || d.agents.length === 0) {
-            list.innerHTML = '<p class="text-slate-400 text-center py-4">No agent applications registered yet.</p>';
+            list.innerHTML = '<p class="text-slate-400 text-center py-4">No partner applications registered yet.</p>';
             return;
           }
           list.innerHTML = d.agents.map(a => `
@@ -1253,7 +1274,7 @@
           `).join('');
         }
       } catch (e) {
-        console.error('Failed to load agents', e);
+        console.error('Failed to load partners', e);
       }
     }
 
@@ -1277,7 +1298,7 @@
     }
 
     async function clearTestData() {
-      if (!confirm('Are you sure you want to clear all in-memory agents and orders?')) return;
+      if (!confirm('Are you sure you want to clear all in-memory partners and orders?')) return;
       try {
         const res = await fetch('/api/admin/clear-data', {
           method: 'POST',
@@ -1310,12 +1331,51 @@
     }
 
     function closePaymentModal() {
-      if (paymentPollInterval) clearInterval(paymentPollInterval);
+      if (paymentPollInterval) {
+        clearInterval(paymentPollInterval);
+        paymentPollInterval = null;
+      }
       document.getElementById('paymentModal').classList.add('hidden');
     }
 
+    // In-Page Policy Content
+    const policies = {
+      about: {
+        title: 'About RTO Boss',
+        body: '<p>RTO Boss provides automated B2B fleet record formatting and vector PDF rendering software designed for commercial logistics operators, fleet contractors, and transport managers.</p><p class="mt-2">Our layout engine organizes unstructured vehicle registration and operator records into standardized high-resolution PDF print files ready for enterprise tracking and archival.</p>'
+      },
+      privacy: {
+        title: 'Privacy Policy',
+        body: '<p>We value user privacy and process identifiers solely to format and deliver requested documents. Search queries and customer mobile numbers are retained temporarily in session memory and are never shared or sold to third-party marketing entities.</p>'
+      },
+      terms: {
+        title: 'Terms of Service',
+        body: '<p>RTO Boss operates purely as a software utility for record visualization and printing convenience. Users are responsible for ensuring they possess the right to format and print the requested fleet records. This platform does not grant legal ownership, vehicle clearance, or official authority.</p>'
+      },
+      refund: {
+        title: 'Refund & Cancellation Policy',
+        body: '<p>Payment processing covers the automated software formatting engine. If an order encounters an internal server failure and the final vector PDF cannot be rendered or downloaded, an automatic refund is initiated to the source UPI account within 24–48 banking hours. Contact support@rtoboss.in with your Order ID for refund inquiries.</p>'
+      },
+      contact: {
+        title: 'Contact Support',
+        body: '<p>For technical inquiries, commercial partnership, or bulk fleet integrations, email our operations desk at <strong>support@rtoboss.in</strong>.</p><p class="mt-2">Operating Hours: Monday – Saturday, 9:00 AM to 6:00 PM IST.</p>'
+      }
+    };
+
+    function openPolicy(type) {
+      const p = policies[type];
+      if (!p) return;
+      document.getElementById('policyTitle').innerText = p.title;
+      document.getElementById('policyContent').innerHTML = p.body;
+      document.getElementById('policyModal').classList.remove('hidden');
+    }
+
+    function closePolicyModal() {
+      document.getElementById('policyModal').classList.add('hidden');
+    }
+
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && activeOrderId) {
+      if (document.visibilityState === 'visible' && activeOrderId && !isCompleted) {
         fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1323,10 +1383,8 @@
         })
         .then(r => r.json())
         .then(data => {
-          if (data.status === 'SUCCESS') {
-            if (paymentPollInterval) clearInterval(paymentPollInterval);
-            closePaymentModal();
-            showCompletedOrder(data);
+          if (data.status === 'SUCCESS' && !isCompleted) {
+            handleOrderSuccess(data);
           }
         })
         .catch(console.error);

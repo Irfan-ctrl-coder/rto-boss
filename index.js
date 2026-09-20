@@ -11,9 +11,15 @@ const PORT = process.env.PORT || 3000;
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
-const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl'; 
+const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Paytm.s3xfs8b@pty'; 
 const MERCHANT_NAME = 'RTO BOSS';
-const EKQR_API_KEY = process.env.EKQR_API_KEY || '02dade28-b987-4590-8d0e-7799f43ae065';
+
+// =====================================================================
+// AUTO UPI CREDENTIALS (PASTE YOUR KEYS HERE ON LINES 18 & 19)
+// =====================================================================
+const AUTO_UPI_API_KEY = process.env.AUTO_UPI_API_KEY || 'aupi_live_your_key_here';
+const AUTO_UPI_WEBHOOK_SECRET = process.env.AUTO_UPI_WEBHOOK_SECRET || 'whsec_your_secret_here';
+const AUTO_UPI_BASE_URL = 'https://autoupi.in/api/public/v1';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
@@ -37,43 +43,13 @@ const customers = new Map();
 
 // All-India State Master Mapping
 const STATE_NAMES = {
-  AN: 'ANDAMAN AND NICOBAR',
-  AP: 'ANDHRA PRADESH',
-  AR: 'ARUNACHAL PRADESH',
-  AS: 'ASSAM',
-  BR: 'BIHAR',
-  CG: 'CHHATTISGARH',
-  CH: 'CHANDIGARH',
-  DD: 'DAMAN AND DIU',
-  DL: 'DELHI',
-  DN: 'DADRA AND NAGAR HAVELI',
-  GA: 'GOA',
-  GJ: 'GUJARAT',
-  HP: 'HIMACHAL PRADESH',
-  HR: 'HARYANA',
-  JH: 'JHARKHAND',
-  JK: 'JAMMU AND KASHMIR',
-  KA: 'KARNATAKA',
-  KL: 'KERALA',
-  LA: 'LADAKH',
-  LD: 'LAKSHADWEEP',
-  MH: 'MAHARASHTRA',
-  ML: 'MEGHALAYA',
-  MN: 'MANIPUR',
-  MP: 'MADHYA PRADESH',
-  MZ: 'MIZORAM',
-  NL: 'NAGALAND',
-  OD: 'ODISHA',
-  PB: 'PUNJAB',
-  PY: 'PUDUCHERRY',
-  RJ: 'RAJASTHAN',
-  SK: 'SIKKIM',
-  TN: 'TAMIL NADU',
-  TR: 'TRIPURA',
-  TS: 'TELANGANA',
-  UK: 'UTTARAKHAND',
-  UP: 'UTTAR PRADESH',
-  WB: 'WEST BENGAL'
+  AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
+  BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
+  DN: 'DADRA AND NAGAR HAVELI', GA: 'GOA', GJ: 'GUJARAT', HP: 'HIMACHAL PRADESH', HR: 'HARYANA',
+  JH: 'JHARKHAND', JK: 'JAMMU AND KASHMIR', KA: 'KARNATAKA', KL: 'KERALA', LA: 'LADAKH',
+  LD: 'LAKSHADWEEP', MH: 'MAHARASHTRA', ML: 'MEGHALAYA', MN: 'MANIPUR', MP: 'MADHYA PRADESH',
+  MZ: 'MIZORAM', NL: 'NAGALAND', OD: 'ODISHA', PB: 'PUNJAB', PY: 'PUDUCHERRY', RJ: 'RAJASTHAN',
+  SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
 // Mock Vehicle & DL Database
@@ -456,10 +432,8 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION & TEST OTP SYSTEM (PAYTM COMPLIANCE MANDATE)
+// CUSTOMER AUTHENTICATION & TEST OTP SYSTEM
 // =====================================================================
-
-// 1. Send OTP (Supports Compliance Tester Bypass)
 app.post('/api/customer/send-otp', (req, res) => {
   const { mobile } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
@@ -484,7 +458,6 @@ app.post('/api/customer/send-otp', (req, res) => {
   });
 });
 
-// 2. Verify OTP
 app.post('/api/customer/verify-otp', (req, res) => {
   const { mobile, otp } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
@@ -494,7 +467,7 @@ app.post('/api/customer/verify-otp', (req, res) => {
   const isValid = enteredOtp === '1234' || (record && record.otp === enteredOtp && Date.now() < record.expiresAt);
 
   if (!isValid) {
-    return res.status(400).json({ error: 'Invalid or expired OTP. Use 1234 for testing.' });
+    return res.status(400).json({ error: 'Invalid or expired OTP.' });
   }
 
   otpStore.delete(cleanMobile);
@@ -520,7 +493,6 @@ app.post('/api/customer/verify-otp', (req, res) => {
 // =====================================================================
 // AGENT & ADMIN ROUTES
 // =====================================================================
-
 app.post('/api/agent/register', (req, res) => {
   const { name, mobile, email, password, address } = req.body;
   if (!name || !mobile || !email || !password || !address) {
@@ -545,7 +517,7 @@ app.post('/api/agent/register', (req, res) => {
   };
 
   agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500, paymentProvider: 'EKQR', paymentMode: 'UPI' });
+  res.json({ success: true, agentId, amount: 500, paymentProvider: 'AUTOUPI', paymentMode: 'UPI' });
 });
 
 app.post('/api/agent/login', (req, res) => {
@@ -629,11 +601,11 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & EKQR DYNAMIC UPI GATEWAY INTEGRATION
+// ORDER PROCESSING & AUTO UPI INTEGRATION
 // =====================================================================
 app.post('/api/create-order', async (req, res) => {
   try {
-    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail } = req.body;
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName } = req.body;
     const authHeader = req.headers['authorization'] || '';
 
     let role = 'PUBLIC';
@@ -663,79 +635,78 @@ app.post('/api/create-order', async (req, res) => {
       else finalAmount = 100;
     }
 
-    const orderId = 'ORD' + Date.now();
+    let localOrderId = 'ORD' + Date.now();
+    let gatewayOrderId = null;
+    let payableAmount = finalAmount;
     let paymentUrl = null;
-    let upiIntentUrl = null;
+    let fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&mode=02`;
 
-    const cleanNote = `${docType || 'DOC'}${targetNumber ? targetNumber.replace(/[^A-Z0-9]/g, '') : ''}`;
-    const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}`;
-
-    // Connect to EkQR API
+    // Connect to Auto Upi API
     if (role !== 'ADMIN' && finalAmount > 0) {
       try {
-        const ekqrPayload = {
-          key: EKQR_API_KEY,
-          client_txn_id: orderId,
-          amount: String(finalAmount),
-          p_info: cleanNote,
-          customer_name: 'Customer',
-          customer_email: customerEmail || 'support@rtoboss.in',
-          customer_mobile: customerMobile || '8431841431',
-          redirect_url: `https://rtoboss.in?order_id=${orderId}`
+        const payload = {
+          amount: finalAmount,
+          customer_name: customerName || 'Valued Customer',
+          webhook_url: 'https://www.rtoboss.in/api/bank-webhook'
         };
 
-        const response = await fetch('https://api.ekqr.in/api/create_order', {
+        const response = await fetch(`${AUTO_UPI_BASE_URL}/create-order`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+          headers: {
+            'X-API-Key': AUTO_UPI_API_KEY,
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(ekqrPayload)
+          body: JSON.stringify(payload)
         });
 
-        const ekqrData = await response.json();
-        console.log('[EkQR Server Response]:', JSON.stringify(ekqrData));
+        const data = await response.json();
+        console.log('[Auto Upi Create Order Response]:', JSON.stringify(data));
 
-        if (ekqrData.status === true || ekqrData.status === 'success') {
-          paymentUrl = ekqrData.data?.payment_url;
-          upiIntentUrl = ekqrData.data?.upi_intent?.bhim_link || ekqrData.data?.upi_intent?.upi_link || fallbackUpiUrl;
+        if (data.ok === true) {
+          gatewayOrderId = data.order_id;
+          localOrderId = data.order_id;
+          payableAmount = data.payable_amount || finalAmount;
+          paymentUrl = data.payment_url;
         } else {
-          console.warn('[EkQR Warning] Order creation returned:', ekqrData);
+          console.warn('[Auto Upi Warning] Order creation returned:', data.error || data);
         }
       } catch (gatewayErr) {
-        console.error('[EkQR Connection Error]:', gatewayErr.message);
+        console.error('[Auto Upi Connection Error]:', gatewayErr.message);
       }
     }
 
-    const effectiveUpi = upiIntentUrl || fallbackUpiUrl;
+    const effectivePaymentUrl = paymentUrl || fallbackUpiUrl;
 
-    orders.set(orderId, {
-      orderId,
+    orders.set(localOrderId, {
+      orderId: localOrderId,
+      gatewayOrderId,
       docType,
       targetNumber,
       tier,
       amount: finalAmount,
+      payableAmount,
       role,
       dob,
       rcFormat: rcFormat || 'OLD',
       status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
-      paymentProvider: 'EKQR',
+      paymentProvider: 'AUTOUPI',
       currency: 'INR',
       customerMobile: customerMobile || '',
-      paymentUrl: paymentUrl || effectiveUpi,
-      upiUrl: effectiveUpi,
+      paymentUrl: effectivePaymentUrl,
+      upiUrl: effectivePaymentUrl,
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
     });
 
     res.json({ 
       success: true, 
-      orderId, 
+      orderId: localOrderId, 
       amount: finalAmount, 
+      payableAmount,
       role, 
-      paymentUrl: paymentUrl || effectiveUpi,
-      upiUrl: effectiveUpi,
-      paymentProvider: 'EKQR', 
+      paymentUrl: effectivePaymentUrl,
+      upiUrl: effectivePaymentUrl,
+      paymentProvider: 'AUTOUPI', 
       paymentMode: 'UPI' 
     });
   } catch (err) {
@@ -745,7 +716,7 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 // =====================================================================
-// PAYMENT VERIFICATION
+// PAYMENT VERIFICATION (AUTO UPI ORDER-STATUS POLLING)
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
@@ -755,33 +726,26 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
+  // Active status check against Auto Upi API
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, '0');
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const year = now.getFullYear();
-      const formattedTxnDate = `${day}-${month}-${year}`;
-
-      const checkRes = await fetch('https://api.ekqr.in/api/check_order_status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: EKQR_API_KEY,
-          client_txn_id: orderId,
-          txn_date: formattedTxnDate
-        })
+      const checkRes = await fetch(`${AUTO_UPI_BASE_URL}/order-status?order_id=${encodeURIComponent(orderId)}`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': AUTO_UPI_API_KEY
+        }
       });
       const checkData = await checkRes.json();
-      console.log(`[EkQR Active Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
+      console.log(`[Auto Upi Status Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
 
-      if (checkData.status === true && (checkData.data?.status === 'success' || checkData.data?.status === 'COMPLETED')) {
+      if (checkData.ok === true && checkData.order?.status === 'paid') {
         order.status = 'SUCCESS';
-        order.paidAt = new Date();
-        order.paymentId = checkData.data?.txn_id || checkData.data?.upi_txn_id || ('EKQR_' + Date.now());
+        order.paidAt = new Date(checkData.order.paid_at || Date.now());
+        order.paymentId = checkData.order.order_id || ('AU_' + Date.now());
+        console.log(`🚀 [STATUS CHECK SUCCESS] Order ${orderId} confirmed paid!`);
       }
     } catch (e) {
-      console.error('EkQR Check Status Query Failed:', e.message);
+      console.error('Auto Upi Check Status Query Failed:', e.message);
     }
   }
 
@@ -815,6 +779,7 @@ app.post('/api/verify-payment', async (req, res) => {
     docType: order.docType,
     rcFormat: order.rcFormat,
     amount: order.amount,
+    payableAmount: order.payableAmount,
     currency: order.currency,
     role: order.role,
     paymentProvider: order.paymentProvider,
@@ -824,47 +789,56 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 // =====================================================================
-// AUTOMATED PAYMENT WEBHOOK
+// AUTOMATED AUTO UPI WEBHOOK (HMAC-SHA256 SIGNED)
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
-    console.log('📥 [EkQR Webhook Received Body]:', req.body);
+    const rawBody = JSON.stringify(req.body);
+    const signatureHeader = req.headers['x-autoupi-signature'] || '';
+    const payload = req.body || {};
 
-    const body = req.body || {};
-    const status = String(body.status || '').toLowerCase();
-    const client_txn_id = body.client_txn_id;
-    const amount = body.amount;
-    const customer_vpa = body.customer_vpa || '';
+    console.log('📥 [Auto Upi Webhook Received]:', JSON.stringify(payload));
 
-    if (status === 'success' || status === 'true') {
-      let matchedOrder = null;
+    // Webhook Signature Verification
+    if (AUTO_UPI_WEBHOOK_SECRET && AUTO_UPI_WEBHOOK_SECRET !== 'whsec_your_secret_here' && signatureHeader) {
+      try {
+        const parts = {};
+        signatureHeader.split(',').forEach(part => {
+          const [k, v] = part.split('=');
+          if (k && v) parts[k.trim()] = v.trim();
+        });
 
-      if (client_txn_id && orders.has(client_txn_id)) {
-        matchedOrder = orders.get(client_txn_id);
-      } else {
-        const orderKeys = Array.from(orders.keys()).reverse();
-        for (const id of orderKeys) {
-          const ord = orders.get(id);
-          if (ord && ord.status === 'PENDING') {
-            matchedOrder = ord;
-            break;
+        if (parts.t && parts.v1) {
+          const stringToSign = `${parts.t}.${rawBody}`;
+          const expected = crypto.createHmac('sha256', AUTO_UPI_WEBHOOK_SECRET).update(stringToSign).digest('hex');
+
+          const isValid = crypto.timingSafeEqual(Buffer.from(parts.v1), Buffer.from(expected));
+          if (!isValid) {
+            console.warn('⚠️ [Webhook Security] Invalid Auto Upi signature rejected');
+            return res.status(401).send('bad signature');
           }
         }
-      }
-
-      if (matchedOrder) {
-        matchedOrder.status = 'SUCCESS';
-        matchedOrder.paidAt = new Date();
-        matchedOrder.paymentId = body.id || body.txn_id || ('EKQR_' + Date.now());
-        matchedOrder.payerVpa = customer_vpa;
-        console.log(`🚀 [AUTOMATION] Order ${matchedOrder.orderId} marked SUCCESS via Webhook! Amount: ₹${amount}`);
-        return res.status(200).send('OK');
+      } catch (sigErr) {
+        console.warn('⚠️ [Webhook Security] Verification parsing error:', sigErr.message);
       }
     }
 
-    return res.status(200).send('IGNORED_OR_FAILED');
+    const { event, order_id, status, amount } = payload;
+
+    if (event === 'payment.paid' || status === 'paid') {
+      const targetId = order_id || payload.client_txn_id;
+      if (targetId && orders.has(targetId)) {
+        const matchedOrder = orders.get(targetId);
+        matchedOrder.status = 'SUCCESS';
+        matchedOrder.paidAt = new Date();
+        matchedOrder.paymentId = targetId;
+        console.log(`🚀 [WEBHOOK SUCCESS] Order ${matchedOrder.orderId} marked PAID! Amount: ₹${amount}`);
+      }
+    }
+
+    return res.status(200).send('ok');
   } catch (err) {
-    console.error('EkQR Webhook Processing Error:', err);
+    console.error('Auto Upi Webhook Error:', err);
     return res.status(500).json({ error: err.message });
   }
 });

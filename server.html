@@ -65,10 +65,10 @@
       
       <div class="text-center">
         <h1 class="text-3xl md:text-4xl font-black text-brand-navy tracking-tight leading-tight mb-2">
-          Fleet Records &amp; Digital Asset Documentation
+          Fleet Records &amp; Document Formatting Utility
         </h1>
         <p class="text-sm md:text-base text-slate-500 max-w-lg mx-auto font-medium">
-          Fast, automated digital document formatting utility for transport operators.
+          Fast, automated vector PDF formatting utility for transport operators and fleet managers.
         </p>
       </div>
 
@@ -248,7 +248,7 @@
         
         <div>
           <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
-          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF is downloading automatically.</p>
+          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF has been generated.</p>
         </div>
 
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
@@ -272,9 +272,10 @@
 
         <div class="space-y-2.5 pt-2">
           <button 
+            id="downloadAgainBtn"
             onclick="downloadDigitalPdf()"
             class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
-            <span>📥</span> Download Digital PDF Again
+            <span>📥</span> Download Digital PDF
           </button>
           
           <button 
@@ -285,12 +286,11 @@
         </div>
       </div>
     </div>
-
-    <!-- FORMAT CHOOSER MODAL -->
+<!-- FORMAT CHOOSER MODAL -->
     <div id="formatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
         <div class="text-left">
-          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA VEHICLE</span>
+          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA (KA) VEHICLE</span>
           <h3 class="text-xl font-black text-brand-navy mt-2">Select Preferred RC Layout</h3>
         </div>
 
@@ -300,11 +300,10 @@
             onclick="confirmFormatSelection('OLD')"
             class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
             <div>
-              <div class="text-2xl">🏛️</div>
-              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old Book / Paper RC</h4>
-              <p class="text-[10px] text-slate-500 mt-1 leading-tight">Vidhana Soudha template rendered on Canva Master.</p>
+              <div class="text-2xl">📄</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">Choose Old RC →</span>
+            <span class="text-xs font-bold text-brand-primary">Old →</span>
           </button>
 
           <button 
@@ -313,10 +312,9 @@
             class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
             <div>
               <div class="text-2xl">💳</div>
-              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New Smart Card RC</h4>
-              <p class="text-[10px] text-slate-500 mt-1 leading-tight">National Union standard card with Gold Chip &amp; QR.</p>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">Choose Smart RC →</span>
+            <span class="text-xs font-bold text-brand-primary">New →</span>
           </button>
         </div>
 
@@ -324,6 +322,7 @@
       </div>
     </div>
 
+    
     <!-- CUSTOMER MOBILE OTP VERIFICATION MODAL -->
     <div id="customerAuthModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
@@ -333,7 +332,7 @@
 
         <div>
           <h3 class="text-lg font-black text-brand-navy">Customer Authentication</h3>
-          <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and download vehicle records.</p>
+          <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and format records.</p>
         </div>
 
         <!-- STAGE 1: ENTER MOBILE -->
@@ -395,7 +394,7 @@
 
         <!-- HIGH CONTRAST DYNAMIC QR CODE DISPLAY -->
         <div class="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2">
-          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-48 h-48 rounded-lg shadow-sm border border-slate-100" />
+          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-48 h-48 rounded-lg shadow-sm border border-slate-100 object-contain" />
           <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
         </div>
 
@@ -561,17 +560,28 @@
       </div>
     </div>
 
+    <!-- SPA IN-PAGE POLICY VIEWER -->
+    <div id="policyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center border-b pb-2">
+          <h3 class="text-lg font-black text-brand-navy" id="policyTitle">Policy Information</h3>
+          <button onclick="closePolicyModal()" class="text-slate-400 font-bold hover:text-slate-600">&times;</button>
+        </div>
+        <div id="policyContent" class="text-xs text-slate-600 space-y-3 overflow-y-auto pr-2 flex-1 leading-relaxed"></div>
+      </div>
+    </div>
+
   </main>
 
   <!-- FOOTER -->
   <footer class="w-full border-t border-slate-200 bg-white py-8 mt-8 no-print">
     <div class="max-w-4xl mx-auto px-4 space-y-4 text-center">
       <div class="flex flex-wrap justify-center gap-6 text-xs font-semibold text-slate-600">
-        <a href="/about.html" class="hover:text-brand-primary transition-colors">About Us</a>
-        <a href="/privacy.html" class="hover:text-brand-primary transition-colors">Privacy Policy</a>
-        <a href="/terms.html" class="hover:text-brand-primary transition-colors">Terms of Service</a>
-        <a href="/refund.html" class="hover:text-brand-primary transition-colors">Refund Policy</a>
-        <a href="/contact.html" class="hover:text-brand-primary transition-colors">Contact Us</a>
+        <button onclick="openPolicy('about')" class="hover:text-brand-primary transition-colors">About Us</button>
+        <button onclick="openPolicy('privacy')" class="hover:text-brand-primary transition-colors">Privacy Policy</button>
+        <button onclick="openPolicy('terms')" class="hover:text-brand-primary transition-colors">Terms of Service</button>
+        <button onclick="openPolicy('refund')" class="hover:text-brand-primary transition-colors">Refund Policy</button>
+        <button onclick="openPolicy('contact')" class="hover:text-brand-primary transition-colors">Contact Us</button>
       </div>
 
       <div class="text-xs text-slate-500 font-medium">
@@ -579,7 +589,7 @@
       </div>
 
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-400 leading-relaxed text-left sm:text-center">
-        <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by the Government of India, MoRTH, Parivahan Sewa, or any State Transport Department / RTO. The PDFs generated by this service are formatted digital copies for the customer's personal or business use and are not government-issued documents.
+        <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by the Government of India, MoRTH, Parivahan Sewa, or any State Transport Department / RTO. The PDFs generated by this service are formatted digital copies for commercial and personal utility use.
       </div>
     </div>
   </footer>
@@ -605,6 +615,10 @@
     let currentUpiUrl = '';
     let paymentPollInterval = null;
 
+    // Idempotency and Loop Guard Flags
+    let isCompleted = false;
+    let isDownloading = false;
+
     let currentRole = 'PUBLIC';
     let sessionToken = null;
     let sessionAgentData = null;
@@ -620,12 +634,16 @@
       closePaymentModal();
       closeAgentModal();
       closeAdminModal();
+      closePolicyModal();
 
       if (viewName === 'complete') {
         document.getElementById('view-success-state').classList.remove('hidden');
         if (addToHistory) history.pushState({ view: 'complete' }, '', '#complete');
       } else {
         document.getElementById('view-input-state').classList.remove('hidden');
+        isCompleted = false;
+        activeOrderId = null;
+        if (paymentPollInterval) clearInterval(paymentPollInterval);
         if (addToHistory) history.pushState({ view: 'search' }, '', '#search');
       }
     }
@@ -921,6 +939,7 @@
         if (data.success) {
           activeOrderId = data.orderId;
           currentUpiUrl = data.upiUrl;
+          isCompleted = false;
 
           if (data.role === 'ADMIN' || data.amount === 0) {
             await completeOrderWithoutPayment();
@@ -931,8 +950,17 @@
           document.getElementById('modalTarget').innerText = targetNumber;
           document.getElementById('modalAmount').innerText = '₹' + data.amount;
 
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
-          document.getElementById('upiIntentLink').href = currentUpiUrl;
+          if (data.qrCodeBase64) {
+            document.getElementById('upiQrImage').src = data.qrCodeBase64;
+          } else {
+            document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          }
+
+          if (data.upiIntent && data.upiIntent.phonepe_link) {
+            document.getElementById('upiIntentLink').href = data.upiIntent.phonepe_link;
+          } else {
+            document.getElementById('upiIntentLink').href = currentUpiUrl;
+          }
 
           document.getElementById('paymentModal').classList.remove('hidden');
           startPaymentPolling(activeOrderId);
@@ -950,6 +978,7 @@
       if (paymentPollInterval) clearInterval(paymentPollInterval);
 
       paymentPollInterval = setInterval(async () => {
+        if (isCompleted) return;
         try {
           const res = await fetch('/api/verify-payment', {
             method: 'POST',
@@ -958,11 +987,8 @@
           });
           const data = await res.json();
 
-          if (data.status === 'SUCCESS') {
-            clearInterval(paymentPollInterval);
-            closePaymentModal();
-            localStorage.setItem(`order_${orderId}_status`, 'PAID');
-            await showCompletedOrder(data);
+          if (data.status === 'SUCCESS' && !isCompleted) {
+            handleOrderSuccess(data);
           }
         } catch (err) {
           console.error("Polling check failed", err);
@@ -979,11 +1005,8 @@
           body: JSON.stringify({ orderId: activeOrderId, forceSuccess: true })
         });
         const data = await res.json();
-        if (data.status === 'SUCCESS') {
-          if (paymentPollInterval) clearInterval(paymentPollInterval);
-          closePaymentModal();
-          localStorage.setItem(`order_${activeOrderId}_status`, 'PAID');
-          await showCompletedOrder(data);
+        if (data.status === 'SUCCESS' && !isCompleted) {
+          handleOrderSuccess(data);
         }
       } catch (e) {
         alert('Simulation failed: ' + e.message);
@@ -998,8 +1021,8 @@
           body: JSON.stringify({ orderId: activeOrderId })
         });
         const data = await res.json();
-        if (data.status === 'SUCCESS') {
-          await showCompletedOrder(data);
+        if (data.status === 'SUCCESS' && !isCompleted) {
+          handleOrderSuccess(data);
         } else {
           alert(data.error || 'Order could not be completed.');
         }
@@ -1008,17 +1031,37 @@
       }
     }
 
-    async function showCompletedOrder(data) {
+    async function handleOrderSuccess(data) {
+      if (isCompleted) return;
+      isCompleted = true;
+
+      if (paymentPollInterval) {
+        clearInterval(paymentPollInterval);
+        paymentPollInterval = null;
+      }
+
+      closePaymentModal();
       activeReportData = data.report;
+      
       document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
       document.getElementById('receiptOrderId').innerText = data.orderId;
       document.getElementById('receiptAmount').innerText = '₹' + data.amount;
-      await downloadDigitalPdf();
+
       navigateTo('complete');
+
+      // Controlled Single Auto-Download Execution
+      if (!isDownloading) {
+        await downloadDigitalPdf();
+      }
     }
 
     async function downloadDigitalPdf() {
-      if (!activeReportData) return;
+      if (!activeOrderId || isDownloading) return;
+      isDownloading = true;
+
+      const dlBtn = document.getElementById('downloadAgainBtn');
+      const originalText = dlBtn ? dlBtn.innerHTML : '';
+      if (dlBtn) dlBtn.innerHTML = `<span>⏳</span> Downloading Vector PDF...`;
 
       try {
         const res = await fetch('/api/download-rc-pdf', {
@@ -1034,7 +1077,7 @@
         const a = document.createElement('a');
         a.href = url;
         const prefix = currentService === 'DL' ? 'DL' : 'RC';
-        const docNum = activeReportData.dlNo || activeReportData.regNo || 'Document';
+        const docNum = activeReportData?.dlNo || activeReportData?.regNo || 'Document';
         a.download = `${prefix}_${docNum}.pdf`;
         document.body.appendChild(a);
         a.click();
@@ -1042,6 +1085,10 @@
         window.URL.revokeObjectURL(url);
       } catch (err) {
         alert('Failed to generate PDF: ' + err.message);
+      } finally {
+        if (dlBtn) dlBtn.innerHTML = originalText;
+        // Keep lock active briefly to prevent browser bounce triggers
+        setTimeout(() => { isDownloading = false; }, 2500);
       }
     }
 
@@ -1108,12 +1155,17 @@
 
           activeOrderId = orderData.orderId;
           currentUpiUrl = orderData.upiUrl;
+          isCompleted = false;
 
           document.getElementById('modalOrderId').innerText = orderData.orderId;
-          document.getElementById('modalTarget').innerText = `Partner Registration: ${name}`;
+          document.getElementById('modalTarget').innerText = `Partner: ${name}`;
           document.getElementById('modalAmount').innerText = '₹500.00';
           
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          if (orderData.qrCodeBase64) {
+            document.getElementById('upiQrImage').src = orderData.qrCodeBase64;
+          } else {
+            document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
+          }
           document.getElementById('upiIntentLink').href = currentUpiUrl;
 
           document.getElementById('paymentModal').classList.remove('hidden');
@@ -1291,12 +1343,52 @@
     }
 
     function closePaymentModal() {
-      if (paymentPollInterval) clearInterval(paymentPollInterval);
+      if (paymentPollInterval) {
+        clearInterval(paymentPollInterval);
+        paymentPollInterval = null;
+      }
       document.getElementById('paymentModal').classList.add('hidden');
     }
 
+    // In-Page Policy System
+    const policies = {
+      about: {
+        title: 'About RTO Boss',
+        body: '<p>RTO Boss provides automated B2B fleet documentation formatting and vector PDF rendering software designed for commercial logistics operators, fleet contractors, and transport aggregators.</p><p class="mt-2">Our proprietary layout system converts raw vehicle registration and driver records into standardized high-resolution PDF print files ready for enterprise tracking and archival.</p>'
+      },
+      privacy: {
+        title: 'Privacy Policy',
+        body: '<p>We value user privacy and process identifiers solely to format and deliver requested documents. Search queries and customer mobile numbers are retained temporarily in session memory and are never shared or sold to third-party marketing entities.</p>'
+      },
+      terms: {
+        title: 'Terms of Service',
+        body: '<p>RTO Boss operates purely as a software utility for record visualization and printing convenience. Users are responsible for ensuring they possess the right to format and print the requested fleet records. This platform does not grant legal ownership, vehicle clearance, or official government authority.</p>'
+      },
+      refund: {
+        title: 'Refund & Cancellation Policy',
+        body: '<p>Payment processing covers the automated software formatting engine. If an order encounters an internal server failure and the final vector PDF cannot be rendered or downloaded, an automatic refund is initiated to the source UPI account within 24–48 banking hours. Contact support@rtoboss.in with your Order ID for refund inquiries.</p>'
+      },
+      contact: {
+        title: 'Contact Support',
+        body: '<p>For technical inquiries, enterprise partnership, or bulk fleet integrations, email our operations desk at <strong>support@rtoboss.in</strong>.</p><p class="mt-2">Operating Hours: Monday – Saturday, 9:00 AM to 6:00 PM IST.</p>'
+      }
+    };
+
+    function openPolicy(type) {
+      const p = policies[type];
+      if (!p) return;
+      document.getElementById('policyTitle').innerText = p.title;
+      document.getElementById('policyContent').innerHTML = p.body;
+      document.getElementById('policyModal').classList.remove('hidden');
+    }
+
+    function closePolicyModal() {
+      document.getElementById('policyModal').classList.add('hidden');
+    }
+
+    // Guarded single status check on tab focus (prevents multiple triggers)
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && activeOrderId) {
+      if (document.visibilityState === 'visible' && activeOrderId && !isCompleted) {
         fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1304,10 +1396,8 @@
         })
         .then(r => r.json())
         .then(data => {
-          if (data.status === 'SUCCESS') {
-            if (paymentPollInterval) clearInterval(paymentPollInterval);
-            closePaymentModal();
-            showCompletedOrder(data);
+          if (data.status === 'SUCCESS' && !isCompleted) {
+            handleOrderSuccess(data);
           }
         })
         .catch(console.error);

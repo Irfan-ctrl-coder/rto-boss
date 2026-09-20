@@ -11,15 +11,15 @@ const PORT = process.env.PORT || 3000;
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
-const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Paytm.s3xfs8b@pty'; 
+const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl'; 
 const MERCHANT_NAME = 'RTO BOSS';
 
 // =====================================================================
-// VYAPARGATEWAY CREDENTIALS (PASTE YOUR KEYS HERE ON LINES 17 & 18)
+// AUTO UPI CREDENTIALS (PASTE YOUR KEYS HERE ON LINES 19 & 20)
 // =====================================================================
-const VYAPAR_API_KEY = process.env.VYAPAR_API_KEY || 'vg_live_TMmE7SqzYZVyFcU0wuHLSZox';
-const VYAPAR_WEBHOOK_SECRET = process.env.VYAPAR_WEBHOOK_SECRET || 'whsec_CMIz326R7YLP0hjGz-h0f4dxVln5kYiA';
-const VYAPAR_BASE_URL = 'https://vyapargateway.com';
+const AUTO_UPI_API_KEY = process.env.AUTO_UPI_API_KEY || 'aupi_live_a1a28dc326c24f3c0a49ec4de4a94f109935da85bf178752';
+const AUTO_UPI_WEBHOOK_SECRET = process.env.AUTO_UPI_WEBHOOK_SECRET || 'whsec_13187aee99157fd316487b3a91a467981d8397a50f5da3ee';
+const AUTO_UPI_BASE_URL = 'https://autoupi.in/api/public/v1';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
@@ -29,7 +29,14 @@ app.use(cors({
   origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(v => v.trim()) : true,
   credentials: false
 }));
-app.use(express.json({ limit: '10mb' }));
+
+// Raw body capture required for Auto Upi HMAC signature checking
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf8');
+  }
+}));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -43,43 +50,13 @@ const customers = new Map();
 
 // All-India State Master Mapping
 const STATE_NAMES = {
-  AN: 'ANDAMAN AND NICOBAR',
-  AP: 'ANDHRA PRADESH',
-  AR: 'ARUNACHAL PRADESH',
-  AS: 'ASSAM',
-  BR: 'BIHAR',
-  CG: 'CHHATTISGARH',
-  CH: 'CHANDIGARH',
-  DD: 'DAMAN AND DIU',
-  DL: 'DELHI',
-  DN: 'DADRA AND NAGAR HAVELI',
-  GA: 'GOA',
-  GJ: 'GUJARAT',
-  HP: 'HIMACHAL PRADESH',
-  HR: 'HARYANA',
-  JH: 'JHARKHAND',
-  JK: 'JAMMU AND KASHMIR',
-  KA: 'KARNATAKA',
-  KL: 'KERALA',
-  LA: 'LADAKH',
-  LD: 'LAKSHADWEEP',
-  MH: 'MAHARASHTRA',
-  ML: 'MEGHALAYA',
-  MN: 'MANIPUR',
-  MP: 'MADHYA PRADESH',
-  MZ: 'MIZORAM',
-  NL: 'NAGALAND',
-  OD: 'ODISHA',
-  PB: 'PUNJAB',
-  PY: 'PUDUCHERRY',
-  RJ: 'RAJASTHAN',
-  SK: 'SIKKIM',
-  TN: 'TAMIL NADU',
-  TR: 'TRIPURA',
-  TS: 'TELANGANA',
-  UK: 'UTTARAKHAND',
-  UP: 'UTTAR PRADESH',
-  WB: 'WEST BENGAL'
+  AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
+  BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
+  DN: 'DADRA AND NAGAR HAVELI', GA: 'GOA', GJ: 'GUJARAT', HP: 'HIMACHAL PRADESH', HR: 'HARYANA',
+  JH: 'JHARKHAND', JK: 'JAMMU AND KASHMIR', KA: 'KARNATAKA', KL: 'KERALA', LA: 'LADAKH',
+  LD: 'LAKSHADWEEP', MH: 'MAHARASHTRA', ML: 'MEGHALAYA', MN: 'MANIPUR', MP: 'MADHYA PRADESH',
+  MZ: 'MIZORAM', NL: 'NAGALAND', OD: 'ODISHA', PB: 'PUNJAB', PY: 'PUDUCHERRY', RJ: 'RAJASTHAN',
+  SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
 // Mock Vehicle & DL Database
@@ -464,7 +441,6 @@ function isCommercialClass(vClass) {
 // =====================================================================
 // CUSTOMER AUTHENTICATION & TEST OTP SYSTEM
 // =====================================================================
-
 app.post('/api/customer/send-otp', (req, res) => {
   const { mobile } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
@@ -524,7 +500,6 @@ app.post('/api/customer/verify-otp', (req, res) => {
 // =====================================================================
 // AGENT & ADMIN ROUTES
 // =====================================================================
-
 app.post('/api/agent/register', (req, res) => {
   const { name, mobile, email, password, address } = req.body;
   if (!name || !mobile || !email || !password || !address) {
@@ -549,7 +524,7 @@ app.post('/api/agent/register', (req, res) => {
   };
 
   agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500, paymentProvider: 'VYAPARGATEWAY', paymentMode: 'UPI' });
+  res.json({ success: true, agentId, amount: 500, paymentProvider: 'AUTOUPI', paymentMode: 'UPI' });
 });
 
 app.post('/api/agent/login', (req, res) => {
@@ -633,11 +608,11 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & VYAPARGATEWAY DYNAMIC UPI INTEGRATION
+// ORDER PROCESSING & AUTO UPI INTEGRATION
 // =====================================================================
 app.post('/api/create-order', async (req, res) => {
   try {
-    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail } = req.body;
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName } = req.body;
     const authHeader = req.headers['authorization'] || '';
 
     let role = 'PUBLIC';
@@ -667,91 +642,78 @@ app.post('/api/create-order', async (req, res) => {
       else finalAmount = 100;
     }
 
-    const orderId = 'ORD' + Date.now();
-    let qrCodeBase64 = null;
-    let upiIntentUrl = null;
+    let localOrderId = 'ORD' + Date.now();
     let gatewayOrderId = null;
-    let upiIntent = null;
+    let payableAmount = finalAmount;
+    let paymentUrl = null;
+    let fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&mode=02`;
 
-    const cleanNote = `${docType || 'DOC'}${targetNumber ? targetNumber.replace(/[^A-Z0-9]/g, '') : ''}`;
-    const fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&tn=${cleanNote}&mode=02`;
-
-    // Connect to VyaparGateway API
+    // Connect to Auto Upi API
     if (role !== 'ADMIN' && finalAmount > 0) {
       try {
-        const vgPayload = {
-          key: VYAPAR_API_KEY,
-          client_txn_id: orderId,
+        const payload = {
           amount: finalAmount,
-          p_info: cleanNote,
-          customer_name: 'Customer',
-          customer_mobile: customerMobile || '8431841431',
-          customer_email: customerEmail || 'support@rtoboss.in',
-          callback_url: 'https://www.rtoboss.in/api/bank-webhook',
-          redirect_url: `https://www.rtoboss.in?order_id=${orderId}`
+          customer_name: customerName || 'Valued Customer',
+          webhook_url: 'https://www.rtoboss.in/api/bank-webhook'
         };
 
-        const response = await fetch(`${VYAPAR_BASE_URL}/api/v1/create_order`, {
+        const response = await fetch(`${AUTO_UPI_BASE_URL}/create-order`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+          headers: {
+            'X-API-Key': AUTO_UPI_API_KEY,
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(vgPayload)
+          body: JSON.stringify(payload)
         });
 
-        const vgData = await response.json();
-        console.log('[VyaparGateway Order Response]:', JSON.stringify(vgData));
+        const data = await response.json();
+        console.log('[Auto Upi Create Order Response]:', JSON.stringify(data));
 
-        if (vgData.status === true && vgData.data) {
-          gatewayOrderId = vgData.data.order_id;
-          qrCodeBase64 = vgData.data.qr_code;
-          upiIntent = vgData.data.upi_intent || null;
-          upiIntentUrl = vgData.data.upi_string || vgData.data.upi_intent?.bhim_link;
+        if (data.ok === true) {
+          gatewayOrderId = data.order_id;
+          localOrderId = data.order_id;
+          payableAmount = data.payable_amount || finalAmount;
+          paymentUrl = data.payment_url;
         } else {
-          console.warn('[VyaparGateway Warning] Order creation returned:', vgData.msg);
+          console.warn('[Auto Upi Warning] Order creation returned:', data.error || data);
         }
       } catch (gatewayErr) {
-        console.error('[VyaparGateway Connection Error]:', gatewayErr.message);
+        console.error('[Auto Upi Connection Error]:', gatewayErr.message);
       }
     }
 
-    let effectiveUpi = upiIntentUrl || fallbackUpiUrl;
-    if (!effectiveUpi.includes('mode=02')) {
-      effectiveUpi += (effectiveUpi.includes('?') ? '&mode=02' : '?mode=02');
-    }
+    const effectivePaymentUrl = paymentUrl || fallbackUpiUrl;
 
-    orders.set(orderId, {
-      orderId,
+    orders.set(localOrderId, {
+      orderId: localOrderId,
       gatewayOrderId,
       docType,
       targetNumber,
       tier,
       amount: finalAmount,
+      payableAmount,
       role,
       dob,
       rcFormat: rcFormat || 'OLD',
       status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
-      paymentProvider: 'VYAPARGATEWAY',
+      paymentProvider: 'AUTOUPI',
       currency: 'INR',
       customerMobile: customerMobile || '',
-      qrCodeBase64,
-      paymentUrl: effectiveUpi,
-      upiUrl: effectiveUpi,
+      paymentUrl: effectivePaymentUrl,
+      upiUrl: effectivePaymentUrl,
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
     });
 
     res.json({ 
       success: true, 
-      orderId, 
+      orderId: localOrderId, 
       amount: finalAmount, 
+      payableAmount,
       role, 
-      qrCodeBase64,
-      paymentUrl: effectiveUpi,
-      upiUrl: effectiveUpi,
-      upiIntent,
-      paymentProvider: 'VYAPARGATEWAY', 
+      paymentUrl: effectivePaymentUrl,
+      upiUrl: effectivePaymentUrl,
+      paymentProvider: 'AUTOUPI', 
       paymentMode: 'UPI' 
     });
   } catch (err) {
@@ -761,7 +723,7 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 // =====================================================================
-// PAYMENT VERIFICATION (DUAL-LAYER: ACTIVE VYAPARGATEWAY STATUS CHECK)
+// PAYMENT VERIFICATION (AUTO UPI ORDER-STATUS POLLING)
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
@@ -771,29 +733,26 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  // Active check against VyaparGateway API
+  // Active status check against Auto Upi API
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
-      const checkRes = await fetch(`${VYAPAR_BASE_URL}/api/v1/check_order_status`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: VYAPAR_API_KEY,
-          client_txn_id: orderId,
-          order_id: order.gatewayOrderId || undefined
-        })
+      const checkRes = await fetch(`${AUTO_UPI_BASE_URL}/order-status?order_id=${encodeURIComponent(orderId)}`, {
+        method: 'GET',
+        headers: {
+          'X-API-Key': AUTO_UPI_API_KEY
+        }
       });
       const checkData = await checkRes.json();
-      console.log(`[VyaparGateway Active Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
+      console.log(`[Auto Upi Status Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
 
-      if (checkData.status === true && checkData.data?.status === 'success') {
+      if (checkData.ok === true && checkData.order?.status === 'paid') {
         order.status = 'SUCCESS';
-        order.paidAt = new Date();
-        order.paymentId = checkData.data?.upi_txn_id || checkData.data?.order_id || ('VG_' + Date.now());
-        console.log(`🚀 [STATUS CHECK SUCCESS] Order ${orderId} confirmed via poll!`);
+        order.paidAt = new Date(checkData.order.paid_at || Date.now());
+        order.paymentId = checkData.order.order_id || ('AU_' + Date.now());
+        console.log(`🚀 [STATUS CHECK SUCCESS] Order ${orderId} confirmed paid!`);
       }
     } catch (e) {
-      console.error('VyaparGateway Check Status Query Failed:', e.message);
+      console.error('Auto Upi Check Status Query Failed:', e.message);
     }
   }
 
@@ -827,6 +786,7 @@ app.post('/api/verify-payment', async (req, res) => {
     docType: order.docType,
     rcFormat: order.rcFormat,
     amount: order.amount,
+    payableAmount: order.payableAmount,
     currency: order.currency,
     role: order.role,
     paymentProvider: order.paymentProvider,
@@ -836,63 +796,56 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 // =====================================================================
-// AUTOMATED VYAPARGATEWAY WEBHOOK WITH HMAC-SHA256 SIGNATURE CHECK
+// AUTOMATED AUTO UPI WEBHOOK (HMAC-SHA256 SIGNED)
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
-    const signature = req.headers['x-vyapargateway-signature'];
-    const timestamp = req.headers['x-vyapargateway-timestamp'];
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+    const signatureHeader = req.headers['x-autoupi-signature'] || '';
     const payload = req.body || {};
 
-    console.log('📥 [VyaparGateway Webhook Received]:', JSON.stringify(payload));
+    console.log('📥 [Auto Upi Webhook Received]:', JSON.stringify(payload));
 
-    // HMAC Security Verification
-    if (VYAPAR_WEBHOOK_SECRET && VYAPAR_WEBHOOK_SECRET !== 'PASTE_YOUR_WHSEC_KEY_HERE' && signature && timestamp) {
+    // Webhook Signature Verification
+    if (AUTO_UPI_WEBHOOK_SECRET && AUTO_UPI_WEBHOOK_SECRET !== 'whsec_your_secret_here' && signatureHeader) {
       try {
-        const payloadJson = JSON.stringify(payload, Object.keys(payload).sort());
-        const stringToSign = `${timestamp}.${payloadJson}`;
-        const expected = crypto.createHmac('sha256', VYAPAR_WEBHOOK_SECRET).update(stringToSign).digest('hex');
+        const parts = {};
+        signatureHeader.split(',').forEach(part => {
+          const [k, v] = part.split('=');
+          if (k && v) parts[k.trim()] = v.trim();
+        });
 
-        const isValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-        if (!isValid) {
-          console.warn('⚠️ [Webhook Security] Invalid signature rejected');
-          return res.status(401).json({ error: 'Invalid signature' });
-        }
-      } catch (sigErr) {
-        console.warn('⚠️ [Webhook Security] Signature match error:', sigErr.message);
-      }
-    }
+        if (parts.t && parts.v1) {
+          const stringToSign = `${parts.t}.${rawBody}`;
+          const expected = crypto.createHmac('sha256', AUTO_UPI_WEBHOOK_SECRET).update(stringToSign).digest('hex');
 
-    const { client_txn_id, status, upi_txn_id, amount } = payload;
-
-    // Handle successful payment
-    if (status === 'success') {
-      let matchedOrder = null;
-
-      if (client_txn_id && orders.has(client_txn_id)) {
-        matchedOrder = orders.get(client_txn_id);
-      } else {
-        const orderKeys = Array.from(orders.keys()).reverse();
-        for (const id of orderKeys) {
-          const ord = orders.get(id);
-          if (ord && ord.status === 'PENDING') {
-            matchedOrder = ord;
-            break;
+          const isValid = crypto.timingSafeEqual(Buffer.from(parts.v1), Buffer.from(expected));
+          if (!isValid) {
+            console.warn('⚠️ [Webhook Security] Invalid Auto Upi signature rejected');
+            return res.status(401).send('bad signature');
           }
         }
-      }
-
-      if (matchedOrder) {
-        matchedOrder.status = 'SUCCESS';
-        matchedOrder.paidAt = new Date();
-        matchedOrder.paymentId = upi_txn_id || payload.order_id || ('VG_' + Date.now());
-        console.log(`🚀 [WEBHOOK SUCCESS] Order ${matchedOrder.orderId} marked SUCCESS! Amount: ₹${amount}`);
+      } catch (sigErr) {
+        console.warn('⚠️ [Webhook Security] Verification parsing error:', sigErr.message);
       }
     }
 
-    return res.status(200).json({ received: true });
+    const { event, order_id, status, amount } = payload;
+
+    if (event === 'payment.paid' || status === 'paid') {
+      const targetId = order_id || payload.client_txn_id;
+      if (targetId && orders.has(targetId)) {
+        const matchedOrder = orders.get(targetId);
+        matchedOrder.status = 'SUCCESS';
+        matchedOrder.paidAt = new Date();
+        matchedOrder.paymentId = targetId;
+        console.log(`🚀 [WEBHOOK SUCCESS] Order ${matchedOrder.orderId} marked PAID! Amount: ₹${amount}`);
+      }
+    }
+
+    return res.status(200).send('ok');
   } catch (err) {
-    console.error('VyaparGateway Webhook Processing Error:', err);
+    console.error('Auto Upi Webhook Error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -1222,7 +1175,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
         page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
       }
 
-      const backCandidates = isKA
+      const backCandidates = isKA 
         ? ['new_rc_back.png', 'new_rc_back_.png']
         : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
 
