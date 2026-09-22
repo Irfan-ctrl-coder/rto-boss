@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -15,11 +16,17 @@ const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl';
 const MERCHANT_NAME = 'RTO BOSS';
 
 // =====================================================================
-// AUTO UPI CREDENTIALS (PASTE YOUR KEYS HERE ON LINES 19 & 20)
+// AUTO UPI CREDENTIALS
 // =====================================================================
 const AUTO_UPI_API_KEY = process.env.AUTO_UPI_API_KEY || 'aupi_live_a1a28dc326c24f3c0a49ec4de4a94f109935da85bf178752';
 const AUTO_UPI_WEBHOOK_SECRET = process.env.AUTO_UPI_WEBHOOK_SECRET || 'whsec_13187aee99157fd316487b3a91a467981d8397a50f5da3ee';
 const AUTO_UPI_BASE_URL = 'https://autoupi.in/api/public/v1';
+
+// =====================================================================
+// SUREPASS PRODUCTION API CONFIG
+// =====================================================================
+const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.io';
+const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
@@ -339,6 +346,135 @@ const mockDatabase = {
     rtoAuthority: 'RAMANAGARA-(KA42)'
   }
 };
+
+// =====================================================================
+// LIVE SUREPASS DATA RESOLVER & SCHEMA MAPPER
+// =====================================================================
+async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
+  const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
+
+  // Return static mock record if present
+  if (mockDatabase[lookupKey]) {
+    return mockDatabase[lookupKey];
+  }
+
+  // Fallback to Live Surepass API
+  if (!SUREPASS_BEARER_TOKEN) {
+    console.warn('[Surepass Warning] SUREPASS_BEARER_TOKEN is not configured.');
+    return null;
+  }
+
+  try {
+    if (docType === 'RC') {
+      const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+        },
+        body: JSON.stringify({ id_number: lookupKey })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok || !json.success || !json.data) {
+        console.error('[Surepass RC Failed]:', json);
+        return null;
+      }
+
+      const d = json.data;
+      const formattedRc = {
+        regNo: d.rc_number || lookupKey,
+        regDate: d.registration_date || '',
+        chassisNo: d.chassis_number || '',
+        engineNo: d.engine_number || '',
+        maker: d.maker_description || d.maker_model || '',
+        model: d.maker_model || '',
+        bodyType: d.body_type || 'SEDAN',
+        wheelBase: String(d.wheelbase || '0'),
+        mfgDate: d.manufacturing_date || '',
+        fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
+        validUpto: d.fit_up_to || d.fitness_upto || '',
+        taxUpto: d.tax_upto || 'LTT',
+        owner: d.owner_name || '',
+        swd: d.father_name || '',
+        address: d.present_address || d.permanent_address || '',
+        ownerSerial: String(d.owner_serial_number || '01'),
+        color: d.color || '',
+        vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
+        cylinders: String(d.no_cylinders || '4'),
+        unladenWt: String(d.unladen_weight || '0'),
+        ladenWt: String(d.gross_vehicle_weight || '0'),
+        horsePower: String(d.horse_power || '0'),
+        seating: String(d.seat_capacity || d.seating_capacity || '5'),
+        stdgSlpr: `${d.standing_capacity || 0} / 0`,
+        cubicCap: String(d.cubic_capacity || '0'),
+        rto: d.registered_at || 'TRANSPORT DEPARTMENT',
+        emissionNorms: d.norms_type || 'BHARAT STAGE VI',
+        financer: d.financer || ''
+      };
+
+      mockDatabase[lookupKey] = formattedRc;
+      return formattedRc;
+
+    } else if (docType === 'DL') {
+      const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+        },
+        body: JSON.stringify({
+          id_number: lookupKey,
+          dob: dob
+        })
+      });
+
+      const json = await resp.json();
+      if (!resp.ok || !json.success || !json.data) {
+        console.error('[Surepass DL Failed]:', json);
+        return null;
+      }
+
+      const d = json.data;
+      const formattedDl = {
+        dlNo: d.license_number || lookupKey,
+        doi: d.issue_date || '',
+        validUptoNT: d.nt_validity_to || (d.validity && d.validity.non_transport) || '',
+        validUptoTR: d.tr_validity_to || (d.validity && d.validity.transport) || '',
+        name: d.name || '',
+        dob: d.dob || dob || '',
+        bloodGroup: d.blood_group || '',
+        organDonor: 'N',
+        swd: d.father_or_husband_name || '',
+        address: d.permanent_address || d.present_address || '',
+        firstIssueDate: d.first_issue_date || d.issue_date || '02-07-2026',
+        adpVehNo: '',
+        hazardousValidity: '',
+        hillValidity: '',
+        covList: (d.cov_details || []).map(c => ({
+          covType: 'VEHICLE',
+          code: c.class_of_vehicle || 'LMV',
+          issuedBy: c.issue_authority || '',
+          doi: c.issue_date || '',
+          category: c.vehicle_category || 'NT',
+          badgeNo: '',
+          badgeDoi: '',
+          badgeBy: ''
+        })),
+        mobileNo: '',
+        rtoAuthority: d.issuing_authority || 'RTO OFFICE'
+      };
+
+      mockDatabase[lookupKey] = formattedDl;
+      return formattedDl;
+    }
+  } catch (err) {
+    console.error('Surepass Live Gateway Exception:', err);
+    return null;
+  }
+
+  return null;
+}
 
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
@@ -770,8 +906,7 @@ app.post('/api/verify-payment', async (req, res) => {
     });
   }
 
-  const lookupKey = order.targetNumber.replace(/[^A-Z0-9]/g, '');
-  const report = mockDatabase[lookupKey];
+  const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
 
   if (!report) {
     return res.status(404).json({
@@ -881,8 +1016,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       return res.status(403).json({ error: 'Payment has not been verified for this order.' });
     }
 
-    const lookupKey = order.targetNumber.replace(/[^A-Z0-9]/g, '');
-    const report = mockDatabase[lookupKey];
+    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
     if (!report) {
       return res.status(404).json({ error: 'Record not found.' });
     }
