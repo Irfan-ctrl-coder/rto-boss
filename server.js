@@ -413,7 +413,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         },
         body: JSON.stringify({
           id_number: lookupKey,
-          enrich_rc: true
+          enrich: true
         })
       });
 
