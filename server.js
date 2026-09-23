@@ -41,6 +41,13 @@ const AUTO_UPI_BASE_URL = 'https://autoupi.in/api/public/v1';
 const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
+// =====================================================================
+// MSG91 HEADLESS OTP WIDGET CONFIG
+// =====================================================================
+const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
+const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID || '3669776c5531333237393636';
+const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '574412TrnBJtZox6ab3d430P1';
+
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
   throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
 }
@@ -646,9 +653,9 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION & TEST OTP SYSTEM
+// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET (HEADLESS)
 // =====================================================================
-app.post('/api/customer/send-otp', (req, res) => {
+app.post('/api/customer/send-otp', async (req, res) => {
   const { mobile } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
 
@@ -656,52 +663,113 @@ app.post('/api/customer/send-otp', (req, res) => {
     return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
   }
 
-  const generatedOtp = Math.floor(1000 + Math.random() * 9000).toString();
-  otpStore.set(cleanMobile, {
-    otp: generatedOtp,
-    expiresAt: Date.now() + 5 * 60 * 1000
-  });
+  // Developer Bypass for testing/audits without spending SMS credits
+  if (cleanMobile === '9999999999' || cleanMobile === '1234567890') {
+    otpStore.set(cleanMobile, { reqId: 'DEV_TEST', expiresAt: Date.now() + 5 * 60 * 1000 });
+    console.log(`[DEV TEST OTP] Mobile: ${cleanMobile} -> Use OTP '1234'`);
+    return res.json({ success: true, message: 'Test verification code active.', mobile: cleanMobile });
+  }
 
-  console.log(`[TEST OTP FOR AUDIT] Mobile: ${cleanMobile} -> OTP: ${generatedOtp} (or use '1234')`);
+  try {
+    const response = await fetch('https://api.msg91.com/api/v5/widget/sendOtp', {
+      method: 'POST',
+      headers: {
+        'authkey': MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        widgetId: MSG91_WIDGET_ID,
+        tokenAuth: MSG91_TOKEN_AUTH,
+        identifier: `91${cleanMobile}`
+      })
+    });
 
-  res.json({
-    success: true,
-    message: 'Verification code sent.',
-    mobile: cleanMobile,
-    testOtp: generatedOtp
-  });
+    const data = await response.json();
+    console.log(`[MSG91 Send OTP Response] Mobile: ${cleanMobile}:`, JSON.stringify(data));
+
+    if (data.type === 'success' || data.message === 'OTP sent successfully' || data.reqId) {
+      otpStore.set(cleanMobile, {
+        reqId: data.reqId || data.message,
+        expiresAt: Date.now() + 10 * 60 * 1000
+      });
+
+      res.json({
+        success: true,
+        message: 'Verification code sent via SMS.',
+        mobile: cleanMobile
+      });
+    } else {
+      console.error('[MSG91 Send Error]:', data);
+      res.status(400).json({ error: data.message || 'Failed to dispatch SMS OTP.' });
+    }
+  } catch (err) {
+    console.error('[MSG91 Gateway Exception]:', err.message);
+    res.status(500).json({ error: 'SMS service temporarily unavailable.' });
+  }
 });
 
-app.post('/api/customer/verify-otp', (req, res) => {
+app.post('/api/customer/verify-otp', async (req, res) => {
   const { mobile, otp } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
   const enteredOtp = String(otp || '').trim();
 
-  const record = otpStore.get(cleanMobile);
-  const isValid = enteredOtp === '1234' || (record && record.otp === enteredOtp && Date.now() < record.expiresAt);
-
-  if (!isValid) {
-    return res.status(400).json({ error: 'Invalid or expired OTP.' });
+  // 1. Audit / Developer Bypass
+  if (enteredOtp === '1234') {
+    const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
+    const customerId = 'CUST_' + cleanMobile;
+    customers.set(customerId, { customerId, mobile: cleanMobile, sessionToken: token, verifiedAt: new Date() });
+    return res.json({ success: true, token, mobile: cleanMobile, message: 'Identity verified.' });
   }
 
-  otpStore.delete(cleanMobile);
+  const record = otpStore.get(cleanMobile);
+  if (!record || !record.reqId) {
+    return res.status(400).json({ error: 'No OTP session found for this number. Please request a new code.' });
+  }
 
-  const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
-  const customerId = 'CUST_' + cleanMobile;
+  try {
+    const response = await fetch('https://api.msg91.com/api/v5/widget/verifyOtp', {
+      method: 'POST',
+      headers: {
+        'authkey': MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        widgetId: MSG91_WIDGET_ID,
+        tokenAuth: MSG91_TOKEN_AUTH,
+        reqId: record.reqId,
+        otp: enteredOtp
+      })
+    });
 
-  customers.set(customerId, {
-    customerId,
-    mobile: cleanMobile,
-    sessionToken: token,
-    verifiedAt: new Date()
-  });
+    const data = await response.json();
+    console.log(`[MSG91 Verify Response] Mobile: ${cleanMobile}:`, JSON.stringify(data));
 
-  res.json({
-    success: true,
-    token,
-    mobile: cleanMobile,
-    message: 'Mobile identity verified successfully.'
-  });
+    if (data.type === 'success' || data['access-token'] || data.message === 'OTP verified success') {
+      otpStore.delete(cleanMobile);
+
+      const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
+      const customerId = 'CUST_' + cleanMobile;
+
+      customers.set(customerId, {
+        customerId,
+        mobile: cleanMobile,
+        sessionToken: token,
+        verifiedAt: new Date()
+      });
+
+      res.json({
+        success: true,
+        token,
+        mobile: cleanMobile,
+        message: 'Mobile identity verified successfully.'
+      });
+    } else {
+      res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
+    }
+  } catch (err) {
+    console.error('[MSG91 Verification Exception]:', err.message);
+    res.status(500).json({ error: 'Verification service error.' });
+  }
 });
 
 // =====================================================================
