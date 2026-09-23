@@ -57,6 +57,7 @@ app.use(cors({
   credentials: false
 }));
 
+// Raw body capture required for Auto Upi HMAC signature checking
 app.use(express.json({
   limit: '10mb',
   verify: (req, res, buf) => {
@@ -68,6 +69,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
+// Serve admin.html from root
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
@@ -88,20 +90,6 @@ const STATE_NAMES = {
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
-// Built-in Crisp Silhouette Vectors for Vehicle Categories
-const SVG_ICONS = {
-  CAR: Buffer.from(`
-    <svg width="40" height="20" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 14 C4 11 7 10 10 10 L13 5 C14 3 16 3 18 3 L27 3 C29 3 31 5 32 7 L36 10 C38 10 39 12 39 14 L39 15 C39 16 38 16.5 37 16.5 L35.5 16.5 C35.5 15 34 13.5 32 13.5 C30 13.5 28.5 15 28.5 16.5 L15.5 16.5 C15.5 15 14 13.5 12 13.5 C10 13.5 8.5 15 8.5 16.5 L5 16.5 C4 16.5 4 15 4 14 Z M12 17.5 C13 17.5 14 16.5 14 15.5 C14 14.5 13 13.5 12 13.5 C11 13.5 10 14.5 10 15.5 C10 16.5 11 17.5 12 17.5 Z M32 17.5 C33 17.5 34 16.5 34 15.5 C34 14.5 33 13.5 32 13.5 C31 13.5 30 14.5 30 15.5 C30 16.5 31 17.5 32 17.5 Z M14 9 L24 9 L24 5 L17 5 Z M26 9 L33 9 L30 5 L26 5 Z" fill="#0f172a"/>
-    </svg>
-  `),
-  BIKE: Buffer.from(`
-    <svg width="40" height="20" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 17 C5.5 17 3.5 15 3.5 12.5 C3.5 10 5.5 8 8 8 C9.8 8 11.3 9.1 12 10.7 L16.5 10.7 L15 6 L12 6 L12 4.5 L16.5 4.5 L18 8 L22 8 L24 5 L29 5 L28 6.5 L25 6.5 L23.5 9 L27 10 L28.5 7 L30 7.5 L28.8 10.3 C30.6 11 31.8 12.6 31.8 14.5 C31.8 17 29.8 19 27.3 19 C25 19 23.2 17.4 22.8 15.2 L17.5 14.5 L14.5 15.5 L12.3 14.5 C11.5 16 9.9 17 8 17 Z M8 15 C9.4 15 10.5 13.9 10.5 12.5 C10.5 11.1 9.4 10 8 10 C6.6 10 5.5 11.1 5.5 12.5 C5.5 13.9 6.6 15 8 15 Z M27.3 17.2 C28.8 17.2 30 16 30 14.5 C30 13 28.8 11.8 27.3 11.8 C25.8 11.8 24.6 13 24.6 14.5 C24.6 16 25.8 17.2 27.3 17.2 Z" fill="#0f172a"/>
-    </svg>
-  `)
-};
-
 // Static Mock Vehicle & DL Database
 const mockDatabase = {
   'KA40EF5093': {
@@ -119,7 +107,7 @@ const mockDatabase = {
     taxUpto: 'LTT',
     owner: 'SHARADHAM SRINIVASULU',
     swd: 'NARASIMHULU',
-    address: '#1 KOLAR ROAD, VIJAYAPURA, Bangalore Rural, KA, 562135',
+    address: '#1 KOLAR ROAD, VIJAYAPURA, , Bangalore Rural, KA, 562135',
     ownerSerial: '01',
     color: 'PEARL BLUE',
     vehicleClassFull: 'M-Cycel/Scooter (2WN)',
@@ -134,41 +122,254 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: ''
   },
-  'KA0120110006162': {
-    dlNo: 'KA01 20110006162',
-    doi: '10-06-2011',
-    validUptoNT: '09-06-2031',
+  'KA09HJ1161': {
+    regNo: 'KA09HJ1161',
+    regDate: '06-07-2016',
+    chassisNo: 'ME4JF505FGT539299',
+    engineNo: 'JF50ET3541017',
+    maker: 'HONDA MOTORCYCLE AND SCOOTER INDIA (P) LTD',
+    model: 'H ACTIVA 3G CBS BS3',
+    bodyType: 'U BONE',
+    wheelBase: '0',
+    mfgDate: '7 / 2016',
+    fuel: 'PETROL',
+    validUpto: '05-07-2031',
+    taxUpto: 'LTT',
+    owner: 'JYOTHI M',
+    swd: 'NAGAVENI',
+    address: '# 956, BEML LAYOUT, 2ND STAGE, RAJARAJESHWARI NAGAR, MYSORE, Karnataka, 570022',
+    ownerSerial: '01',
+    color: 'WHITE',
+    vehicleClassFull: 'M-Cycle/Scooter',
+    cylinders: '1',
+    unladenWt: '108',
+    seating: '2',
+    stdgSlpr: '0 / 0',
+    cubicCap: '109.00',
+    rto: 'MYSORE WEST RTO',
+    emissionNorms: 'BHARAT STAGE IV',
+    financer: ''
+  },
+  'KA03HZ2486': {
+    regNo: 'KA03HZ2486',
+    regDate: '23-05-2015',
+    chassisNo: 'MD2A11CZ3FWM15704',
+    engineNo: 'DHZWFM93243',
+    maker: 'BAJAJ AUTO LTD',
+    model: 'PULSAR 150 DTS I (UG 4.5)',
+    bodyType: 'SOLO WITH PI',
+    wheelBase: '1320',
+    mfgDate: '3 / 2015',
+    fuel: 'PETROL',
+    validUpto: '22-Apr-2030',
+    taxUpto: 'LTT',
+    owner: 'RAJU B',
+    swd: 'BYATA VENKATAPPA',
+    address: '# 20-A ULLITHIGALARA BEEDI,ANEKAL TOWN,BENGALURU WEF-2-2-16,Karnataka,562106',
+    ownerSerial: '02',
+    color: 'C WINE RED',
+    vehicleClassFull: 'M-Cycle/Scooter',
+    cylinders: '01',
+    unladenWt: '143',
+    seating: '02',
+    stdgSlpr: '0 / 0',
+    cubicCap: '149.00',
+    rto: 'BENGALURU WEST RTO',
+    emissionNorms: 'BHARAT STAGE III',
+    financer: ''
+  },
+  'KA40Y5748': {
+    regNo: 'KA40Y5748',
+    regDate: '12-08-2020',
+    chassisNo: 'MD625CF10G1A92643',
+    engineNo: 'CF1AG1427521',
+    maker: 'TVS MOTOR COMPANY LTD',
+    model: 'TVS STAR CITY ES MAG',
+    bodyType: 'SOLO WITH PI',
+    wheelBase: '1250',
+    mfgDate: '1 / 2016',
+    fuel: 'PETROL',
+    validUpto: '25-May-2031',
+    taxUpto: 'LTT',
+    owner: 'RAJAPPA',
+    swd: 'NARASIMHAIAH',
+    address: '186 GERATIGINBELE, ANEKAL TALUK, BANGALORE, Karnataka, 562106',
+    ownerSerial: '01',
+    color: 'RED',
+    vehicleClassFull: 'M-Cycle/Scooter',
+    cylinders: '01',
+    unladenWt: '108',
+    seating: '02',
+    stdgSlpr: '0 / 0',
+    cubicCap: '109.70',
+    rto: 'CHANDAPURA, BENGALURU RTO',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'HDFC BANK LTD'
+  },
+  'TN01AB1234': {
+    regNo: 'TN01AB1234',
+    regDate: '15-08-2022',
+    chassisNo: 'ME1RG0812NA019283',
+    engineNo: 'G3J4E0918231',
+    maker: 'INDIA YAMAHA MOTOR PVT LTD',
+    model: 'YZF R15 V4',
+    bodyType: '2 WHEELER',
+    wheelBase: '1325',
+    mfgDate: '07/2022',
+    fuel: 'PETROL',
+    validUpto: '14-08-2037',
+    taxUpto: 'LTT',
+    owner: 'KARTHIK RAJAN',
+    swd: 'MUTHUVEL RAJAN',
+    address: 'NO 42, ANNA SALAI, T NAGAR, CHENNAI, Tamil Nadu, 600017',
+    ownerSerial: '01',
+    color: 'RACING BLUE',
+    vehicleClassFull: 'M-Cycel/Scooter (2WN)',
+    cylinders: '1',
+    unladenWt: '142',
+    ladenWt: '290',
+    horsePower: '18.40',
+    seating: '2',
+    stdgSlpr: '0 / 0',
+    cubicCap: '155.0',
+    rto: 'CHENNAI CENTRAL RTO',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'HDFC BANK LTD'
+  },
+  'MH02CB5566': {
+    regNo: 'MH02CB5566',
+    regDate: '10-01-2023',
+    chassisNo: 'MA3EAA11S00192834',
+    engineNo: 'K12MN9823412',
+    maker: 'MARUTI SUZUKI INDIA LTD',
+    model: 'TOUR S (CNG)',
+    bodyType: 'SEDAN',
+    wheelBase: '2450',
+    mfgDate: '12/2022',
+    fuel: 'CNG/PETROL',
+    validUpto: '09-01-2025',
+    taxUpto: 'ANNUAL',
+    owner: 'AMIT PRAKASH JADHAV',
+    swd: 'PRAKASH JADHAV',
+    address: 'FLAT 304, SHIVAM APTS, ANDHERI WEST, MUMBAI, Maharashtra, 400058',
+    ownerSerial: '01',
+    color: 'SUPERIOR WHITE',
+    vehicleClassFull: 'Motor Cab / Commercial Taxi',
+    cylinders: '4',
+    unladenWt: '1010',
+    ladenWt: '1480',
+    horsePower: '67.0',
+    seating: '5',
+    stdgSlpr: '0 / 0',
+    cubicCap: '1197.0',
+    rto: 'ANDHERI RTO (MH02)',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'STATE BANK OF INDIA'
+  },
+  'DL1CAB9988': {
+    regNo: 'DL1CAB9988',
+    regDate: '20-03-2021',
+    chassisNo: 'MALC181CLMM091823',
+    engineNo: 'G4FLM8912301',
+    maker: 'HYUNDAI MOTOR INDIA LTD',
+    model: 'CRETA 1.5 SX',
+    bodyType: 'SUV',
+    wheelBase: '2610',
+    mfgDate: '02/2021',
+    fuel: 'PETROL',
+    validUpto: '19-03-2036',
+    taxUpto: 'OTT',
+    owner: 'ROHIT VERMA',
+    swd: 'SURESH VERMA',
+    address: 'C-12, CONNAUGHT PLACE, NEW DELHI, Delhi, 110001',
+    ownerSerial: '01',
+    color: 'POLAR WHITE',
+    vehicleClassFull: 'Motor Car (LMV)',
+    cylinders: '4',
+    unladenWt: '1215',
+    ladenWt: '1690',
+    horsePower: '113.4',
+    seating: '5',
+    stdgSlpr: '0 / 0',
+    cubicCap: '1497.0',
+    rto: 'MALL ROAD, DELHI RTO',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'ICICI BANK LTD'
+  },
+  'KL07BW4321': {
+    regNo: 'KL07BW4321',
+    regDate: '11-11-2022',
+    chassisNo: 'MAT491029N9102834',
+    engineNo: 'E2718293041',
+    maker: 'TATA MOTORS LTD',
+    model: 'TATA ACE GOLD',
+    bodyType: 'OPEN GOODS VEHICLE',
+    wheelBase: '2100',
+    mfgDate: '10/2022',
+    fuel: 'DIESEL',
+    validUpto: '10-11-2024',
+    taxUpto: 'QUARTERLY',
+    owner: 'MANOJ KURIAN',
+    swd: 'KURIAN JOSEPH',
+    address: 'HOUSE NO 14, MG ROAD, ERNAKULAM, KOCHI, Kerala, 682016',
+    ownerSerial: '01',
+    color: 'ARCTIC WHITE',
+    vehicleClassFull: 'Goods Carrier / Commercial Transport',
+    cylinders: '2',
+    unladenWt: '875',
+    ladenWt: '1675',
+    horsePower: '20.0',
+    seating: '2',
+    stdgSlpr: '0 / 0',
+    cubicCap: '702.0',
+    rto: 'ERNAKULAM RTO (KL07)',
+    emissionNorms: 'BHARAT STAGE VI',
+    financer: 'KOTAK MAHINDRA BANK'
+  },
+  'KA1320170004921': {
+    dlNo: 'KA13 20170004921',
+    doi: '05-05-2017',
+    validUptoNT: '04-05-2037',
     validUptoTR: '',
-    name: 'MAMATHA H S',
-    dob: '17-03-1992',
-    bloodGroup: 'UNKNOWN',
+    name: 'HARISHAKUMARA C',
+    dob: '24-04-1993',
+    bloodGroup: '',
     organDonor: 'N',
-    swd: 'SIDDAIAH',
-    address: '# 197, CAR, POLICE QTRS,, BANGALORE, 560018',
-    firstIssueDate: '10-06-2011',
+    swd: 'DHARMEGOWDA',
+    address: '#1 KOLAR ROAD, VIJAYAPURA, , Bangalore Rural, KA, 562135',
+    firstIssueDate: '02-07-2026',
     adpVehNo: '',
     hazardousValidity: '',
     hillValidity: '',
-    profileImage: '',
     covList: [
-      { covType: 'CAR', code: 'LMV', issuedBy: 'KA01', doi: '10-06-2011', category: 'NT' },
-      { covType: 'BIKE', code: 'MCWOG', issuedBy: 'KA01', doi: '10-06-2011', category: 'NT' }
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA51', doi: '18-05-2013', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
     ],
     mobileNo: '',
-    rtoAuthority: 'RTO BANGALORE (CENTRAL), HSR LAYOUT'
+    rtoAuthority: 'RTO, HASSAN'
+  },
+  'KA1120140002551': {
+    dlNo: 'KA11 20140002551',
+    doi: '23-08-2022',
+    validUptoNT: '08-06-2035',
+    validUptoTR: '',
+    name: 'PAVAN KUMAR K',
+    dob: '09-06-1995',
+    bloodGroup: 'B+VE',
+    organDonor: 'N',
+    swd: 'KALASAIAH',
+    address: 'Javarayyana Beedi Kurupete Kanakapura, Kanakapura Ramanagar Karnataka 562117',
+    firstIssueDate: '12-04-2014',
+    adpVehNo: '',
+    hazardousValidity: '',
+    hillValidity: '',
+    covList: [
+      { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA11', doi: '12-04-2014', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' },
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA42', doi: '23-08-2022', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
+    ],
+    mobileNo: '',
+    rtoAuthority: 'RAMANAGARA-(KA42)'
   }
 };
-
-function formatDateDisplay(val) {
-  if (!val) return '';
-  const s = String(val).trim();
-  if (s === '1800-01-01' || s === '01-01-1800') return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    const parts = s.split('-');
-    return `${parts[2]}-${parts[1]}-${parts[0]}`;
-  }
-  return s;
-}
 
 function normalizeDob(dobStr) {
   if (!dobStr) return '';
@@ -182,15 +383,17 @@ function normalizeDob(dobStr) {
 }
 
 // =====================================================================
-// LIVE SUREPASS DATA RESOLVER
+// LIVE SUREPASS DATA RESOLVER WITH POSTGRESQL CACHING & ENRICHMENT
 // =====================================================================
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
 
+  // 1. Static mock check
   if (mockDatabase[lookupKey]) {
     return mockDatabase[lookupKey];
   }
 
+  // 2. PostgreSQL Cache Check
   try {
     const dbRes = await pool.query(
       'SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2',
@@ -204,6 +407,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
     console.warn('[PostgreSQL Cache Query Warning]:', dbErr.message);
   }
 
+  // 3. Surepass Live Call
   if (!SUREPASS_BEARER_TOKEN) {
     console.warn('[Surepass Warning] SUREPASS_BEARER_TOKEN is not configured.');
     return null;
@@ -232,7 +436,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       const d = json.data;
       const formattedRc = {
         regNo: d.rc_number || lookupKey,
-        regDate: formatDateDisplay(d.registration_date || ''),
+        regDate: d.registration_date || '',
         chassisNo: d.chassis_number || d.vehicle_chasi_number || '',
         engineNo: d.engine_number || d.vehicle_engine_number || '',
         maker: d.maker_description || d.maker_model || '',
@@ -241,7 +445,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         wheelBase: String(d.wheelbase || '0'),
         mfgDate: d.manufacturing_date || '',
         fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
-        validUpto: formatDateDisplay(d.fit_up_to || d.fitness_upto || ''),
+        validUpto: d.fit_up_to || d.fitness_upto || '',
         taxUpto: d.tax_upto || 'LTT',
         owner: d.owner_name || '',
         swd: d.father_name || '',
@@ -261,13 +465,17 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         financer: d.financer || ''
       };
 
-      pool.query(
-        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key) DO UPDATE 
-         SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
-        [docType, lookupKey, JSON.stringify(formattedRc)]
-      ).catch(() => {});
+      try {
+        await pool.query(
+          `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (lookup_key) DO UPDATE 
+           SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+          [docType, lookupKey, JSON.stringify(formattedRc)]
+        );
+      } catch (cacheErr) {
+        console.warn('[PostgreSQL Cache Write Warning]:', cacheErr.message);
+      }
 
       mockDatabase[lookupKey] = formattedRc;
       return formattedRc;
@@ -294,65 +502,46 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       }
 
       const d = json.data;
-
-      // Extract accurate classes list from Surepass
-      let rawClasses = [];
-      if (Array.isArray(d.vehicle_classes) && d.vehicle_classes.length > 0) {
-        rawClasses = d.vehicle_classes;
-      } else if (Array.isArray(d.cov_details) && d.cov_details.length > 0) {
-        rawClasses = d.cov_details.map(c => c.class_of_vehicle || c.code || 'LMV');
-      }
-
-      const issueDateClean = formatDateDisplay(d.doi || d.issue_date || d.initial_doi);
-      const issuingOfficeCode = d.ola_code || (lookupKey.length >= 4 ? lookupKey.substring(0, 4) : 'RTO');
-
-      const parsedCovList = rawClasses.map(clsStr => {
-        const str = String(clsStr).toUpperCase();
-        const isCar = str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR');
-        return {
-          covType: isCar ? 'CAR' : 'BIKE',
-          code: str,
-          issuedBy: issuingOfficeCode,
-          doi: issueDateClean,
-          category: (d.transport_doe && d.transport_doe !== '1800-01-01') ? 'TR' : 'NT',
-          badgeNo: '',
-          badgeDoi: '',
-          badgeBy: ''
-        };
-      });
-
-      const fullAddress = [d.permanent_address || d.temporary_address || '', d.permanent_zip || '']
-        .filter(Boolean)
-        .join(', ');
-
       const formattedDl = {
         dlNo: d.license_number || lookupKey,
-        doi: issueDateClean,
-        validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to || (d.validity && d.validity.non_transport)),
-        validUptoTR: formatDateDisplay(d.transport_doe || d.tr_validity_to || (d.validity && d.validity.transport)),
+        doi: d.issue_date || '',
+        validUptoNT: d.nt_validity_to || (d.validity && d.validity.non_transport) || '',
+        validUptoTR: d.tr_validity_to || (d.validity && d.validity.transport) || '',
         name: d.name || '',
-        dob: formatDateDisplay(d.dob || cleanDob),
-        bloodGroup: d.blood_group || 'UNKNOWN',
+        dob: d.dob || cleanDob || '',
+        bloodGroup: d.blood_group || '',
         organDonor: 'N',
         swd: d.father_or_husband_name || '',
-        address: fullAddress,
-        firstIssueDate: formatDateDisplay(d.initial_doi || d.doi || '10-06-2011'),
-        profileImage: d.has_image && d.profile_image ? d.profile_image : '',
+        address: d.permanent_address || d.present_address || '',
+        firstIssueDate: d.first_issue_date || d.issue_date || '02-07-2026',
         adpVehNo: '',
         hazardousValidity: '',
         hillValidity: '',
-        covList: parsedCovList,
+        covList: (d.cov_details || []).map(c => ({
+          covType: 'VEHICLE',
+          code: c.class_of_vehicle || 'LMV',
+          issuedBy: c.issue_authority || '',
+          doi: c.issue_date || '',
+          category: c.vehicle_category || 'NT',
+          badgeNo: '',
+          badgeDoi: '',
+          badgeBy: ''
+        })),
         mobileNo: '',
-        rtoAuthority: d.ola_name || d.issuing_authority || 'LICENCING AUTHORITY'
+        rtoAuthority: d.issuing_authority || 'RTO OFFICE'
       };
 
-      pool.query(
-        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key) DO UPDATE 
-         SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
-        [docType, lookupKey, JSON.stringify(formattedDl)]
-      ).catch(() => {});
+      try {
+        await pool.query(
+          `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (lookup_key) DO UPDATE 
+           SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+          [docType, lookupKey, JSON.stringify(formattedDl)]
+        );
+      } catch (cacheErr) {
+        console.warn('[PostgreSQL Cache Write Warning]:', cacheErr.message);
+      }
 
       mockDatabase[lookupKey] = formattedDl;
       return formattedDl;
@@ -464,7 +653,7 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET
+// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET (HEADLESS)
 // =====================================================================
 app.post('/api/customer/send-otp', async (req, res) => {
   const { mobile } = req.body;
@@ -474,8 +663,10 @@ app.post('/api/customer/send-otp', async (req, res) => {
     return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
   }
 
+  // Developer Bypass for testing/audits without spending SMS credits
   if (cleanMobile === '9999999999' || cleanMobile === '1234567890') {
     otpStore.set(cleanMobile, { reqId: 'DEV_TEST', expiresAt: Date.now() + 5 * 60 * 1000 });
+    console.log(`[DEV TEST OTP] Mobile: ${cleanMobile} -> Use OTP '1234'`);
     return res.json({ success: true, message: 'Test verification code active.', mobile: cleanMobile });
   }
 
@@ -494,6 +685,7 @@ app.post('/api/customer/send-otp', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log(`[MSG91 Send OTP Response] Mobile: ${cleanMobile}:`, JSON.stringify(data));
 
     if (data.type === 'success' || data.message === 'OTP sent successfully' || data.reqId) {
       otpStore.set(cleanMobile, {
@@ -521,6 +713,7 @@ app.post('/api/customer/verify-otp', async (req, res) => {
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
   const enteredOtp = String(otp || '').trim();
 
+  // 1. Audit / Developer Bypass
   if (enteredOtp === '1234') {
     const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
     const customerId = 'CUST_' + cleanMobile;
@@ -549,6 +742,7 @@ app.post('/api/customer/verify-otp', async (req, res) => {
     });
 
     const data = await response.json();
+    console.log(`[MSG91 Verify Response] Mobile: ${cleanMobile}:`, JSON.stringify(data));
 
     if (data.type === 'success' || data['access-token'] || data.message === 'OTP verified success') {
       otpStore.delete(cleanMobile);
@@ -579,7 +773,7 @@ app.post('/api/customer/verify-otp', async (req, res) => {
 });
 
 // =====================================================================
-// AGENT ROUTES
+// AGENT ROUTES (DATABASE BACKED)
 // =====================================================================
 app.post('/api/agent/register', async (req, res) => {
   try {
@@ -649,6 +843,7 @@ app.post('/api/agent/login', async (req, res) => {
   }
 });
 
+// Helper function to check role from headers
 async function resolveRole(authHeader) {
   if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
     return 'ADMIN';
@@ -665,7 +860,7 @@ async function resolveRole(authHeader) {
 }
 
 // =====================================================================
-// ADMIN ROUTES
+// DEDICATED ADMIN MANAGEMENT & REAL-TIME ANALYTICS ROUTES
 // =====================================================================
 app.post('/api/admin/login', (req, res) => {
   const { secretKey } = req.body;
@@ -675,6 +870,7 @@ app.post('/api/admin/login', (req, res) => {
   return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
 });
 
+// Admin Live Metrics
 app.get('/api/admin/stats', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -711,6 +907,7 @@ app.get('/api/admin/stats', async (req, res) => {
   }
 });
 
+// Admin All Orders List
 app.get('/api/admin/orders', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -731,6 +928,7 @@ app.get('/api/admin/orders', async (req, res) => {
   }
 });
 
+// Admin Agent Roster (From DB)
 app.get('/api/admin/agents', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -746,6 +944,7 @@ app.get('/api/admin/agents', async (req, res) => {
   }
 });
 
+// Admin Agent Status Update (Approve / Reject into DB)
 app.post('/api/admin/update-agent-status', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -770,6 +969,7 @@ app.post('/api/admin/update-agent-status', async (req, res) => {
   }
 });
 
+// Admin ₹0 Direct Download Tool
 app.post('/api/admin/direct-download', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -787,6 +987,7 @@ app.post('/api/admin/direct-download', async (req, res) => {
       return res.status(404).json({ error: 'Record not found in live databases.' });
     }
 
+    // Record this in orders as Admin Free Download
     const adminOrderId = 'ADM_' + Date.now();
     await pool.query(
       `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at)
@@ -794,6 +995,7 @@ app.post('/api/admin/direct-download', async (req, res) => {
       [adminOrderId, docType, targetNumber]
     ).catch(() => {});
 
+    // Generate Vector PDF
     const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
 
     const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
@@ -819,7 +1021,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & PAYMENT
+// ORDER PROCESSING & AUTO UPI INTEGRATION
 // =====================================================================
 app.post('/api/create-order', async (req, res) => {
   try {
@@ -849,6 +1051,7 @@ app.post('/api/create-order', async (req, res) => {
     let paymentUrl = null;
     let fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&mode=02`;
 
+    // Connect to Auto Upi API
     if (role !== 'ADMIN' && finalAmount > 0) {
       try {
         const payload = {
@@ -867,12 +1070,15 @@ app.post('/api/create-order', async (req, res) => {
         });
 
         const data = await response.json();
+        console.log('[Auto Upi Create Order Response]:', JSON.stringify(data));
 
         if (data.ok === true) {
           gatewayOrderId = data.order_id;
           localOrderId = data.order_id;
           payableAmount = data.payable_amount || finalAmount;
           paymentUrl = data.payment_url;
+        } else {
+          console.warn('[Auto Upi Warning] Order creation returned:', data.error || data);
         }
       } catch (gatewayErr) {
         console.error('[Auto Upi Connection Error]:', gatewayErr.message);
@@ -934,6 +1140,9 @@ app.post('/api/create-order', async (req, res) => {
   }
 });
 
+// =====================================================================
+// PAYMENT VERIFICATION
+// =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
   let order = orders.get(orderId);
@@ -972,6 +1181,7 @@ app.post('/api/verify-payment', async (req, res) => {
         }
       });
       const checkData = await checkRes.json();
+      console.log(`[Auto Upi Status Check] Order: ${orderId}, Result:`, JSON.stringify(checkData));
 
       if (checkData.ok === true && checkData.order?.status === 'paid') {
         order.status = 'SUCCESS';
@@ -1035,11 +1245,16 @@ app.post('/api/verify-payment', async (req, res) => {
   });
 });
 
+// =====================================================================
+// AUTOMATED AUTO UPI WEBHOOK
+// =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
     const rawBody = req.rawBody || JSON.stringify(req.body);
     const signatureHeader = req.headers['x-autoupi-signature'] || '';
     const payload = req.body || {};
+
+    console.log('📥 [Auto Upi Webhook Received]:', JSON.stringify(payload));
 
     if (AUTO_UPI_WEBHOOK_SECRET && AUTO_UPI_WEBHOOK_SECRET !== 'whsec_your_secret_here' && signatureHeader) {
       try {
@@ -1055,6 +1270,7 @@ app.post('/api/bank-webhook', (req, res) => {
 
           const isValid = crypto.timingSafeEqual(Buffer.from(parts.v1), Buffer.from(expected));
           if (!isValid) {
+            console.warn('⚠️ [Webhook Security] Invalid Auto Upi signature rejected');
             return res.status(401).send('bad signature');
           }
         }
@@ -1080,6 +1296,8 @@ app.post('/api/bank-webhook', (req, res) => {
           targetId,
           targetId
         ]).catch(() => {});
+
+        console.log(`🚀 [WEBHOOK SUCCESS] Order ${targetId} marked PAID! Amount: ₹${amount}`);
       }
     }
 
@@ -1090,8 +1308,27 @@ app.post('/api/bank-webhook', (req, res) => {
   }
 });
 
+// Manual Unlock Route
+app.post('/api/mark-paid', (req, res) => {
+  const { orderId } = req.body;
+  const order = orders.get(orderId);
+  if (!order) return res.status(404).json({ error: 'Invalid Order ID' });
+
+  order.status = 'SUCCESS';
+  order.paidAt = new Date();
+  order.paymentId = 'MANUAL_' + Date.now();
+
+  pool.query('UPDATE orders SET status = $1, paid_at = NOW(), utr = $2 WHERE order_id = $3', [
+    'SUCCESS',
+    order.paymentId,
+    orderId
+  ]).catch(() => {});
+
+  res.json({ success: true, message: `Order ${orderId} unlocked.` });
+});
+
 // =====================================================================
-// VECTOR PDF BUILDER FUNCTION
+// VECTOR PDF BUILDER FUNCTION (REUSED FOR PUBLIC & ADMIN DOWNLOADS)
 // =====================================================================
 async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const pdfDoc = await PDFDocument.create();
@@ -1118,7 +1355,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const boldColor = rgb(0, 0, 0);
   const softTextColor = rgb(0.08, 0.11, 0.17);
 
-  function splitAddress(addr, maxChars = 50) {
+  function splitAddress(addr, maxChars = 55) {
     if (!addr || addr.length <= maxChars) return [addr];
     const lines = [];
     let remaining = addr;
@@ -1171,71 +1408,50 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    // Embed Live Driver Profile Photo if present
-    if (report.profileImage) {
-      try {
-        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '');
-        const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-        const photoPng = await sharp(rawPhotoBuffer)
-          .resize(150, 180, { fit: 'cover' })
-          .png()
-          .toBuffer();
-
-        const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-        page.drawImage(embeddedPhoto, {
-          x: leftCardX + (177.0 * S),
-          y: cardY + ((CARD_HEIGHT - 65.0) * S),
-          width: 38.0 * S,
-          height: 46.0 * S
-        });
-      } catch (photoErr) {
-        console.warn('Driver photo embed warning:', photoErr.message);
-      }
+    const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
+    let subTitleSize = 5.6 * S;
+    while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+      subTitleSize -= 0.2;
     }
-
-    // Header State Title
-    const subTitleText = `ISSUED BY GOVERNMENT OF ${stateFullName}`;
-    const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, 5.2 * S);
+    const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
     page.drawText(subTitleText, {
       x: leftCardX + ((cardW - subTitleWidth) / 2),
       y: cardY + ((CARD_HEIGHT - 21.0) * S),
-      size: 5.2 * S,
+      size: subTitleSize,
       font: fontBold,
       color: rgb(0.05, 0.15, 0.3)
     });
 
-    // Front State Badge
-    const b2FWidth = fontBold.widthOfTextAtSize(stateCode, 6.0 * S);
+    const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
     page.drawText(stateCode, {
-      x: leftCardX + (224.0 * S) - (b2FWidth / 2),
-      y: cardY + ((CARD_HEIGHT - 20.0) * S),
-      size: 6.0 * S,
-      font: fontBold,
+      x: leftCardX + (232.0 * S) - (b2FWidth / 2),
+      y: cardY + ((CARD_HEIGHT - 14.5) * S),
+      size: 5.2 * S,
+      font: fontRegular,
       color: rgb(0, 0, 0)
     });
 
     const cleanDlNo = String(report.dlNo || '').trim();
     page.drawText(cleanDlNo, {
-      x: leftCardX + (60.0 * S),
+      x: leftCardX + (89.0 * S),
       y: cardY + ((CARD_HEIGHT - 35.5) * S),
       size: 8.5 * S,
       font: fontBold,
       color: boldColor
     });
 
-    // Dates
     page.drawText(String(report.doi || '').trim(), {
       x: leftCardX + (57.0 * S),
       y: cardY + ((CARD_HEIGHT - 59.5) * S),
       size: 6.5 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor
     });
     page.drawText(String(report.validUptoNT || '').trim(), {
       x: leftCardX + (101.0 * S),
       y: cardY + ((CARD_HEIGHT - 59.5) * S),
       size: 6.5 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor
     });
     if (report.validUptoTR) {
@@ -1243,145 +1459,131 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (152.0 * S),
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
-        font: fontBold,
+        font: fontRegular,
         color: softTextColor
       });
     }
 
-    // Driver Bio
     page.drawText(String(report.name || '').trim(), {
-      x: leftCardX + (60.0 * S),
+      x: leftCardX + (28.0 * S),
       y: cardY + ((CARD_HEIGHT - 92.0) * S),
-      size: 6.8 * S,
-      font: fontBold,
+      size: 6.5 * S,
+      font: fontRegular,
       color: softTextColor
     });
     page.drawText(String(report.dob || '').trim(), {
-      x: leftCardX + (60.0 * S),
-      y: cardY + ((CARD_HEIGHT - 105.0) * S),
+      x: leftCardX + (47.0 * S),
+      y: cardY + ((CARD_HEIGHT - 111.2) * S),
       size: 6.5 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor
     });
-    page.drawText(String(report.bloodGroup || 'UNKNOWN').trim(), {
+    page.drawText(String(report.bloodGroup || '').trim(), {
       x: leftCardX + (148.0 * S),
-      y: cardY + ((CARD_HEIGHT - 105.0) * S),
+      y: cardY + ((CARD_HEIGHT - 111.2) * S),
       size: 6.5 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor
     });
     page.drawText(String(report.organDonor || 'N').trim(), {
       x: leftCardX + (222.0 * S),
-      y: cardY + ((CARD_HEIGHT - 105.0) * S),
+      y: cardY + ((CARD_HEIGHT - 111.2) * S),
       size: 6.5 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor
     });
     page.drawText(String(report.swd || '').trim(), {
-      x: leftCardX + (68.0 * S),
-      y: cardY + ((CARD_HEIGHT - 118.0) * S),
+      x: leftCardX + (79.0 * S),
+      y: cardY + ((CARD_HEIGHT - 122.5) * S),
       size: 6.5 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor
     });
 
-    const dlAddrLines = splitAddress(report.address || '', 48);
+    const dlAddrLines = splitAddress(report.address || '', 55);
     dlAddrLines.slice(0, 2).forEach((line, idx) => {
       page.drawText(String(line).trim(), {
-        x: leftCardX + (45.0 * S),
-        y: cardY + ((CARD_HEIGHT - (130.0 + (idx * 6.8))) * S),
-        size: 5.8 * S,
-        font: fontBold,
+        x: leftCardX + (35.0 * S),
+        y: cardY + ((CARD_HEIGHT - (136.0 + (idx * 6.8))) * S),
+        size: 6.0 * S,
+        font: fontRegular,
         color: softTextColor
       });
     });
 
-    // Date of First Issue Rotated Along Right Border
-    page.drawText(`Date of First Issue : ${report.firstIssueDate || report.doi || '10-06-2011'}`, {
-      x: leftCardX + (236.0 * S),
-      y: cardY + (38.0 * S),
+    page.drawText(`( ${report.firstIssueDate || '02-07-2026'} )`, {
+      x: leftCardX + (238.5 * S),
+      y: cardY + (72.0 * S),
       size: 5.0 * S,
-      font: fontBold,
+      font: fontRegular,
       color: softTextColor,
       rotate: { type: 'degrees', angle: 90 }
     });
 
-    // Back Card Header DL Number
-    page.drawText(`DL No. ${cleanDlNo}`, {
-      x: rightCardX + (15.0 * S),
+    page.drawText(cleanDlNo, {
+      x: rightCardX + (32.0 * S),
       y: cardY + ((CARD_HEIGHT - 9.0) * S),
-      size: 7.2 * S,
+      size: 7.0 * S,
       font: fontBold,
       color: boldColor
     });
 
-    // Render Back Card COV Table Rows with Vector Silhouettes
     if (report.covList && Array.isArray(report.covList)) {
-      for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-        const cov = report.covList[idx];
-        const rowY = 88.0 + (idx * 11.8);
-
-        // Render Silhouette Icon
-        try {
-          const isCar = cov.covType === 'CAR' || String(cov.code).includes('LMV');
-          const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
-          const iconPng = await sharp(iconBuffer).png().toBuffer();
-          const embeddedIcon = await pdfDoc.embedPng(iconPng);
-          
-          page.drawImage(embeddedIcon, {
-            x: rightCardX + (16.0 * S),
-            y: cardY + ((CARD_HEIGHT - (rowY + 1.0)) * S),
-            width: 14.0 * S,
-            height: 7.0 * S
-          });
-        } catch (e) {
-          console.warn('Icon draw warning:', e.message);
-        }
-
-        // Code
+      report.covList.slice(0, 5).forEach((cov, idx) => {
+        const rowY = 83.8 + (idx * 11.5);
         const codeVal = String(cov.code || '').trim();
+        const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
         page.drawText(codeVal, {
-          x: rightCardX + (50.0 * S),
+          x: rightCardX + (49.0 * S) - (codeW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 6.2 * S,
-          font: fontBold,
+          size: 5.8 * S,
+          font: fontRegular,
           color: softTextColor
         });
 
-        // Issued By
         const issuedVal = String(cov.issuedBy || '').trim();
+        const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
         page.drawText(issuedVal, {
-          x: rightCardX + (86.0 * S),
+          x: rightCardX + (73.0 * S) - (issuedW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 6.2 * S,
-          font: fontBold,
+          size: 5.8 * S,
+          font: fontRegular,
           color: softTextColor
         });
 
-        // Date of Issue
         const doiVal = String(cov.doi || '').trim();
+        const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
         page.drawText(doiVal, {
-          x: rightCardX + (118.0 * S),
+          x: rightCardX + (108.0 * S) - (doiW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 5.5 * S,
-          font: fontBold,
+          size: 4.8 * S,
+          font: fontRegular,
           color: softTextColor
         });
 
-        // Category
         const catVal = String(cov.category || 'NT').trim();
+        const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
         page.drawText(catVal, {
-          x: rightCardX + (154.0 * S),
+          x: rightCardX + (144.0 * S) - (catW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 6.0 * S,
-          font: fontBold,
+          size: 5.8 * S,
+          font: fontRegular,
           color: softTextColor
         });
-      }
+      });
     }
 
-    // Licencing Authority
-    const rtoVal = String(report.rtoAuthority || 'LICENCING AUTHORITY').trim();
+    if (report.mobileNo) {
+      page.drawText(String(report.mobileNo).trim(), {
+        x: rightCardX + (46.0 * S),
+        y: cardY + ((CARD_HEIGHT - 146.0) * S),
+        size: 6.0 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+    }
+
+    const rtoVal = String(report.rtoAuthority || 'RTO, HASSAN').trim();
     const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
     page.drawText(rtoVal, {
       x: rightCardX + ((236.0 * S) - rtoWidth),
@@ -1441,6 +1643,42 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         size: subTitleSize,
         font: fontBold,
         color: rgb(0.05, 0.15, 0.3)
+      });
+
+      const b1FWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
+      page.drawText(vehicleBadge, {
+        x: leftCardX + (218.0 * S) - (b1FWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 14.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+      page.drawText(stateCode, {
+        x: leftCardX + (232.0 * S) - (b2FWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 14.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      const b1BWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
+      page.drawText(vehicleBadge, {
+        x: rightCardX + (9.5 * S) - (b1BWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 12.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      const b2BWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+      page.drawText(stateCode, {
+        x: rightCardX + (24.0 * S) - (b2BWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 12.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
       });
     }
 
