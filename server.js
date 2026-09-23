@@ -6,9 +6,22 @@ const fs = require('fs');
 const sharp = require('sharp');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const crypto = require('crypto');
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// PostgreSQL Connection Setup
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || 'postgresql://rtoboss_user:Rt0BossSecureDB2026!@localhost:5432/rtoboss_db',
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
+});
+
+pool.on('error', (err) => {
+  console.error('[PostgreSQL Error]:', err.message);
+});
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
@@ -25,7 +38,7 @@ const AUTO_UPI_BASE_URL = 'https://autoupi.in/api/public/v1';
 // =====================================================================
 // SUREPASS PRODUCTION API CONFIG
 // =====================================================================
-const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.io';
+const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
 if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
@@ -49,7 +62,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
-// In-Memory Storage Stores
+// In-Memory Fallback Stores
 const orders = new Map();
 const agents = new Map();
 const otpStore = new Map();
@@ -66,7 +79,7 @@ const STATE_NAMES = {
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
-// Mock Vehicle & DL Database
+// Static Mock Vehicle & DL Database
 const mockDatabase = {
   'KA40EF5093': {
     regNo: 'KA40EF5093',
@@ -347,18 +360,44 @@ const mockDatabase = {
   }
 };
 
+// Date Normalizer: Ensures YYYY-MM-DD format
+function normalizeDob(dobStr) {
+  if (!dobStr) return '';
+  const str = String(dobStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(str)) {
+    const parts = str.split(/[-/]/);
+    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  }
+  return str;
+}
+
 // =====================================================================
-// LIVE SUREPASS DATA RESOLVER & SCHEMA MAPPER
+// LIVE SUREPASS DATA RESOLVER WITH POSTGRESQL CACHING
 // =====================================================================
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
 
-  // Return static mock record if present
+  // 1. Static mock database check
   if (mockDatabase[lookupKey]) {
     return mockDatabase[lookupKey];
   }
 
-  // Fallback to Live Surepass API
+  // 2. PostgreSQL Cache Check (₹0 Cost Saver)
+  try {
+    const dbRes = await pool.query(
+      'SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2',
+      [docType, lookupKey]
+    );
+    if (dbRes.rows && dbRes.rows.length > 0) {
+      console.log(`[Cache Hit] Serving ${lookupKey} directly from PostgreSQL.`);
+      return dbRes.rows[0].raw_data;
+    }
+  } catch (dbErr) {
+    console.warn('[PostgreSQL Cache Query Warning]:', dbErr.message);
+  }
+
+  // 3. Surepass Live Call
   if (!SUREPASS_BEARER_TOKEN) {
     console.warn('[Surepass Warning] SUREPASS_BEARER_TOKEN is not configured.');
     return null;
@@ -366,7 +405,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
   try {
     if (docType === 'RC') {
-      const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
+      const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -413,10 +452,25 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         financer: d.financer || ''
       };
 
+      // Persist to PostgreSQL Cache
+      try {
+        await pool.query(
+          `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (lookup_key) DO UPDATE 
+           SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+          [docType, lookupKey, JSON.stringify(formattedRc)]
+        );
+      } catch (cacheErr) {
+        console.warn('[PostgreSQL Cache Write Warning]:', cacheErr.message);
+      }
+
       mockDatabase[lookupKey] = formattedRc;
       return formattedRc;
 
     } else if (docType === 'DL') {
+      const cleanDob = normalizeDob(dob);
+
       const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
         method: 'POST',
         headers: {
@@ -425,7 +479,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         },
         body: JSON.stringify({
           id_number: lookupKey,
-          dob: dob
+          dob: cleanDob
         })
       });
 
@@ -442,7 +496,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         validUptoNT: d.nt_validity_to || (d.validity && d.validity.non_transport) || '',
         validUptoTR: d.tr_validity_to || (d.validity && d.validity.transport) || '',
         name: d.name || '',
-        dob: d.dob || dob || '',
+        dob: d.dob || cleanDob || '',
         bloodGroup: d.blood_group || '',
         organDonor: 'N',
         swd: d.father_or_husband_name || '',
@@ -464,6 +518,19 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         mobileNo: '',
         rtoAuthority: d.issuing_authority || 'RTO OFFICE'
       };
+
+      // Persist to PostgreSQL Cache
+      try {
+        await pool.query(
+          `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+           VALUES ($1, $2, $3, NOW())
+           ON CONFLICT (lookup_key) DO UPDATE 
+           SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+          [docType, lookupKey, JSON.stringify(formattedDl)]
+        );
+      } catch (cacheErr) {
+        console.warn('[PostgreSQL Cache Write Warning]:', cacheErr.message);
+      }
 
       mockDatabase[lookupKey] = formattedDl;
       return formattedDl;
@@ -819,8 +886,9 @@ app.post('/api/create-order', async (req, res) => {
     }
 
     const effectivePaymentUrl = paymentUrl || fallbackUpiUrl;
+    const initialStatus = role === 'ADMIN' ? 'SUCCESS' : 'PENDING';
 
-    orders.set(localOrderId, {
+    const orderData = {
       orderId: localOrderId,
       gatewayOrderId,
       docType,
@@ -829,9 +897,9 @@ app.post('/api/create-order', async (req, res) => {
       amount: finalAmount,
       payableAmount,
       role,
-      dob,
+      dob: normalizeDob(dob),
       rcFormat: rcFormat || 'OLD',
-      status: role === 'ADMIN' ? 'SUCCESS' : 'PENDING',
+      status: initialStatus,
       paymentProvider: 'AUTOUPI',
       currency: 'INR',
       customerMobile: customerMobile || '',
@@ -839,13 +907,28 @@ app.post('/api/create-order', async (req, res) => {
       upiUrl: effectivePaymentUrl,
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
-    });
+    };
+
+    orders.set(localOrderId, orderData);
+
+    // Save order in PostgreSQL for audit persistence
+    try {
+      await pool.query(
+        `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, paid_at)
+         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+         ON CONFLICT (order_id) DO UPDATE 
+         SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at`,
+        [localOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, role === 'ADMIN' ? new Date() : null]
+      );
+    } catch (pgErr) {
+      console.warn('[PostgreSQL Order Save Warning]:', pgErr.message);
+    }
 
     res.json({ 
       success: true, 
       orderId: localOrderId, 
       amount: finalAmount, 
-      payableAmount,
+      payableAmount, 
       role, 
       paymentUrl: effectivePaymentUrl,
       upiUrl: effectivePaymentUrl,
@@ -863,7 +946,29 @@ app.post('/api/create-order', async (req, res) => {
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
-  const order = orders.get(orderId);
+  let order = orders.get(orderId);
+
+  // If order was lost from in-memory map due to PM2 restart, pull it from PostgreSQL
+  if (!order) {
+    try {
+      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+      if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
+        const row = dbOrderRes.rows[0];
+        order = {
+          orderId: row.order_id,
+          docType: row.doc_type,
+          targetNumber: row.lookup_key,
+          amount: Number(row.amount),
+          status: row.status,
+          paidAt: row.paid_at,
+          paymentId: row.utr
+        };
+        orders.set(orderId, order);
+      }
+    } catch (pgOrderErr) {
+      console.warn('[PostgreSQL Order Lookup Warning]:', pgOrderErr.message);
+    }
+  }
 
   if (!order) {
     return res.status(404).json({ error: 'Order not found' });
@@ -886,6 +991,14 @@ app.post('/api/verify-payment', async (req, res) => {
         order.paidAt = new Date(checkData.order.paid_at || Date.now());
         order.paymentId = checkData.order.order_id || ('AU_' + Date.now());
         console.log(`🚀 [STATUS CHECK SUCCESS] Order ${orderId} confirmed paid!`);
+
+        // Update DB
+        pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
+          'SUCCESS',
+          order.paidAt,
+          order.paymentId,
+          orderId
+        ]).catch(() => {});
       }
     } catch (e) {
       console.error('Auto Upi Check Status Query Failed:', e.message);
@@ -896,6 +1009,13 @@ app.post('/api/verify-payment', async (req, res) => {
     order.status = 'SUCCESS';
     order.paidAt = order.paidAt || new Date();
     order.paymentId = order.paymentId || ('UPI_' + crypto.randomBytes(8).toString('hex'));
+
+    pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
+      'SUCCESS',
+      order.paidAt,
+      order.paymentId,
+      orderId
+    ]).catch(() => {});
   }
 
   if (order.status !== 'SUCCESS') {
@@ -919,7 +1039,7 @@ app.post('/api/verify-payment', async (req, res) => {
     status: 'SUCCESS',
     orderId: order.orderId,
     docType: order.docType,
-    rcFormat: order.rcFormat,
+    rcFormat: order.rcFormat || 'OLD',
     amount: order.amount,
     payableAmount: order.payableAmount,
     currency: order.currency,
@@ -969,12 +1089,22 @@ app.post('/api/bank-webhook', (req, res) => {
 
     if (event === 'payment.paid' || status === 'paid') {
       const targetId = order_id || payload.client_txn_id;
-      if (targetId && orders.has(targetId)) {
-        const matchedOrder = orders.get(targetId);
-        matchedOrder.status = 'SUCCESS';
-        matchedOrder.paidAt = new Date();
-        matchedOrder.paymentId = targetId;
-        console.log(`🚀 [WEBHOOK SUCCESS] Order ${matchedOrder.orderId} marked PAID! Amount: ₹${amount}`);
+      if (targetId) {
+        if (orders.has(targetId)) {
+          const matchedOrder = orders.get(targetId);
+          matchedOrder.status = 'SUCCESS';
+          matchedOrder.paidAt = new Date();
+          matchedOrder.paymentId = targetId;
+        }
+
+        // Update database
+        pool.query('UPDATE orders SET status = $1, paid_at = NOW(), utr = $2 WHERE order_id = $3', [
+          'SUCCESS',
+          targetId,
+          targetId
+        ]).catch(() => {});
+
+        console.log(`🚀 [WEBHOOK SUCCESS] Order ${targetId} marked PAID! Amount: ₹${amount}`);
       }
     }
 
@@ -994,6 +1124,13 @@ app.post('/api/mark-paid', (req, res) => {
   order.status = 'SUCCESS';
   order.paidAt = new Date();
   order.paymentId = 'MANUAL_' + Date.now();
+
+  pool.query('UPDATE orders SET status = $1, paid_at = NOW(), utr = $2 WHERE order_id = $3', [
+    'SUCCESS',
+    order.paymentId,
+    orderId
+  ]).catch(() => {});
+
   res.json({ success: true, message: `Order ${orderId} unlocked.` });
 });
 
@@ -1007,7 +1144,20 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       return res.status(400).json({ error: 'Order ID is required' });
     }
 
-    const order = orders.get(orderId);
+    let order = orders.get(orderId);
+    if (!order) {
+      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+      if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
+        const row = dbOrderRes.rows[0];
+        order = {
+          orderId: row.order_id,
+          docType: row.doc_type,
+          targetNumber: row.lookup_key,
+          status: row.status
+        };
+      }
+    }
+
     if (!order) {
       return res.status(404).json({ error: 'Order not found' });
     }
