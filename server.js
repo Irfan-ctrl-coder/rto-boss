@@ -373,7 +373,7 @@ function normalizeDob(dobStr) {
 }
 
 // =====================================================================
-// LIVE SUREPASS DATA RESOLVER WITH POSTGRESQL CACHING
+// LIVE SUREPASS DATA RESOLVER WITH POSTGRESQL CACHING & ENRICHMENT
 // =====================================================================
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
@@ -411,7 +411,10 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
         },
-        body: JSON.stringify({ id_number: lookupKey })
+        body: JSON.stringify({
+          id_number: lookupKey,
+          enrich_rc: true
+        })
       });
 
       const json = await resp.json();
@@ -424,8 +427,8 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       const formattedRc = {
         regNo: d.rc_number || lookupKey,
         regDate: d.registration_date || '',
-        chassisNo: d.chassis_number || '',
-        engineNo: d.engine_number || '',
+        chassisNo: d.chassis_number || d.vehicle_chasi_number || '',
+        engineNo: d.engine_number || d.vehicle_engine_number || '',
         maker: d.maker_description || d.maker_model || '',
         model: d.maker_model || '',
         bodyType: d.body_type || 'SEDAN',
@@ -437,12 +440,12 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         owner: d.owner_name || '',
         swd: d.father_name || '',
         address: d.present_address || d.permanent_address || '',
-        ownerSerial: String(d.owner_serial_number || '01'),
+        ownerSerial: String(d.owner_serial_number || d.owner_number || '01'),
         color: d.color || '',
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
         unladenWt: String(d.unladen_weight || '0'),
-        ladenWt: String(d.gross_vehicle_weight || '0'),
+        ladenWt: String(d.gross_vehicle_weight || d.vehicle_gross_weight || '0'),
         horsePower: String(d.horse_power || '0'),
         seating: String(d.seat_capacity || d.seating_capacity || '5'),
         stdgSlpr: `${d.standing_capacity || 0} / 0`,
