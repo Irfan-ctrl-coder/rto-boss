@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RTO Boss — Executive Admin Console</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              canvas: '#0F172A',
+              card: '#1E293B',
+              border: '#334155',
+              primary: '#3B82F6',
+              primaryHover: '#2563EB',
+              accent: '#8B5CF6'
+            }
+          },
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="bg-brand-canvas text-slate-100 min-h-screen flex flex-col justify-between selection:bg-brand-primary selection:text-white">
+
+  <!-- AUTH GUARD VIEW -->
+  <div id="loginView" class="fixed inset-0 z-50 bg-brand-canvas flex items-center justify-center p-4">
+    <div class="bg-brand-card border border-brand-border rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-5">
+      <div class="text-center space-y-1">
+        <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-brand-primary text-2xl mx-auto flex items-center justify-center font-black">
+          🛡️
+        </div>
+        <h2 class="text-2xl font-black text-white mt-3">Admin Master Access</h2>
+        <p class="text-xs text-slate-400">Enter your master secret key to access the control desk.</p>
+      </div>
+
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1.5">Master Secret</label>
+          <input 
+            type="password" 
+            id="secretKeyInput" 
+            placeholder="ADMIN_MASTER_SECRET" 
+            required 
+            class="w-full bg-slate-900 border border-brand-border rounded-xl px-4 py-3 text-sm mono font-bold text-white outline-none focus:border-brand-primary" 
+          />
+        </div>
+        <button 
+          type="submit" 
+          id="loginBtn" 
+          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-blue-500/20">
+          Unlock Console
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN CONSOLE -->
+  <div id="dashboardView" class="hidden flex-1 flex flex-col">
+    <!-- TOP NAV -->
+    <header class="border-b border-brand-border bg-brand-card/70 backdrop-blur sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center font-black text-brand-primary text-sm">
+          ⚡
+        </div>
+        <span class="font-black text-lg tracking-tight">RTO Boss <span class="text-brand-primary text-xs font-bold uppercase tracking-widest px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 ml-1">Admin Ops</span></span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a href="/" target="_blank" class="text-xs text-slate-400 hover:text-white transition">Visit Public Site ↗</a>
+        <button onclick="logout()" class="text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 border border-red-500/20 px-3 py-1.5 rounded-lg transition">
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <main class="max-w-7xl w-full mx-auto p-6 space-y-6 flex-1">
+      <!-- LIVE ANALYTICS COUNTERS -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-brand-card border border-brand-border p-5 rounded-2xl">
+          <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Total Downloads</div>
+          <div class="text-2xl md:text-3xl font-black text-white mt-1" id="statDownloads">0</div>
+          <div class="text-[11px] text-emerald-400 font-bold mt-1">Live Database Log</div>
+        </div>
+
+        <div class="bg-brand-card border border-brand-border p-5 rounded-2xl">
+          <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">RC Cards Formatted</div>
+          <div class="text-2xl md:text-3xl font-black text-brand-primary mt-1" id="statRc">0</div>
+          <div class="text-[11px] text-slate-400 mt-1">Vehicle Records</div>
+        </div>
+
+        <div class="bg-brand-card border border-brand-border p-5 rounded-2xl">
+          <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">DL Cards Formatted</div>
+          <div class="text-2xl md:text-3xl font-black text-purple-400 mt-1" id="statDl">0</div>
+          <div class="text-[11px] text-slate-400 mt-1">Licence Records</div>
+        </div>
+
+        <div class="bg-brand-card border border-brand-border p-5 rounded-2xl">
+          <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Active Agents</div>
+          <div class="text-2xl md:text-3xl font-black text-emerald-400 mt-1" id="statAgents">0</div>
+          <div class="text-[11px] text-slate-400 mt-1"><span id="statPendingAgents">0</span> Pending Reviews</div>
+        </div>
+      </div>
+
+      <!-- TABS -->
+      <div class="flex border-b border-brand-border gap-6 text-sm font-bold">
+        <button onclick="switchTab('downloadTab')" id="tabBtn-downloadTab" class="pb-3 border-b-2 border-brand-primary text-white">⚡ ₹0 Direct Generator</button>
+        <button onclick="switchTab('ordersTab')" id="tabBtn-ordersTab" class="pb-3 border-b-2 border-transparent text-slate-400 hover:text-white">📄 Order History &amp; Re-Download</button>
+        <button onclick="switchTab('agentsTab')" id="tabBtn-agentsTab" class="pb-3 border-b-2 border-transparent text-slate-400 hover:text-white">🤝 Partner Agents Management</button>
+      </div>
+
+      <!-- TAB 1: DIRECT FREE DOWNLOAD GENERATOR -->
+      <div id="downloadTab" class="space-y-6">
+        <div class="bg-brand-card border border-brand-border p-6 rounded-3xl max-w-2xl space-y-5">
+          <div>
+            <h3 class="text-lg font-black text-white">Direct ₹0 Document Generator</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Bypasses OTP, fees, and gateways. Enriches directly and streams the vector PDF immediately.</p>
+          </div>
+
+          <form onsubmit="handleDirectDownload(event)" class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Doc Type</label>
+                <select id="genDocType" onchange="handleDocTypeChange()" class="w-full bg-slate-900 border border-brand-border rounded-xl p-3 text-sm font-bold text-white outline-none">
+                  <option value="RC">Vehicle RC</option>
+                  <option value="DL">Driving Licence (DL)</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Format Layout</label>
+                <select id="genFormat" class="w-full bg-slate-900 border border-brand-border rounded-xl p-3 text-sm font-bold text-white outline-none">
+                  <option value="NEW">New Card Layout</option>
+                  <option value="OLD">Old Format Layout</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1" id="genTargetLabel">Vehicle Reg No</label>
+              <input 
+                type="text" 
+                id="genTargetNumber" 
+                placeholder="TN25AM6250" 
+                required 
+                class="w-full bg-slate-900 border border-brand-border rounded-xl p-3 text-base mono font-black text-white uppercase outline-none focus:border-brand-primary" 
+              />
+            </div>
+
+            <div id="genDobWrapper" class="hidden">
+              <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Date of Birth (YYYY-MM-DD)</label>
+              <input 
+                type="date" 
+                id="genDob" 
+                class="w-full bg-slate-900 border border-brand-border rounded-xl p-3 text-sm font-bold text-white outline-none" 
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              id="genBtn" 
+              class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
+              <span>📥</span> Generate &amp; Download PDF (₹0 Cost)
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 2: ORDER HISTORY & 1-CLICK RE-DOWNLOAD -->
+      <div id="ordersTab" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-base font-black text-white">Recent 100 System Downloads</h3>
+          <button onclick="fetchOrders()" class="text-xs font-bold text-brand-primary hover:underline">Refresh Orders ↻</button>
+        </div>
+
+        <div class="bg-brand-card border border-brand-border rounded-2xl overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/60 text-slate-400 uppercase font-bold border-b border-brand-border">
+              <tr>
+                <th class="p-3.5">Order ID</th>
+                <th class="p-3.5">Doc Type</th>
+                <th class="p-3.5">Target Key</th>
+                <th class="p-3.5">Phone</th>
+                <th class="p-3.5">Amount</th>
+                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Paid At</th>
+                <th class="p-3.5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody" class="divide-y divide-brand-border">
+              <tr><td colspan="8" class="p-6 text-center text-slate-500">Loading orders...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: AGENTS MANAGEMENT (POSTGRESQL PERMANENT) -->
+      <div id="agentsTab" class="hidden space-y-4">
+        <div class="flex justify-between items-center">
+          <h3 class="text-base font-black text-white">Partner Agent Applications (Database Persistent)</h3>
+          <button onclick="fetchAgents()" class="text-xs font-bold text-brand-primary hover:underline">Refresh Agents ↻</button>
+        </div>
+
+        <div class="bg-brand-card border border-brand-border rounded-2xl overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/60 text-slate-400 uppercase font-bold border-b border-brand-border">
+              <tr>
+                <th class="p-3.5">Agent Details</th>
+                <th class="p-3.5">Contact</th>
+                <th class="p-3.5">Address</th>
+                <th class="p-3.5">Current Status</th>
+                <th class="p-3.5">Applied Date</th>
+                <th class="p-3.5 text-right">Review Action</th>
+              </tr>
+            </thead>
+            <tbody id="agentsTableBody" class="divide-y divide-brand-border">
+              <tr><td colspan="6" class="p-6 text-center text-slate-500">Loading agents...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    let adminToken = sessionStorage.getItem('ADMIN_TOKEN') || null;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (adminToken) {
+        initDashboard();
+      }
+    });
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const secretKey = document.getElementById('secretKeyInput').value.trim();
+      const btn = document.getElementById('loginBtn');
+      btn.innerText = 'Verifying...';
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secretKey })
+        });
+        const d = await res.json();
+        if (d.success) {
+          adminToken = d.token;
+          sessionStorage.setItem('ADMIN_TOKEN', adminToken);
+          initDashboard();
+        } else {
+          alert(d.error || 'Invalid Admin Secret');
+          btn.innerText = 'Unlock Console';
+        }
+      } catch (err) {
+        alert('Connection error: ' + err.message);
+        btn.innerText = 'Unlock Console';
+      }
+    }
+
+    function initDashboard() {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('dashboardView').classList.remove('hidden');
+      loadStats();
+      fetchOrders();
+      fetchAgents();
+    }
+
+    function logout() {
+      sessionStorage.removeItem('ADMIN_TOKEN');
+      adminToken = null;
+      location.reload();
+    }
+
+    function switchTab(tabId) {
+      ['downloadTab', 'ordersTab', 'agentsTab'].forEach(t => {
+        document.getElementById(t).classList.add('hidden');
+        document.getElementById('tabBtn-' + t).className = "pb-3 border-b-2 border-transparent text-slate-400 hover:text-white";
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+      document.getElementById('tabBtn-' + tabId).className = "pb-3 border-b-2 border-brand-primary text-white";
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/admin/stats', {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          document.getElementById('statDownloads').innerText = d.summary.total_downloads || 0;
+          document.getElementById('statRc').innerText = d.summary.rc_count || 0;
+          document.getElementById('statDl').innerText = d.summary.dl_count || 0;
+          document.getElementById('statAgents').innerText = d.agents.active_agents || 0;
+          document.getElementById('statPendingAgents').innerText = d.agents.pending_agents || 0;
+        }
+      } catch (e) {
+        console.error('Stats load failed', e);
+      }
+    }
+
+    function handleDocTypeChange() {
+      const type = document.getElementById('genDocType').value;
+      const dobWrap = document.getElementById('genDobWrapper');
+      const targetLabel = document.getElementById('genTargetLabel');
+      const targetInput = document.getElementById('genTargetNumber');
+
+      if (type === 'DL') {
+        dobWrap.classList.remove('hidden');
+        targetLabel.innerText = 'Driving Licence Number';
+        targetInput.placeholder = 'KA13 20170004921';
+      } else {
+        dobWrap.classList.add('hidden');
+        targetLabel.innerText = 'Vehicle Reg No';
+        targetInput.placeholder = 'TN25AM6250';
+      }
+    }
+
+    async function handleDirectDownload(e) {
+      e.preventDefault();
+      const docType = document.getElementById('genDocType').value;
+      const rcFormat = document.getElementById('genFormat').value;
+      const targetNumber = document.getElementById('genTargetNumber').value.trim().toUpperCase();
+      const dob = document.getElementById('genDob').value;
+
+      const btn = document.getElementById('genBtn');
+      const origText = btn.innerHTML;
+      btn.innerHTML = '<span>⏳</span> Fetching Enriched Data & Generating Vector PDF...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/direct-download', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: JSON.stringify({ docType, targetNumber, dob, rcFormat })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Generation failed');
+        }
+
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${docType}_${targetNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+
+        loadStats();
+        fetchOrders();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+      }
+    }
+
+    async function fetchOrders() {
+      try {
+        const res = await fetch('/api/admin/orders', {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        const d = await res.json();
+        const tbody = document.getElementById('ordersTableBody');
+        if (d.success && d.orders.length > 0) {
+          tbody.innerHTML = d.orders.map(o => `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="p-3.5 mono font-bold text-slate-300">${o.order_id}</td>
+              <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold ${o.doc_type === 'DL' ? 'bg-purple-500/20 text-purple-300' : 'bg-blue-500/20 text-blue-300'}">${o.doc_type}</span></td>
+              <td class="p-3.5 mono font-bold text-white">${o.lookup_key}</td>
+              <td class="p-3.5 text-slate-400">${o.user_phone || 'Direct'}</td>
+              <td class="p-3.5 font-bold text-white">₹${o.amount}</td>
+              <td class="p-3.5"><span class="px-2 py-0.5 rounded font-bold ${o.status === 'SUCCESS' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'}">${o.status}</span></td>
+              <td class="p-3.5 text-slate-400">${o.paid_at ? new Date(o.paid_at).toLocaleString('en-IN') : '—'}</td>
+              <td class="p-3.5 text-right">
+                ${o.status === 'SUCCESS' ? `<button onclick="reDownloadOrder('${o.order_id}', '${o.doc_type}', '${o.lookup_key}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-[11px] transition">Download PDF</button>` : '—'}
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-500">No orders recorded in database yet.</td></tr>';
+        }
+      } catch (e) {
+        console.error('Fetch orders error', e);
+      }
+    }
+
+    async function reDownloadOrder(orderId, docType, targetNumber) {
+      try {
+        const res = await fetch('/api/download-rc-pdf', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId })
+        });
+        if (!res.ok) throw new Error('Download failed');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${docType}_${targetNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Could not re-download PDF: ' + err.message);
+      }
+    }
+
+    async function fetchAgents() {
+      try {
+        const res = await fetch('/api/admin/agents', {
+          headers: { 'Authorization': `Bearer ${adminToken}` }
+        });
+        const d = await res.json();
+        const tbody = document.getElementById('agentsTableBody');
+        if (d.success && d.agents.length > 0) {
+          tbody.innerHTML = d.agents.map(a => `
+            <tr class="hover:bg-slate-800/40 transition">
+              <td class="p-3.5 font-bold text-white">${a.name}</td>
+              <td class="p-3.5 text-slate-300">${a.mobile}<br><span class="text-slate-500 text-[10px]">${a.email}</span></td>
+              <td class="p-3.5 text-slate-400 max-w-xs truncate">${a.address}</td>
+              <td class="p-3.5">
+                <span class="px-2 py-0.5 rounded font-extrabold text-[10px] ${a.status === 'ACTIVE' ? 'bg-emerald-500/20 text-emerald-400' : (a.status === 'PENDING_APPROVAL' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400')}">${a.status}</span>
+              </td>
+              <td class="p-3.5 text-slate-400">${new Date(a.created_at).toLocaleDateString('en-IN')}</td>
+              <td class="p-3.5 text-right space-x-1.5">
+                ${a.status !== 'ACTIVE' ? `<button onclick="setAgentStatus('${a.agent_id}', 'ACTIVE')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-[11px] transition">Approve</button>` : ''}
+                ${a.status !== 'REJECTED' ? `<button onclick="setAgentStatus('${a.agent_id}', 'REJECTED')" class="px-2.5 py-1 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-[11px] transition">Reject</button>` : ''}
+              </td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">No partner agents applied yet.</td></tr>';
+        }
+      } catch (e) {
+        console.error('Fetch agents error', e);
+      }
+    }
+
+    async function setAgentStatus(agentId, status) {
+      try {
+        const res = await fetch('/api/admin/update-agent-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${adminToken}`
+          },
+          body: JSON.stringify({ agentId, status })
+        });
+        const d = await res.json();
+        if (d.success) {
+          fetchAgents();
+          loadStats();
+        } else {
+          alert(d.error || 'Status update failed');
+        }
+      } catch (e) {
+        alert('Request error: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>

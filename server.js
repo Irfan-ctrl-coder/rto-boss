@@ -62,9 +62,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
+// Serve admin.html from root
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
 // In-Memory Fallback Stores
 const orders = new Map();
-const agents = new Map();
 const otpStore = new Map();
 const customers = new Map();
 
@@ -360,7 +364,6 @@ const mockDatabase = {
   }
 };
 
-// Date Normalizer: Ensures YYYY-MM-DD format
 function normalizeDob(dobStr) {
   if (!dobStr) return '';
   const str = String(dobStr).trim();
@@ -378,12 +381,12 @@ function normalizeDob(dobStr) {
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
 
-  // 1. Static mock database check
+  // 1. Static mock check
   if (mockDatabase[lookupKey]) {
     return mockDatabase[lookupKey];
   }
 
-  // 2. PostgreSQL Cache Check (₹0 Cost Saver)
+  // 2. PostgreSQL Cache Check
   try {
     const dbRes = await pool.query(
       'SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2',
@@ -455,7 +458,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         financer: d.financer || ''
       };
 
-      // Persist to PostgreSQL Cache
       try {
         await pool.query(
           `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
@@ -522,7 +524,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         rtoAuthority: d.issuing_authority || 'RTO OFFICE'
       };
 
-      // Persist to PostgreSQL Cache
       try {
         await pool.query(
           `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
@@ -704,70 +705,95 @@ app.post('/api/customer/verify-otp', (req, res) => {
 });
 
 // =====================================================================
-// AGENT & ADMIN ROUTES
+// AGENT ROUTES (DATABASE BACKED)
 // =====================================================================
-app.post('/api/agent/register', (req, res) => {
-  const { name, mobile, email, password, address } = req.body;
-  if (!name || !mobile || !email || !password || !address) {
-    return res.status(400).json({ error: 'All fields are required' });
-  }
-
-  const existingAgent = Array.from(agents.values()).find(a => a.mobile === mobile || a.email === email);
-  if (existingAgent) {
-    return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
-  }
-
-  const agentId = 'AGT_' + Date.now();
-  const newAgent = {
-    agentId,
-    name,
-    mobile,
-    email,
-    password,
-    address,
-    status: 'PENDING_PAYMENT',
-    createdAt: new Date()
-  };
-
-  agents.set(agentId, newAgent);
-  res.json({ success: true, agentId, amount: 500, paymentProvider: 'AUTOUPI', paymentMode: 'UPI' });
-});
-
-app.post('/api/agent/login', (req, res) => {
-  const { identifier, password } = req.body;
-  const agent = Array.from(agents.values()).find(
-    a => (a.mobile === identifier || a.email === identifier) && a.password === password
-  );
-
-  if (!agent) {
-    return res.status(401).json({ error: 'Invalid mobile/email or password' });
-  }
-
-  if (agent.status === 'PENDING_PAYMENT') {
-    return res.status(403).json({ error: 'Onboarding fee pending', status: 'PENDING_PAYMENT', agentId: agent.agentId });
-  }
-
-  if (agent.status === 'PENDING_APPROVAL') {
-    return res.status(403).json({ error: 'Account under review by admin', status: 'PENDING_APPROVAL' });
-  }
-
-  if (agent.status === 'REJECTED') {
-    return res.status(403).json({ error: 'Account application rejected by admin', status: 'REJECTED' });
-  }
-
-  const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
-  agent.sessionToken = token;
-  res.json({
-    success: true,
-    token,
-    agent: {
-      name: agent.name,
-      mobile: agent.mobile,
-      email: agent.email
+app.post('/api/agent/register', async (req, res) => {
+  try {
+    const { name, mobile, email, password, address } = req.body;
+    if (!name || !mobile || !email || !password || !address) {
+      return res.status(400).json({ error: 'All fields are required' });
     }
-  });
+
+    const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
+    if (checkRes.rows.length > 0) {
+      return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
+    }
+
+    const agentId = 'AGT_' + Date.now();
+    await pool.query(
+      `INSERT INTO agents (agent_id, name, mobile, email, password, address, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_APPROVAL', NOW(), NOW())`,
+      [agentId, name, mobile, email, password, address]
+    );
+
+    res.json({ success: true, agentId, amount: 500, paymentProvider: 'AUTOUPI', paymentMode: 'UPI' });
+  } catch (err) {
+    console.error('Agent Register DB Error:', err);
+    res.status(500).json({ error: 'Failed to process registration' });
+  }
 });
 
+app.post('/api/agent/login', async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    const dbRes = await pool.query(
+      'SELECT * FROM agents WHERE (mobile = $1 OR email = $1) AND password = $2',
+      [identifier, password]
+    );
+
+    if (dbRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+    }
+
+    const agent = dbRes.rows[0];
+
+    if (agent.status === 'PENDING_PAYMENT') {
+      return res.status(403).json({ error: 'Onboarding fee pending', status: 'PENDING_PAYMENT', agentId: agent.agent_id });
+    }
+    if (agent.status === 'PENDING_APPROVAL') {
+      return res.status(403).json({ error: 'Account under review by admin', status: 'PENDING_APPROVAL' });
+    }
+    if (agent.status === 'REJECTED') {
+      return res.status(403).json({ error: 'Account application rejected by admin', status: 'REJECTED' });
+    }
+
+    const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
+    await pool.query('UPDATE agents SET session_token = $1, updated_at = NOW() WHERE agent_id = $2', [token, agent.agent_id]);
+
+    res.json({
+      success: true,
+      token,
+      agent: {
+        name: agent.name,
+        mobile: agent.mobile,
+        email: agent.email
+      }
+    });
+  } catch (err) {
+    console.error('Agent Login DB Error:', err);
+    res.status(500).json({ error: 'Login query failed' });
+  }
+});
+
+// Helper function to check role from headers
+async function resolveRole(authHeader) {
+  if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
+    return 'ADMIN';
+  }
+  if (authHeader.startsWith('Bearer TOK_AGT_')) {
+    const token = authHeader.replace('Bearer ', '');
+    const agt = await pool.query('SELECT * FROM agents WHERE session_token = $1 AND status = $2', [token, 'ACTIVE']);
+    if (agt.rows.length > 0) return 'AGENT';
+  }
+  if (authHeader.startsWith('Bearer TOK_CUST_')) {
+    return 'CUSTOMER';
+  }
+  return 'PUBLIC';
+}
+
+// =====================================================================
+// DEDICATED ADMIN MANAGEMENT & REAL-TIME ANALYTICS ROUTES
+// =====================================================================
 app.post('/api/admin/login', (req, res) => {
   const { secretKey } = req.body;
   if (ADMIN_MASTER_SECRET && secretKey === ADMIN_MASTER_SECRET) {
@@ -776,28 +802,142 @@ app.post('/api/admin/login', (req, res) => {
   return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
 });
 
-app.get('/api/admin/agents', (req, res) => {
+// Admin Live Metrics
+app.get('/api/admin/stats', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
-  res.json({ success: true, agents: Array.from(agents.values()) });
+
+  try {
+    const statsRes = await pool.query(`
+      SELECT 
+        COUNT(*)::int AS total_downloads,
+        COUNT(CASE WHEN doc_type = 'RC' THEN 1 END)::int AS rc_count,
+        COUNT(CASE WHEN doc_type = 'DL' THEN 1 END)::int AS dl_count,
+        COALESCE(SUM(amount), 0)::numeric AS total_revenue
+      FROM orders 
+      WHERE status = 'SUCCESS';
+    `);
+
+    const agentStatsRes = await pool.query(`
+      SELECT 
+        COUNT(*)::int AS total_agents,
+        COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END)::int AS active_agents,
+        COUNT(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 END)::int AS pending_agents
+      FROM agents;
+    `);
+
+    res.json({
+      success: true,
+      summary: statsRes.rows[0],
+      agents: agentStatsRes.rows[0]
+    });
+  } catch (err) {
+    console.error('Admin Stats Error:', err);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
 });
 
-app.post('/api/admin/update-agent-status', (req, res) => {
+// Admin All Orders List
+app.get('/api/admin/orders', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at
+      FROM orders 
+      ORDER BY created_at DESC 
+      LIMIT 100;
+    `);
+    res.json({ success: true, orders: result.rows });
+  } catch (err) {
+    console.error('Admin Orders Fetch Error:', err);
+    res.status(500).json({ error: 'Failed to fetch order history' });
+  }
+});
+
+// Admin Agent Roster (From DB)
+app.get('/api/admin/agents', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  try {
+    const result = await pool.query('SELECT agent_id, name, mobile, email, address, status, created_at FROM agents ORDER BY created_at DESC');
+    res.json({ success: true, agents: result.rows });
+  } catch (err) {
+    console.error('Admin Agents Fetch Error:', err);
+    res.status(500).json({ error: 'Failed to fetch agents' });
+  }
+});
+
+// Admin Agent Status Update (Approve / Reject into DB)
+app.post('/api/admin/update-agent-status', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
   const { agentId, status } = req.body;
-  const agent = agents.get(agentId);
-  if (!agent) {
-    return res.status(404).json({ error: 'Agent not found' });
+  try {
+    const result = await pool.query(
+      'UPDATE agents SET status = $1, updated_at = NOW() WHERE agent_id = $2 RETURNING *',
+      [status, agentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    res.json({ success: true, agent: result.rows[0] });
+  } catch (err) {
+    console.error('Admin Update Agent DB Error:', err);
+    res.status(500).json({ error: 'Database update failed' });
+  }
+});
+
+// Admin ₹0 Direct Download Tool
+app.post('/api/admin/direct-download', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
-  agent.status = status;
-  res.json({ success: true, agent });
+  try {
+    const { docType, targetNumber, dob, rcFormat } = req.body;
+    if (!targetNumber) {
+      return res.status(400).json({ error: 'Target reference number is required' });
+    }
+
+    const report = await getVehicleOrDlRecord(docType, targetNumber, dob);
+    if (!report) {
+      return res.status(404).json({ error: 'Record not found in live databases.' });
+    }
+
+    // Record this in orders as Admin Free Download
+    const adminOrderId = 'ADM_' + Date.now();
+    await pool.query(
+      `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at)
+       VALUES ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW())`,
+      [adminOrderId, docType, targetNumber]
+    ).catch(() => {});
+
+    // Generate Vector PDF
+    const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
+
+    const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Admin Direct Download Error:', err);
+    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
+  }
 });
 
 app.post('/api/admin/clear-data', (req, res) => {
@@ -807,10 +947,9 @@ app.post('/api/admin/clear-data', (req, res) => {
   }
 
   orders.clear();
-  agents.clear();
   otpStore.clear();
   customers.clear();
-  res.json({ success: true, message: 'All test orders, agents, and sessions cleared successfully.' });
+  res.json({ success: true, message: 'All in-memory cache and OTP sessions cleared.' });
 });
 
 // =====================================================================
@@ -821,17 +960,7 @@ app.post('/api/create-order', async (req, res) => {
     const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName } = req.body;
     const authHeader = req.headers['authorization'] || '';
 
-    let role = 'PUBLIC';
-    if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
-      role = 'ADMIN';
-    } else if (authHeader.startsWith('Bearer TOK_AGT_')) {
-      const agt = Array.from(agents.values()).find(a => a.sessionToken === authHeader.replace('Bearer ', ''));
-      if (agt && agt.status === 'ACTIVE') {
-        role = 'AGENT';
-      }
-    } else if (authHeader.startsWith('Bearer TOK_CUST_')) {
-      role = 'CUSTOMER';
-    }
+    const role = await resolveRole(authHeader);
 
     let finalAmount = 100;
     if (role === 'ADMIN') {
@@ -914,7 +1043,6 @@ app.post('/api/create-order', async (req, res) => {
 
     orders.set(localOrderId, orderData);
 
-    // Save order in PostgreSQL for audit persistence
     try {
       await pool.query(
         `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, paid_at)
@@ -945,13 +1073,12 @@ app.post('/api/create-order', async (req, res) => {
 });
 
 // =====================================================================
-// PAYMENT VERIFICATION (AUTO UPI ORDER-STATUS POLLING)
+// PAYMENT VERIFICATION
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   const { orderId, forceSuccess } = req.body;
   let order = orders.get(orderId);
 
-  // If order was lost from in-memory map due to PM2 restart, pull it from PostgreSQL
   if (!order) {
     try {
       const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
@@ -977,7 +1104,6 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  // Active status check against Auto Upi API
   if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
     try {
       const checkRes = await fetch(`${AUTO_UPI_BASE_URL}/order-status?order_id=${encodeURIComponent(orderId)}`, {
@@ -993,9 +1119,7 @@ app.post('/api/verify-payment', async (req, res) => {
         order.status = 'SUCCESS';
         order.paidAt = new Date(checkData.order.paid_at || Date.now());
         order.paymentId = checkData.order.order_id || ('AU_' + Date.now());
-        console.log(`🚀 [STATUS CHECK SUCCESS] Order ${orderId} confirmed paid!`);
 
-        // Update DB
         pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
           'SUCCESS',
           order.paidAt,
@@ -1054,7 +1178,7 @@ app.post('/api/verify-payment', async (req, res) => {
 });
 
 // =====================================================================
-// AUTOMATED AUTO UPI WEBHOOK (HMAC-SHA256 SIGNED)
+// AUTOMATED AUTO UPI WEBHOOK
 // =====================================================================
 app.post('/api/bank-webhook', (req, res) => {
   try {
@@ -1064,7 +1188,6 @@ app.post('/api/bank-webhook', (req, res) => {
 
     console.log('📥 [Auto Upi Webhook Received]:', JSON.stringify(payload));
 
-    // Webhook Signature Verification
     if (AUTO_UPI_WEBHOOK_SECRET && AUTO_UPI_WEBHOOK_SECRET !== 'whsec_your_secret_here' && signatureHeader) {
       try {
         const parts = {};
@@ -1100,7 +1223,6 @@ app.post('/api/bank-webhook', (req, res) => {
           matchedOrder.paymentId = targetId;
         }
 
-        // Update database
         pool.query('UPDATE orders SET status = $1, paid_at = NOW(), utr = $2 WHERE order_id = $3', [
           'SUCCESS',
           targetId,
@@ -1138,8 +1260,608 @@ app.post('/api/mark-paid', (req, res) => {
 });
 
 // =====================================================================
-// A4 PORTRAIT VECTOR PDF ENGINE
+// VECTOR PDF BUILDER FUNCTION (REUSED FOR PUBLIC & ADMIN DOWNLOADS)
 // =====================================================================
+async function generateVectorPdfBuffer(docType, rcFormat, report) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([595.28, 841.89]);
+  const { width, height } = page.getSize();
+
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const cardW = 260.0;
+  const S = cardW / CARD_WIDTH;
+  const cardH = CARD_HEIGHT * S;
+  const gap = 14.0;
+
+  const totalW = (cardW * 2) + gap;
+  const startX = (width - totalW) / 2;
+  const topMargin = 72.0;
+  const startY = height - topMargin - cardH;
+
+  const leftCardX = startX;
+  const rightCardX = startX + cardW + gap;
+  const cardY = startY;
+
+  const boldColor = rgb(0, 0, 0);
+  const softTextColor = rgb(0.08, 0.11, 0.17);
+
+  function splitAddress(addr, maxChars = 55) {
+    if (!addr || addr.length <= maxChars) return [addr];
+    const lines = [];
+    let remaining = addr;
+    while (remaining.length > 0) {
+      if (remaining.length <= maxChars) {
+        lines.push(remaining);
+        break;
+      }
+      const cut = remaining.lastIndexOf(' ', maxChars);
+      if (cut > 0) {
+        lines.push(remaining.substring(0, cut));
+        remaining = remaining.substring(cut + 1);
+      } else {
+        lines.push(remaining.substring(0, maxChars));
+        remaining = remaining.substring(maxChars);
+      }
+    }
+    return lines;
+  }
+
+  const roundedMask = Buffer.from(`
+    <svg width="1040" height="655">
+      <rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/>
+    </svg>
+  `);
+
+  if (docType === 'DL') {
+    const stateCode = (report.dlNo || 'KA').substring(0, 2).toUpperCase();
+    const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+    const frontPath = getTemplatePath(['dl_front.png', 'Website Template Final (13).png']);
+    if (frontPath) {
+      const maskedFrontPng = await sharp(frontPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const frontImg = await pdfDoc.embedPng(maskedFrontPng);
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+    }
+
+    const backPath = getTemplatePath(['dl_back.png', 'Website Template Final (14).png']);
+    if (backPath) {
+      const maskedBackPng = await sharp(backPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const backImg = await pdfDoc.embedPng(maskedBackPng);
+      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+    }
+
+    const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
+    let subTitleSize = 5.6 * S;
+    while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+      subTitleSize -= 0.2;
+    }
+    const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+    page.drawText(subTitleText, {
+      x: leftCardX + ((cardW - subTitleWidth) / 2),
+      y: cardY + ((CARD_HEIGHT - 21.0) * S),
+      size: subTitleSize,
+      font: fontBold,
+      color: rgb(0.05, 0.15, 0.3)
+    });
+
+    const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+    page.drawText(stateCode, {
+      x: leftCardX + (232.0 * S) - (b2FWidth / 2),
+      y: cardY + ((CARD_HEIGHT - 14.5) * S),
+      size: 5.2 * S,
+      font: fontRegular,
+      color: rgb(0, 0, 0)
+    });
+
+    const cleanDlNo = String(report.dlNo || '').trim();
+    page.drawText(cleanDlNo, {
+      x: leftCardX + (89.0 * S),
+      y: cardY + ((CARD_HEIGHT - 35.5) * S),
+      size: 8.5 * S,
+      font: fontBold,
+      color: boldColor
+    });
+
+    page.drawText(String(report.doi || '').trim(), {
+      x: leftCardX + (57.0 * S),
+      y: cardY + ((CARD_HEIGHT - 59.5) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+    page.drawText(String(report.validUptoNT || '').trim(), {
+      x: leftCardX + (101.0 * S),
+      y: cardY + ((CARD_HEIGHT - 59.5) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+    if (report.validUptoTR) {
+      page.drawText(String(report.validUptoTR).trim(), {
+        x: leftCardX + (152.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+    }
+
+    page.drawText(String(report.name || '').trim(), {
+      x: leftCardX + (28.0 * S),
+      y: cardY + ((CARD_HEIGHT - 92.0) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+    page.drawText(String(report.dob || '').trim(), {
+      x: leftCardX + (47.0 * S),
+      y: cardY + ((CARD_HEIGHT - 111.2) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+    page.drawText(String(report.bloodGroup || '').trim(), {
+      x: leftCardX + (148.0 * S),
+      y: cardY + ((CARD_HEIGHT - 111.2) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+    page.drawText(String(report.organDonor || 'N').trim(), {
+      x: leftCardX + (222.0 * S),
+      y: cardY + ((CARD_HEIGHT - 111.2) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+    page.drawText(String(report.swd || '').trim(), {
+      x: leftCardX + (79.0 * S),
+      y: cardY + ((CARD_HEIGHT - 122.5) * S),
+      size: 6.5 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+
+    const dlAddrLines = splitAddress(report.address || '', 55);
+    dlAddrLines.slice(0, 2).forEach((line, idx) => {
+      page.drawText(String(line).trim(), {
+        x: leftCardX + (35.0 * S),
+        y: cardY + ((CARD_HEIGHT - (136.0 + (idx * 6.8))) * S),
+        size: 6.0 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+    });
+
+    page.drawText(`( ${report.firstIssueDate || '02-07-2026'} )`, {
+      x: leftCardX + (238.5 * S),
+      y: cardY + (72.0 * S),
+      size: 5.0 * S,
+      font: fontRegular,
+      color: softTextColor,
+      rotate: { type: 'degrees', angle: 90 }
+    });
+
+    page.drawText(cleanDlNo, {
+      x: rightCardX + (32.0 * S),
+      y: cardY + ((CARD_HEIGHT - 9.0) * S),
+      size: 7.0 * S,
+      font: fontBold,
+      color: boldColor
+    });
+
+    if (report.covList && Array.isArray(report.covList)) {
+      report.covList.slice(0, 5).forEach((cov, idx) => {
+        const rowY = 83.8 + (idx * 11.5);
+        const codeVal = String(cov.code || '').trim();
+        const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
+        page.drawText(codeVal, {
+          x: rightCardX + (49.0 * S) - (codeW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 5.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+
+        const issuedVal = String(cov.issuedBy || '').trim();
+        const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+        page.drawText(issuedVal, {
+          x: rightCardX + (73.0 * S) - (issuedW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 5.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+
+        const doiVal = String(cov.doi || '').trim();
+        const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+        page.drawText(doiVal, {
+          x: rightCardX + (108.0 * S) - (doiW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 4.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+
+        const catVal = String(cov.category || 'NT').trim();
+        const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+        page.drawText(catVal, {
+          x: rightCardX + (144.0 * S) - (catW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 5.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+      });
+    }
+
+    if (report.mobileNo) {
+      page.drawText(String(report.mobileNo).trim(), {
+        x: rightCardX + (46.0 * S),
+        y: cardY + ((CARD_HEIGHT - 146.0) * S),
+        size: 6.0 * S,
+        font: fontRegular,
+        color: softTextColor
+      });
+    }
+
+    const rtoVal = String(report.rtoAuthority || 'RTO, HASSAN').trim();
+    const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+    page.drawText(rtoVal, {
+      x: rightCardX + ((236.0 * S) - rtoWidth),
+      y: cardY + ((CARD_HEIGHT - 149.5) * S),
+      size: 5.5 * S,
+      font: fontBold,
+      color: softTextColor
+    });
+
+  } else if (rcFormat === 'NEW') {
+    const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
+    const isKA = stateCode === 'KA';
+    const isCommercial = isCommercialClass(report.vehicleClassFull);
+    const vehicleBadge = isCommercial ? 'TR' : 'NT';
+    const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+    const frontCandidates = isKA 
+      ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png']
+      : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
+
+    const frontPath = getTemplatePath(frontCandidates);
+    if (frontPath) {
+      const maskedFrontPng = await sharp(frontPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const frontImg = await pdfDoc.embedPng(maskedFrontPng);
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+    }
+
+    const backCandidates = isKA 
+      ? ['new_rc_back.png', 'new_rc_back_.png']
+      : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
+
+    const backPath = getTemplatePath(backCandidates);
+    if (backPath) {
+      const maskedBackPng = await sharp(backPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const backImg = await pdfDoc.embedPng(maskedBackPng);
+      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+    }
+
+    if (!isKA) {
+      const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
+      let subTitleSize = 5.6 * S;
+      while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+        subTitleSize -= 0.2;
+      }
+      const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+      page.drawText(subTitleText, {
+        x: leftCardX + ((cardW - subTitleWidth) / 2),
+        y: cardY + ((CARD_HEIGHT - 21.0) * S),
+        size: subTitleSize,
+        font: fontBold,
+        color: rgb(0.05, 0.15, 0.3)
+      });
+
+      const b1FWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
+      page.drawText(vehicleBadge, {
+        x: leftCardX + (218.0 * S) - (b1FWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 14.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+      page.drawText(stateCode, {
+        x: leftCardX + (232.0 * S) - (b2FWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 14.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      const b1BWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
+      page.drawText(vehicleBadge, {
+        x: rightCardX + (9.5 * S) - (b1BWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 12.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+
+      const b2BWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
+      page.drawText(stateCode, {
+        x: rightCardX + (24.0 * S) - (b2BWidth / 2),
+        y: cardY + ((CARD_HEIGHT - 12.5) * S),
+        size: 5.2 * S,
+        font: fontRegular,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    const frontData = {
+      regNo: report.regNo,
+      regDate: report.regDate,
+      validUpto: report.validUpto,
+      chassisNo: report.chassisNo,
+      engineNo: report.engineNo,
+      ownerName: report.owner,
+      swdName: report.swd,
+      address: report.address,
+      fuel: report.fuel,
+      emissionNorms: report.emissionNorms || 'BHARAT STAGE VI'
+    };
+
+    Object.entries(newRcFrontLayout).forEach(([key, cfg]) => {
+      const val = frontData[key] || '';
+      if (!val) return;
+      const font = cfg.font === 'bold' ? fontBold : fontRegular;
+      const textColor = cfg.font === 'bold' ? boldColor : softTextColor;
+      const baselineY = CARD_HEIGHT - cfg.yTop;
+
+      if (cfg.multiLine) {
+        const lines = splitAddress(val, 55);
+        lines.slice(0, cfg.maxLines).forEach((line, idx) => {
+          const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
+          page.drawText(String(line).trim(), {
+            x: leftCardX + (posX * S),
+            y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
+            size: cfg.size * S,
+            font: font,
+            color: textColor
+          });
+        });
+      } else {
+        let fontSize = cfg.size * S;
+        while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
+          fontSize -= 0.2;
+        }
+        page.drawText(String(val).trim(), {
+          x: leftCardX + (cfg.x * S),
+          y: cardY + (baselineY * S),
+          size: fontSize,
+          font: font,
+          color: textColor
+        });
+      }
+    });
+
+    const backData = {
+      vehicleClass:     report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
+      regNo:            report.regNo || '',
+      maker:            report.maker || '',
+      model:            report.model || '',
+      bodyType:         report.bodyType || '',
+      seatingCapacity:  report.seating ? String(report.seating) : '2',
+      standingCapacity: report.stdgSlpr ? report.stdgSlpr.split('/')[0].trim() : '0',
+      sleeperCapacity:  '0',
+      mfgDate:          report.mfgDate || '',
+      unladenWeight:    report.unladenWt ? String(report.unladenWt) : '109',
+      ladenWeight:      report.ladenWt ? String(report.ladenWt) : '239',
+      grossWeight:      '0',
+      cylinders:        report.cylinders ? String(report.cylinders) : '1',
+      cubicCapacity:    report.cubicCap ? String(report.cubicCap) : '109.7',
+      horsePower:       report.horsePower ? String(report.horsePower) : '7.37',
+      wheelbase:        report.wheelBase ? String(report.wheelBase) : '1275',
+      financer:         report.financer || '',
+      rtoAuthority:     report.rto || 'CHICKABALLAPURA RTO'
+    };
+
+    Object.entries(newRcBackLayout).forEach(([key, cfg]) => {
+      const val = backData[key] || '';
+      if (!val) return;
+      const font = cfg.font === 'bold' ? fontBold : fontRegular;
+      const baselineY = CARD_HEIGHT - cfg.yTop;
+
+      let fontSize = cfg.size * S;
+      while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
+        fontSize -= 0.2;
+      }
+
+      if (cfg.rightAnchor) {
+        const textWidth = font.widthOfTextAtSize(String(val), fontSize);
+        page.drawText(String(val).trim(), {
+          x: rightCardX + ((cfg.x * S) - textWidth),
+          y: cardY + (baselineY * S),
+          size: fontSize,
+          font: font,
+          color: softTextColor
+        });
+      } else {
+        page.drawText(String(val).trim(), {
+          x: rightCardX + (cfg.x * S),
+          y: cardY + (baselineY * S),
+          size: fontSize,
+          font: font,
+          color: softTextColor
+        });
+      }
+    });
+
+  } else {
+    const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
+    if (fs.existsSync(frontImgPath)) {
+      const roundedFrontPng = await sharp(frontImgPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+
+      const frontImg = await pdfDoc.embedPng(roundedFrontPng);
+      page.drawImage(frontImg, {
+        x: leftCardX,
+        y: cardY,
+        width: cardW,
+        height: cardH,
+      });
+    }
+
+    page.drawRectangle({
+      x: rightCardX,
+      y: cardY,
+      width: cardW,
+      height: cardH,
+      color: rgb(1, 1, 1),
+    });
+
+    function drawText(text, x, y, size, maxWidth = 170) {
+      if (!text) return;
+      let fontSize = size * S;
+      let displayText = String(text).trim();
+      while (fontSize > 4.0 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
+        fontSize -= 0.2;
+      }
+      page.drawText(displayText, {
+        x: rightCardX + (x * S),
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    function drawTextRightAnchor(text, rightAnchorX, y, size) {
+      if (!text) return;
+      const fontSize = size * S;
+      const displayText = String(text).trim();
+      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+      const calculatedX = (rightAnchorX * S) - textWidth;
+
+      page.drawText(displayText, {
+        x: rightCardX + calculatedX,
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    function drawTextCenter(text, y, size) {
+      if (!text) return;
+      const fontSize = size * S;
+      const displayText = String(text).trim();
+      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+      const calculatedX = (cardW - textWidth) / 2;
+
+      page.drawText(displayText, {
+        x: rightCardX + calculatedX,
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+    }
+
+    const fullRegNoText = `REG NO : ${report.regNo || ''}`;
+    drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
+    drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
+    drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
+
+    fieldLayout.topLeft.forEach((field) => {
+      const value = report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 95);
+    });
+
+    fieldLayout.topRight.forEach((field) => {
+      let value = report[getFieldKey(field.label)];
+      if (field.label === 'CLASS' && value) {
+        value = String(value).replace(/\s*\(2WN\)\s*/i, '').trim();
+      }
+      drawText(field.label, field.labelX, field.y, field.fontSize, 28);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 65);
+    });
+
+    fieldLayout.middle.forEach((field) => {
+      const value = report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+
+      if (field.multiLine && value) {
+        const lines = splitAddress(value, 44);
+        lines.slice(0, field.maxLines).forEach((line, idx) => {
+          const lineY = field.y - (idx * field.lineHeight);
+          drawText(line, field.valueX, lineY, field.fontSize, 175);
+        });
+      } else {
+        drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 175);
+      }
+    });
+
+    fieldLayout.bottomLeft.forEach((field) => {
+      const value = report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
+    });
+
+    fieldLayout.bottomRight.forEach((field) => {
+      const value = report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, 35);
+    });
+
+    drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
+    drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
+  }
+
+  const roundedSvg = Buffer.from(`
+    <svg width="1040" height="655" viewBox="0 0 1040 655" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="4"/>
+    </svg>
+  `);
+
+  const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
+  const borderImg = await pdfDoc.embedPng(borderPngBuffer);
+
+  page.drawImage(borderImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+  page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+
+  const pdfBytes = await pdfDoc.save();
+  return Buffer.from(pdfBytes);
+}
+
+// Public Download Route
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
     const { orderId } = req.body;
@@ -1174,609 +1896,12 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       return res.status(404).json({ error: 'Record not found.' });
     }
 
-    const rcFormat = order.rcFormat;
-    const docType = order.docType;
+    const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
 
-    const pdfDoc = await PDFDocument.create();
-    const page = pdfDoc.addPage([595.28, 841.89]);
-    const { width, height } = page.getSize();
-
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-    const cardW = 260.0;
-    const S = cardW / CARD_WIDTH;
-    const cardH = CARD_HEIGHT * S;
-    const gap = 14.0;
-
-    const totalW = (cardW * 2) + gap;
-    const startX = (width - totalW) / 2;
-    const topMargin = 72.0;
-    const startY = height - topMargin - cardH;
-
-    const leftCardX = startX;
-    const rightCardX = startX + cardW + gap;
-    const cardY = startY;
-
-    const boldColor = rgb(0, 0, 0);
-    const softTextColor = rgb(0.08, 0.11, 0.17);
-
-    function splitAddress(addr, maxChars = 55) {
-      if (!addr || addr.length <= maxChars) return [addr];
-      const lines = [];
-      let remaining = addr;
-      while (remaining.length > 0) {
-        if (remaining.length <= maxChars) {
-          lines.push(remaining);
-          break;
-        }
-        const cut = remaining.lastIndexOf(' ', maxChars);
-        if (cut > 0) {
-          lines.push(remaining.substring(0, cut));
-          remaining = remaining.substring(cut + 1);
-        } else {
-          lines.push(remaining.substring(0, maxChars));
-          remaining = remaining.substring(maxChars);
-        }
-      }
-      return lines;
-    }
-
-    const roundedMask = Buffer.from(`
-      <svg width="1040" height="655">
-        <rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/>
-      </svg>
-    `);
-
-    // DRIVING LICENCE ENGINE
-    if (docType === 'DL') {
-      const stateCode = (report.dlNo || 'KA').substring(0, 2).toUpperCase();
-      const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
-
-      const frontPath = getTemplatePath(['dl_front.png', 'Website Template Final (13).png']);
-      if (frontPath) {
-        const maskedFrontPng = await sharp(frontPath)
-          .resize(1040, 655)
-          .composite([{ input: roundedMask, blend: 'dest-in' }])
-          .png()
-          .toBuffer();
-        const frontImg = await pdfDoc.embedPng(maskedFrontPng);
-        page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
-      }
-
-      const backPath = getTemplatePath(['dl_back.png', 'Website Template Final (14).png']);
-      if (backPath) {
-        const maskedBackPng = await sharp(backPath)
-          .resize(1040, 655)
-          .composite([{ input: roundedMask, blend: 'dest-in' }])
-          .png()
-          .toBuffer();
-        const backImg = await pdfDoc.embedPng(maskedBackPng);
-        page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
-      }
-
-      const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
-      let subTitleSize = 5.6 * S;
-      while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
-        subTitleSize -= 0.2;
-      }
-      const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
-      page.drawText(subTitleText, {
-        x: leftCardX + ((cardW - subTitleWidth) / 2),
-        y: cardY + ((CARD_HEIGHT - 21.0) * S),
-        size: subTitleSize,
-        font: fontBold,
-        color: rgb(0.05, 0.15, 0.3)
-      });
-
-      const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
-      page.drawText(stateCode, {
-        x: leftCardX + (232.0 * S) - (b2FWidth / 2),
-        y: cardY + ((CARD_HEIGHT - 14.5) * S),
-        size: 5.2 * S,
-        font: fontRegular,
-        color: rgb(0, 0, 0)
-      });
-
-      const cleanDlNo = String(report.dlNo || '').trim();
-      page.drawText(cleanDlNo, {
-        x: leftCardX + (89.0 * S),
-        y: cardY + ((CARD_HEIGHT - 35.5) * S),
-        size: 8.5 * S,
-        font: fontBold,
-        color: boldColor
-      });
-
-      page.drawText(String(report.doi || '').trim(), {
-        x: leftCardX + (57.0 * S),
-        y: cardY + ((CARD_HEIGHT - 59.5) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-      page.drawText(String(report.validUptoNT || '').trim(), {
-        x: leftCardX + (101.0 * S),
-        y: cardY + ((CARD_HEIGHT - 59.5) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-      if (report.validUptoTR) {
-        page.drawText(String(report.validUptoTR).trim(), {
-          x: leftCardX + (152.0 * S),
-          y: cardY + ((CARD_HEIGHT - 59.5) * S),
-          size: 6.5 * S,
-          font: fontRegular,
-          color: softTextColor
-        });
-      }
-
-      page.drawText(String(report.name || '').trim(), {
-        x: leftCardX + (28.0 * S),
-        y: cardY + ((CARD_HEIGHT - 92.0) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-      page.drawText(String(report.dob || '').trim(), {
-        x: leftCardX + (47.0 * S),
-        y: cardY + ((CARD_HEIGHT - 111.2) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-      page.drawText(String(report.bloodGroup || '').trim(), {
-        x: leftCardX + (148.0 * S),
-        y: cardY + ((CARD_HEIGHT - 111.2) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-      page.drawText(String(report.organDonor || 'N').trim(), {
-        x: leftCardX + (222.0 * S),
-        y: cardY + ((CARD_HEIGHT - 111.2) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-      page.drawText(String(report.swd || '').trim(), {
-        x: leftCardX + (79.0 * S),
-        y: cardY + ((CARD_HEIGHT - 122.5) * S),
-        size: 6.5 * S,
-        font: fontRegular,
-        color: softTextColor
-      });
-
-      const dlAddrLines = splitAddress(report.address || '', 55);
-      dlAddrLines.slice(0, 2).forEach((line, idx) => {
-        page.drawText(String(line).trim(), {
-          x: leftCardX + (35.0 * S),
-          y: cardY + ((CARD_HEIGHT - (136.0 + (idx * 6.8))) * S),
-          size: 6.0 * S,
-          font: fontRegular,
-          color: softTextColor
-        });
-      });
-
-      page.drawText(`( ${report.firstIssueDate || '02-07-2026'} )`, {
-        x: leftCardX + (238.5 * S),
-        y: cardY + (72.0 * S),
-        size: 5.0 * S,
-        font: fontRegular,
-        color: softTextColor,
-        rotate: { type: 'degrees', angle: 90 }
-      });
-
-      page.drawText(cleanDlNo, {
-        x: rightCardX + (32.0 * S),
-        y: cardY + ((CARD_HEIGHT - 9.0) * S),
-        size: 7.0 * S,
-        font: fontBold,
-        color: boldColor
-      });
-
-      if (report.covList && Array.isArray(report.covList)) {
-        report.covList.slice(0, 5).forEach((cov, idx) => {
-          const rowY = 83.8 + (idx * 11.5);
-          const codeVal = String(cov.code || '').trim();
-          const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
-          page.drawText(codeVal, {
-            x: rightCardX + (49.0 * S) - (codeW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontRegular,
-            color: softTextColor
-          });
-
-          const issuedVal = String(cov.issuedBy || '').trim();
-          const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
-          page.drawText(issuedVal, {
-            x: rightCardX + (73.0 * S) - (issuedW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontRegular,
-            color: softTextColor
-          });
-
-          const doiVal = String(cov.doi || '').trim();
-          const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
-          page.drawText(doiVal, {
-            x: rightCardX + (108.0 * S) - (doiW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 4.8 * S,
-            font: fontRegular,
-            color: softTextColor
-          });
-
-          const catVal = String(cov.category || 'NT').trim();
-          const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
-          page.drawText(catVal, {
-            x: rightCardX + (144.0 * S) - (catW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontRegular,
-            color: softTextColor
-          });
-        });
-      }
-
-      if (report.mobileNo) {
-        page.drawText(String(report.mobileNo).trim(), {
-          x: rightCardX + (46.0 * S),
-          y: cardY + ((CARD_HEIGHT - 146.0) * S),
-          size: 6.0 * S,
-          font: fontRegular,
-          color: softTextColor
-        });
-      }
-
-      const rtoVal = String(report.rtoAuthority || 'RTO, HASSAN').trim();
-      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
-      page.drawText(rtoVal, {
-        x: rightCardX + ((236.0 * S) - rtoWidth),
-        y: cardY + ((CARD_HEIGHT - 149.5) * S),
-        size: 5.5 * S,
-        font: fontBold,
-        color: softTextColor
-      });
-
-    } else if (rcFormat === 'NEW') {
-      const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
-      const isKA = stateCode === 'KA';
-      const isCommercial = isCommercialClass(report.vehicleClassFull);
-      const vehicleBadge = isCommercial ? 'TR' : 'NT';
-      const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
-
-      const frontCandidates = isKA 
-        ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png']
-        : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
-
-      const frontPath = getTemplatePath(frontCandidates);
-      if (frontPath) {
-        const maskedFrontPng = await sharp(frontPath)
-          .resize(1040, 655)
-          .composite([{ input: roundedMask, blend: 'dest-in' }])
-          .png()
-          .toBuffer();
-        const frontImg = await pdfDoc.embedPng(maskedFrontPng);
-        page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
-      }
-
-      const backCandidates = isKA 
-        ? ['new_rc_back.png', 'new_rc_back_.png']
-        : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
-
-      const backPath = getTemplatePath(backCandidates);
-      if (backPath) {
-        const maskedBackPng = await sharp(backPath)
-          .resize(1040, 655)
-          .composite([{ input: roundedMask, blend: 'dest-in' }])
-          .png()
-          .toBuffer();
-        const backImg = await pdfDoc.embedPng(maskedBackPng);
-        page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
-      }
-
-      if (!isKA) {
-        const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
-        let subTitleSize = 5.6 * S;
-        while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
-          subTitleSize -= 0.2;
-        }
-        const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
-        page.drawText(subTitleText, {
-          x: leftCardX + ((cardW - subTitleWidth) / 2),
-          y: cardY + ((CARD_HEIGHT - 21.0) * S),
-          size: subTitleSize,
-          font: fontBold,
-          color: rgb(0.05, 0.15, 0.3)
-        });
-
-        const b1FWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
-        page.drawText(vehicleBadge, {
-          x: leftCardX + (218.0 * S) - (b1FWidth / 2),
-          y: cardY + ((CARD_HEIGHT - 14.5) * S),
-          size: 5.2 * S,
-          font: fontRegular,
-          color: rgb(0, 0, 0)
-        });
-
-        const b2FWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
-        page.drawText(stateCode, {
-          x: leftCardX + (232.0 * S) - (b2FWidth / 2),
-          y: cardY + ((CARD_HEIGHT - 14.5) * S),
-          size: 5.2 * S,
-          font: fontRegular,
-          color: rgb(0, 0, 0)
-        });
-
-        const b1BWidth = fontRegular.widthOfTextAtSize(vehicleBadge, 5.2 * S);
-        page.drawText(vehicleBadge, {
-          x: rightCardX + (9.5 * S) - (b1BWidth / 2),
-          y: cardY + ((CARD_HEIGHT - 12.5) * S),
-          size: 5.2 * S,
-          font: fontRegular,
-          color: rgb(0, 0, 0)
-        });
-
-        const b2BWidth = fontRegular.widthOfTextAtSize(stateCode, 5.2 * S);
-        page.drawText(stateCode, {
-          x: rightCardX + (24.0 * S) - (b2BWidth / 2),
-          y: cardY + ((CARD_HEIGHT - 12.5) * S),
-          size: 5.2 * S,
-          font: fontRegular,
-          color: rgb(0, 0, 0)
-        });
-      }
-
-      const frontData = {
-        regNo: report.regNo,
-        regDate: report.regDate,
-        validUpto: report.validUpto,
-        chassisNo: report.chassisNo,
-        engineNo: report.engineNo,
-        ownerName: report.owner,
-        swdName: report.swd,
-        address: report.address,
-        fuel: report.fuel,
-        emissionNorms: report.emissionNorms || 'BHARAT STAGE VI'
-      };
-
-      Object.entries(newRcFrontLayout).forEach(([key, cfg]) => {
-        const val = frontData[key] || '';
-        if (!val) return;
-        const font = cfg.font === 'bold' ? fontBold : fontRegular;
-        const textColor = cfg.font === 'bold' ? boldColor : softTextColor;
-        const baselineY = CARD_HEIGHT - cfg.yTop;
-
-        if (cfg.multiLine) {
-          const lines = splitAddress(val, 55);
-          lines.slice(0, cfg.maxLines).forEach((line, idx) => {
-            const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
-            page.drawText(String(line).trim(), {
-              x: leftCardX + (posX * S),
-              y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
-              size: cfg.size * S,
-              font: font,
-              color: textColor
-            });
-          });
-        } else {
-          let fontSize = cfg.size * S;
-          while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
-            fontSize -= 0.2;
-          }
-          page.drawText(String(val).trim(), {
-            x: leftCardX + (cfg.x * S),
-            y: cardY + (baselineY * S),
-            size: fontSize,
-            font: font,
-            color: textColor
-          });
-        }
-      });
-
-      const backData = {
-        vehicleClass:     report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
-        regNo:            report.regNo || '',
-        maker:            report.maker || '',
-        model:            report.model || '',
-        bodyType:         report.bodyType || '',
-        seatingCapacity:  report.seating ? String(report.seating) : '2',
-        standingCapacity: report.stdgSlpr ? report.stdgSlpr.split('/')[0].trim() : '0',
-        sleeperCapacity:  '0',
-        mfgDate:          report.mfgDate || '',
-        unladenWeight:    report.unladenWt ? String(report.unladenWt) : '109',
-        ladenWeight:      report.ladenWt ? String(report.ladenWt) : '239',
-        grossWeight:      '0',
-        cylinders:        report.cylinders ? String(report.cylinders) : '1',
-        cubicCapacity:    report.cubicCap ? String(report.cubicCap) : '109.7',
-        horsePower:       report.horsePower ? String(report.horsePower) : '7.37',
-        wheelbase:        report.wheelBase ? String(report.wheelBase) : '1275',
-        financer:         report.financer || '',
-        rtoAuthority:     report.rto || 'CHICKABALLAPURA RTO'
-      };
-
-      Object.entries(newRcBackLayout).forEach(([key, cfg]) => {
-        const val = backData[key] || '';
-        if (!val) return;
-        const font = cfg.font === 'bold' ? fontBold : fontRegular;
-        const baselineY = CARD_HEIGHT - cfg.yTop;
-
-        let fontSize = cfg.size * S;
-        while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
-          fontSize -= 0.2;
-        }
-
-        if (cfg.rightAnchor) {
-          const textWidth = font.widthOfTextAtSize(String(val), fontSize);
-          page.drawText(String(val).trim(), {
-            x: rightCardX + ((cfg.x * S) - textWidth),
-            y: cardY + (baselineY * S),
-            size: fontSize,
-            font: font,
-            color: softTextColor
-          });
-        } else {
-          page.drawText(String(val).trim(), {
-            x: rightCardX + (cfg.x * S),
-            y: cardY + (baselineY * S),
-            size: fontSize,
-            font: font,
-            color: softTextColor
-          });
-        }
-      });
-
-    } else {
-      const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
-      if (fs.existsSync(frontImgPath)) {
-        const roundedFrontPng = await sharp(frontImgPath)
-          .resize(1040, 655)
-          .composite([{ input: roundedMask, blend: 'dest-in' }])
-          .png()
-          .toBuffer();
-
-        const frontImg = await pdfDoc.embedPng(roundedFrontPng);
-        page.drawImage(frontImg, {
-          x: leftCardX,
-          y: cardY,
-          width: cardW,
-          height: cardH,
-        });
-      }
-
-      page.drawRectangle({
-        x: rightCardX,
-        y: cardY,
-        width: cardW,
-        height: cardH,
-        color: rgb(1, 1, 1),
-      });
-
-      function drawText(text, x, y, size, maxWidth = 170) {
-        if (!text) return;
-        let fontSize = size * S;
-        let displayText = String(text).trim();
-        while (fontSize > 4.0 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
-          fontSize -= 0.2;
-        }
-        page.drawText(displayText, {
-          x: rightCardX + (x * S),
-          y: cardY + (y * S),
-          size: fontSize,
-          font: fontBold,
-          color: rgb(0, 0, 0)
-        });
-      }
-
-      function drawTextRightAnchor(text, rightAnchorX, y, size) {
-        if (!text) return;
-        const fontSize = size * S;
-        const displayText = String(text).trim();
-        const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
-        const calculatedX = (rightAnchorX * S) - textWidth;
-
-        page.drawText(displayText, {
-          x: rightCardX + calculatedX,
-          y: cardY + (y * S),
-          size: fontSize,
-          font: fontBold,
-          color: rgb(0, 0, 0)
-        });
-      }
-
-      function drawTextCenter(text, y, size) {
-        if (!text) return;
-        const fontSize = size * S;
-        const displayText = String(text).trim();
-        const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
-        const calculatedX = (cardW - textWidth) / 2;
-
-        page.drawText(displayText, {
-          x: rightCardX + calculatedX,
-          y: cardY + (y * S),
-          size: fontSize,
-          font: fontBold,
-          color: rgb(0, 0, 0)
-        });
-      }
-
-      const fullRegNoText = `REG NO : ${report.regNo || ''}`;
-      drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
-      drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
-      drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
-
-      fieldLayout.topLeft.forEach((field) => {
-        const value = report[getFieldKey(field.label)];
-        drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-        if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
-        drawText(':', field.colonX, field.y, field.fontSize, 5);
-        drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 95);
-      });
-
-      fieldLayout.topRight.forEach((field) => {
-        let value = report[getFieldKey(field.label)];
-        if (field.label === 'CLASS' && value) {
-          value = String(value).replace(/\s*\(2WN\)\s*/i, '').trim();
-        }
-        drawText(field.label, field.labelX, field.y, field.fontSize, 28);
-        drawText(':', field.colonX, field.y, field.fontSize, 5);
-        drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 65);
-      });
-
-      fieldLayout.middle.forEach((field) => {
-        const value = report[getFieldKey(field.label)];
-        drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-        drawText(':', field.colonX, field.y, field.fontSize, 5);
-
-        if (field.multiLine && value) {
-          const lines = splitAddress(value, 44);
-          lines.slice(0, field.maxLines).forEach((line, idx) => {
-            const lineY = field.y - (idx * field.lineHeight);
-            drawText(line, field.valueX, lineY, field.fontSize, 175);
-          });
-        } else {
-          drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 175);
-        }
-      });
-
-      fieldLayout.bottomLeft.forEach((field) => {
-        const value = report[getFieldKey(field.label)];
-        drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-        drawText(':', field.colonX, field.y, field.fontSize, 5);
-        drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
-      });
-
-      fieldLayout.bottomRight.forEach((field) => {
-        const value = report[getFieldKey(field.label)];
-        drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-        if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
-        drawText(':', field.colonX, field.y, field.fontSize, 5);
-        drawText(value, field.valueX, field.y, field.fontSize, 35);
-      });
-
-      drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
-      drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
-    }
-
-    const roundedSvg = Buffer.from(`
-      <svg width="1040" height="655" viewBox="0 0 1040 655" xmlns="http://www.w3.org/2000/svg">
-        <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="4"/>
-      </svg>
-    `);
-
-    const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
-    const borderImg = await pdfDoc.embedPng(borderPngBuffer);
-
-    page.drawImage(borderImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
-    page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
-
-    const pdfBytes = await pdfDoc.save();
-    const fileName = docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
+    const fileName = order.docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-    res.send(Buffer.from(pdfBytes));
+    res.send(pdfBuffer);
 
   } catch (err) {
     console.error('PDF Generation Error:', err);
