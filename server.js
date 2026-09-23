@@ -372,7 +372,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         dlNo: d.license_number || lookupKey,
         doi: issueDateClean,
         validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to || (d.validity && d.validity.non_transport)),
-        validUptoTR: formatDateDisplay(d.transport_doe || d.tr_validity_to || (d.validity && d.validity.transport)),
+        validUptoTR: (d.transport_doe && d.transport_doe !== '1800-01-01') ? formatDateDisplay(d.transport_doe) : '',
         name: d.name || '',
         dob: formatDateDisplay(d.dob || cleanDob),
         bloodGroup: d.blood_group || '',
@@ -1214,7 +1214,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     // Embed Live Driver Profile Photo if present
     if (report.profileImage) {
       try {
-        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '');
+        const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
         const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
         const photoPng = await sharp(rawPhotoBuffer)
           .resize(150, 180, { fit: 'cover' })
