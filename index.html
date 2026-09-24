@@ -605,7 +605,6 @@
       updatePriceUI();
     });
 
-    // Updated Rates: 150 / 180 / 200 (Public), 80 / 120 / 150 (Agent)
     function getRate(tier) {
       if (currentRole === 'ADMIN') return 0;
       if (currentRole === 'AGENT') {
@@ -932,6 +931,13 @@
           })
         });
         const data = await res.json();
+
+        // Automatic Instant Refund handling
+        if (data.status === 'REFUNDED') {
+          alert('Server is slow at the moment. Your amount has been refunded.');
+          navigateTo('search');
+          return;
+        }
 
         if (data.status === 'SUCCESS' && !isCompleted) {
           handleOrderSuccess(data);

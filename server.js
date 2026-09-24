@@ -257,7 +257,7 @@ async function generateSignaturePng(fullName) {
 }
 
 // =====================================================================
-// LIVE SUREPASS DATA RESOLVER
+// LIVE SUREPASS DATA RESOLVER (WITH SILENT RETRY SAFEGUARD)
 // =====================================================================
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
@@ -286,7 +286,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
   try {
     if (docType === 'RC') {
-      const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
+      let resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -298,7 +298,26 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         })
       });
 
-      const json = await resp.json();
+      let json = await resp.json();
+
+      // Silent retry once on server timeout
+      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
+        console.warn(`[Upstream Timeout] Retrying RC ${lookupKey} in 1.2 seconds...`);
+        await new Promise(res => setTimeout(res, 1200));
+        resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+          },
+          body: JSON.stringify({
+            id_number: lookupKey,
+            enrich: false
+          })
+        });
+        json = await resp.json();
+      }
+
       if (!resp.ok || !json.success || !json.data) {
         console.error('[Surepass RC Failed]:', json);
         return null;
@@ -362,7 +381,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
     } else if (docType === 'DL') {
       const cleanDob = normalizeDob(dob);
 
-      const resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+      let resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -374,7 +393,26 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         })
       });
 
-      const json = await resp.json();
+      let json = await resp.json();
+
+      // Silent retry once on server timeout
+      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
+        console.warn(`[Upstream Timeout] Retrying DL ${lookupKey} in 1.2 seconds...`);
+        await new Promise(res => setTimeout(res, 1200));
+        resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+          },
+          body: JSON.stringify({
+            id_number: lookupKey,
+            dob: cleanDob
+          })
+        });
+        json = await resp.json();
+      }
+
       if (!resp.ok || !json.success || !json.data) {
         console.error('[Surepass DL Failed]:', json);
         return null;
@@ -444,7 +482,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       return formattedDl;
     }
   } catch (err) {
-    console.error('Surepass Live Gateway Exception:', err);
+    console.error('Surepass Gateway Exception:', err);
     return null;
   }
 
@@ -914,7 +952,7 @@ app.post('/api/create-order', async (req, res) => {
 
     const role = await resolveRole(authHeader);
 
-    // Updated Pricing Structure: 150 / 180 / 200 (Public), 80 / 120 / 150 (Agent)
+    // Pricing Structure: 150 / 180 / 200 (Public), 80 / 120 / 150 (Agent)
     let finalAmount = 150;
     if (docType === 'AGENT_ONBOARDING') {
       finalAmount = 500;
@@ -1092,12 +1130,42 @@ app.post('/api/verify-payment', async (req, res) => {
     });
   }
 
+  // Fetch Document Data
   const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
 
+  // AUTOMATED INSTANT REFUND ON LOOKUP FAILURE
   if (!report) {
-    return res.status(404).json({
-      error: 'No record is available for this reference in the current data source.',
-      code: 'RECORD_NOT_FOUND'
+    let refundId = null;
+
+    if (order.paymentId && order.paymentId.startsWith('pay_')) {
+      try {
+        console.warn(`[Auto-Refund] Triggering instant refund for ${order.paymentId}...`);
+        const refund = await razorpay.payments.refund(order.paymentId, {
+          amount: Math.round(order.amount * 100), // in paise
+          speed: 'optimum',
+          notes: {
+            reason: 'Data retrieval server slow',
+            orderId: order.orderId
+          }
+        });
+        refundId = refund.id;
+
+        pool.query('UPDATE orders SET status = $1, utr = $2 WHERE order_id = $3', [
+          'REFUNDED',
+          refundId,
+          lookupId
+        ]).catch(() => {});
+      } catch (refundErr) {
+        console.error('[Auto-Refund Gateway Error]:', refundErr.message);
+      }
+    }
+
+    return res.json({
+      status: 'REFUNDED',
+      orderId: order.orderId,
+      refundId,
+      amount: order.amount,
+      message: 'Server is slow at the moment. Your amount has been refunded.'
     });
   }
 
@@ -1795,7 +1863,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
 
     const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
     if (!report) {
-      return res.status(404).json({ error: 'Record not found.' });
+      return res.status(404).json({ error: 'Record could not be retrieved.' });
     }
 
     const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
