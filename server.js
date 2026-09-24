@@ -273,6 +273,13 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       }
 
       const d = json.data;
+
+      // Normalize body_type so 'SOLO WITH PILLION' becomes 'SOLO'
+      let normalizedBody = String(d.body_type || 'SEDAN').trim();
+      if (/SOLO/i.test(normalizedBody)) {
+        normalizedBody = 'SOLO';
+      }
+
       const formattedRc = {
         regNo: d.rc_number || lookupKey,
         regDate: formatDateDisplay(d.registration_date || ''),
@@ -280,7 +287,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         engineNo: d.engine_number || d.vehicle_engine_number || '',
         maker: d.maker_description || d.maker_model || '',
         model: d.maker_model || '',
-        bodyType: d.body_type || 'SEDAN',
+        bodyType: normalizedBody,
         wheelBase: String(d.wheelbase || '0'),
         mfgDate: d.manufacturing_date || '',
         fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
@@ -1693,7 +1700,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     });
 
     fieldLayout.bottomLeft.forEach((field) => {
-      const value = report[getFieldKey(field.label)];
+      let value = report[getFieldKey(field.label)];
+      if (field.label === 'BODY' && value && /SOLO/i.test(String(value))) {
+        value = 'SOLO';
+      }
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
