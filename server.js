@@ -224,23 +224,31 @@ function normalizeDob(dobStr) {
   return str;
 }
 
-// Generate an authentic automated vector signature
+// Generate an authentic hand-drawn cursive vector path signature (Font-independent)
 async function generateSignaturePng(fullName) {
-  const cleanName = String(fullName || 'Driver')
-    .toLowerCase()
-    .split(' ')
-    .filter(Boolean)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  const seed = String(fullName || 'Driver')
+    .split('')
+    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+
+  const loopY = 22 + (seed % 6);
+  const midY = 32 + ((seed * 3) % 8);
+  const endX = 175 + (seed % 20);
 
   const svg = `
-    <svg width="220" height="90" viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
-      <g transform="rotate(-6 110 45)">
-        <text x="20" y="44" font-family="'Brush Script MT', 'Segoe Script', 'Great Vibes', cursive, sans-serif" font-size="34" font-style="italic" font-weight="600" fill="#152a68">
-          ${cleanName}
-        </text>
-        <path d="M 16 52 Q 65 60 115 50 T 195 44" fill="none" stroke="#152a68" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M 40 57 Q 90 64 140 55" fill="none" stroke="#152a68" stroke-width="1.2" stroke-linecap="round"/>
+    <svg width="240" height="90" viewBox="0 0 240 90" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(-6 120 45)">
+        <!-- Primary fluid cursive name loop -->
+        <path d="M 25 55 C 22 28, 42 12, 54 26 C 62 38, 52 58, 40 56 C 32 54, 38 42, 58 40 C 78 38, 86 48, 96 42 C 104 36, 108 26, 116 ${loopY} C 124 38, 126 50, 138 44 C 148 38, 154 30, 162 ${midY} C 172 44, 180 34, ${endX} 28" 
+              fill="none" stroke="#142a66" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <!-- Secondary baseline connection & sharp ascent -->
+        <path d="M 68 46 C 85 48, 102 46, 118 42 C 132 38, 145 42, 158 39" 
+              fill="none" stroke="#142a66" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Freehand underline flourish flourish stroke -->
+        <path d="M 22 64 Q 75 74 135 62 T 215 54" 
+              fill="none" stroke="#142a66" stroke-width="2.0" stroke-linecap="round"/>
+        <!-- Hairline return loop flourish -->
+        <path d="M 52 70 Q 105 76 160 67" 
+              fill="none" stroke="#142a66" stroke-width="1.1" stroke-linecap="round"/>
       </g>
     </svg>
   `;
@@ -1248,7 +1256,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    // Embed Live Driver Profile Photo (Tuned rightwards and scaled cleanly to leave room for signature)
+    // Embed Live Driver Profile Photo (Positioned below the top bar with height 39)
     if (report.profileImage) {
       try {
         const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1261,24 +1269,24 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         const embeddedPhoto = await pdfDoc.embedPng(photoPng);
         page.drawImage(embeddedPhoto, {
           x: leftCardX + (193.5 * S),
-          y: cardY + ((CARD_HEIGHT - 67.0) * S),
-          width: 34.5 * S,
-          height: 43.0 * S
+          y: cardY + ((CARD_HEIGHT - 72.0) * S),
+          width: 33.0 * S,
+          height: 39.0 * S
         });
       } catch (photoErr) {
         console.warn('Driver photo embed warning:', photoErr.message);
       }
     }
 
-    // Draw Automated Cursive Script Signature above "Holder's Signature"
+    // Draw Pure Vector Spline Signature above "Holder's Signature"
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
       page.drawImage(embeddedSig, {
-        x: leftCardX + (187.0 * S),
-        y: cardY + ((CARD_HEIGHT - 85.0) * S),
-        width: 41.0 * S,
-        height: 16.0 * S
+        x: leftCardX + (188.0 * S),
+        y: cardY + ((CARD_HEIGHT - 86.5) * S),
+        width: 39.0 * S,
+        height: 14.5 * S
       });
     } catch (sigErr) {
       console.warn('Signature generator warning:', sigErr.message);
