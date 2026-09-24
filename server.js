@@ -280,6 +280,13 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         normalizedBody = 'SOLO';
       }
 
+      // Normalize long colors so they fit cleanly
+      let normalizedColor = String(d.color || '').trim();
+      normalizedColor = normalizedColor
+        .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
+        .replace(/METALLIC\s+/i, 'MET. ')
+        .replace(/ELECTRONIC\s+/i, 'E. ');
+
       const formattedRc = {
         regNo: d.rc_number || lookupKey,
         regDate: formatDateDisplay(d.registration_date || ''),
@@ -297,7 +304,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         swd: d.father_name || '',
         address: d.present_address || d.permanent_address || '',
         ownerSerial: String(d.owner_serial_number || d.owner_number || '01'),
-        color: d.color || '',
+        color: normalizedColor,
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
         unladenWt: String(d.unladen_weight || '0'),
@@ -345,7 +352,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       const d = json.data;
 
-      // Extract accurate classes list from Surepass
       let rawClasses = [];
       if (Array.isArray(d.vehicle_classes) && d.vehicle_classes.length > 0) {
         rawClasses = d.vehicle_classes;
@@ -434,7 +440,7 @@ const fieldLayout = {
   topRight: [
     { label: 'O SLNO', labelX: 148, colonX: 176, valueX: 181, y: 126, fontSize: 6.8, maxW: 44 },
     { label: 'CLASS', labelX: 148, colonX: 176, valueX: 181, y: 119, fontSize: 6.8, maxW: 65 },
-    { label: 'COLOUR', labelX: 148, colonX: 176, valueX: 181, y: 112, fontSize: 6.8, maxW: 44 }
+    { label: 'COLOUR', labelX: 148, colonX: 176, valueX: 181, y: 112, fontSize: 6.8, maxW: 56 }
   ],
   middle: [
     { label: 'OWNERNAME', labelX: 6, colonX: 57, valueX: 62, y: 93, fontSize: 6.8, maxW: 175 },
@@ -1218,7 +1224,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    // Embed Live Driver Profile Photo (Tuned X/Y to avoid overlapping dates or top curve)
     if (report.profileImage) {
       try {
         const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1242,7 +1247,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     const cleanDlNo = String(report.dlNo || '').trim();
 
-    // 1. DL Number (Exact original position & bold contrast)
     page.drawText(cleanDlNo, {
       x: leftCardX + (89.0 * S),
       y: cardY + ((CARD_HEIGHT - 35.5) * S),
@@ -1251,7 +1255,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    // 2. Dates (Exact original fontRegular & softTextColor)
     page.drawText(String(report.doi || '').trim(), {
       x: leftCardX + (57.0 * S),
       y: cardY + ((CARD_HEIGHT - 59.5) * S),
@@ -1276,7 +1279,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     }
 
-    // 3. Driver Bio (Exact original fontRegular & light styling)
     page.drawText(String(report.name || '').trim(), {
       x: leftCardX + (28.0 * S),
       y: cardY + ((CARD_HEIGHT - 92.0) * S),
@@ -1313,7 +1315,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: softTextColor
     });
 
-    // 4. Address Lines
     const dlAddrLines = splitAddress(report.address || '', 55);
     dlAddrLines.slice(0, 2).forEach((line, idx) => {
       page.drawText(String(line).trim(), {
@@ -1325,7 +1326,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     });
 
-    // 5. Date of First Issue Rotated (Restored original position & size)
     page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
       x: leftCardX + (238.5 * S),
       y: cardY + (72.0 * S),
@@ -1335,7 +1335,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       rotate: { type: 'degrees', angle: 90 }
     });
 
-    // 6. Back Card Header DL Number (Clean number only to avoid duplicate label)
     page.drawText(cleanDlNo, {
       x: rightCardX + (32.0 * S),
       y: cardY + ((CARD_HEIGHT - 9.0) * S),
@@ -1344,13 +1343,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    // 7. Table Rows (Exact original alignment & fontRegular weights)
     if (report.covList && Array.isArray(report.covList)) {
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
         const rowY = 83.8 + (idx * 11.5);
 
-        // Vector Silhouette Icon in Cell 1
         try {
           const isCar = cov.covType === 'CAR' || String(cov.code).includes('LMV');
           const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
@@ -1367,7 +1364,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           console.warn('Icon draw warning:', e.message);
         }
 
-        // Code
         const codeVal = String(cov.code || '').trim();
         const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
         page.drawText(codeVal, {
@@ -1378,7 +1374,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Issued By
         const issuedVal = String(cov.issuedBy || '').trim();
         const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
         page.drawText(issuedVal, {
@@ -1389,7 +1384,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Date of Issue
         const doiVal = String(cov.doi || '').trim();
         const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
         page.drawText(doiVal, {
@@ -1400,7 +1394,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Category
         const catVal = String(cov.category || 'NT').trim();
         const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
         page.drawText(catVal, {
@@ -1423,7 +1416,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     }
 
-    // Licencing Authority
     const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
     const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
     page.drawText(rtoVal, {
@@ -1678,9 +1670,16 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       if (field.label === 'CLASS' && value) {
         value = String(value).replace(/\s*\(2WN\)\s*/i, '').trim();
       }
+      if (field.label === 'COLOUR' && value) {
+        value = String(value)
+          .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
+          .replace(/METALLIC\s+/i, 'MET. ')
+          .replace(/ELECTRONIC\s+/i, 'E. ')
+          .trim();
+      }
       drawText(field.label, field.labelX, field.y, field.fontSize, 28);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 65);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 56);
     });
 
     fieldLayout.middle.forEach((field) => {
