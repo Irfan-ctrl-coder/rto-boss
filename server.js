@@ -224,6 +224,30 @@ function normalizeDob(dobStr) {
   return str;
 }
 
+// Generate an authentic automated vector signature
+async function generateSignaturePng(fullName) {
+  const cleanName = String(fullName || 'Driver')
+    .toLowerCase()
+    .split(' ')
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+
+  const svg = `
+    <svg width="220" height="90" viewBox="0 0 220 90" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(-6 110 45)">
+        <text x="20" y="44" font-family="'Brush Script MT', 'Segoe Script', 'Great Vibes', cursive, sans-serif" font-size="34" font-style="italic" font-weight="600" fill="#152a68">
+          ${cleanName}
+        </text>
+        <path d="M 16 52 Q 65 60 115 50 T 195 44" fill="none" stroke="#152a68" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 40 57 Q 90 64 140 55" fill="none" stroke="#152a68" stroke-width="1.2" stroke-linecap="round"/>
+      </g>
+    </svg>
+  `;
+
+  return await sharp(Buffer.from(svg)).png().toBuffer();
+}
+
 // =====================================================================
 // LIVE SUREPASS DATA RESOLVER
 // =====================================================================
@@ -1224,6 +1248,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
+    // Embed Live Driver Profile Photo (Tuned rightwards and scaled cleanly to leave room for signature)
     if (report.profileImage) {
       try {
         const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1235,14 +1260,28 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
         const embeddedPhoto = await pdfDoc.embedPng(photoPng);
         page.drawImage(embeddedPhoto, {
-          x: leftCardX + (191.0 * S),
-          y: cardY + ((CARD_HEIGHT - 70.0) * S),
-          width: 36.0 * S,
-          height: 45.0 * S
+          x: leftCardX + (193.5 * S),
+          y: cardY + ((CARD_HEIGHT - 67.0) * S),
+          width: 34.5 * S,
+          height: 43.0 * S
         });
       } catch (photoErr) {
         console.warn('Driver photo embed warning:', photoErr.message);
       }
+    }
+
+    // Draw Automated Cursive Script Signature above "Holder's Signature"
+    try {
+      const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
+      const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
+      page.drawImage(embeddedSig, {
+        x: leftCardX + (187.0 * S),
+        y: cardY + ((CARD_HEIGHT - 85.0) * S),
+        width: 41.0 * S,
+        height: 16.0 * S
+      });
+    } catch (sigErr) {
+      console.warn('Signature generator warning:', sigErr.message);
     }
 
     const cleanDlNo = String(report.dlNo || '').trim();
