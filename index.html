@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RTO Boss — Instant RC &amp; DL Format Utility</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;700;800&amp;display=swap" rel="stylesheet" />
   <script>
     tailwind.config = {
@@ -136,19 +137,19 @@
                   <button type="button" onclick="selectRcTier('2-Wheeler', this)" id="tierBtn2W" class="tier-btn active p-3 rounded-xl border-2 border-brand-primary bg-blue-50/80 text-left transition-all">
                     <div class="text-xl">🛵</div>
                     <div class="text-xs font-bold text-brand-navy mt-1">2-Wheeler</div>
-                    <div class="text-xs font-black text-brand-primary" id="priceLabel2W">₹100</div>
+                    <div class="text-xs font-black text-brand-primary" id="priceLabel2W">₹150</div>
                   </button>
 
                   <button type="button" onclick="selectRcTier('3-Wheeler', this)" id="tierBtn3W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
                     <div class="text-xl">🛺</div>
                     <div class="text-xs font-bold text-slate-700 mt-1">3-Wheeler</div>
-                    <div class="text-xs font-black text-slate-500" id="priceLabel3W">₹300</div>
+                    <div class="text-xs font-black text-slate-500" id="priceLabel3W">₹180</div>
                   </button>
 
                   <button type="button" onclick="selectRcTier('4-Wheeler+', this)" id="tierBtn4W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
                     <div class="text-xl">🚗</div>
                     <div class="text-xs font-bold text-slate-700 mt-1">4-Wheeler+</div>
-                    <div class="text-xs font-black text-slate-500" id="priceLabel4W">₹400</div>
+                    <div class="text-xs font-black text-slate-500" id="priceLabel4W">₹200</div>
                   </button>
                 </div>
               </div>
@@ -209,7 +210,7 @@
             <div class="space-y-2 text-xs">
               <div class="flex justify-between text-slate-600">
                 <span id="summaryItemLabel">2-Wheeler RC Document</span>
-                <span class="font-bold text-slate-900" id="summaryBasePrice">₹100.00</span>
+                <span class="font-bold text-slate-900" id="summaryBasePrice">₹150.00</span>
               </div>
               <div class="flex justify-between text-slate-600">
                 <span>Unified Vector PDF Engine</span>
@@ -223,7 +224,7 @@
 
             <div class="border-t border-slate-100 pt-3 flex justify-between items-baseline">
               <span class="text-xs font-bold text-slate-500 uppercase">Total Payable</span>
-              <span class="text-2xl font-black text-brand-navy" id="summaryTotalPrice">₹100</span>
+              <span class="text-2xl font-black text-brand-navy" id="summaryTotalPrice">₹150</span>
             </div>
 
             <button 
@@ -231,7 +232,7 @@
               onclick="handleProceedClick()"
               class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
               <span>⚡</span>
-              <span id="btnText">Proceed to Format &amp; Download (₹100)</span>
+              <span id="btnText">Proceed to Format &amp; Download (₹150)</span>
             </button>
           </div>
         </div>
@@ -335,7 +336,6 @@
           <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and format records.</p>
         </div>
 
-        <!-- STAGE 1: ENTER MOBILE -->
         <div id="authMobileStage" class="space-y-3 text-left">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Customer Mobile Number</label>
@@ -350,7 +350,6 @@
           </button>
         </div>
 
-        <!-- STAGE 2: ENTER OTP -->
         <div id="authOtpStage" class="hidden space-y-3 text-left">
           <div>
             <div class="flex justify-between items-center mb-1">
@@ -369,61 +368,6 @@
       </div>
     </div>
 
-    <!-- DIRECT IN-PAGE UPI PAYMENT MODAL (AUTO UPI POWERED) -->
-    <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
-          ⚡
-        </div>
-        
-        <div>
-          <h3 class="text-lg font-black text-brand-navy">Instant UPI Payment</h3>
-          <p class="text-xs text-slate-500 mt-0.5">Order ID: <span class="mono font-bold text-slate-800" id="modalOrderId">---</span></p>
-        </div>
-
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-left text-xs space-y-1.5">
-          <div class="flex justify-between text-slate-500">
-            <span>Target Record:</span>
-            <span class="font-bold text-slate-900 mono" id="modalTarget">---</span>
-          </div>
-          <div class="flex justify-between text-slate-500">
-            <span>Payable Amount:</span>
-            <span class="font-black text-brand-primary text-base" id="modalAmount">---</span>
-          </div>
-        </div>
-
-        <!-- HIGH CONTRAST DYNAMIC QR CODE DISPLAY -->
-        <div class="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2">
-          <img id="upiQrImage" src="" alt="Scan & Pay QR" class="w-48 h-48 rounded-lg shadow-sm border border-slate-100 object-contain" />
-          <span class="text-[10px] text-slate-400 font-semibold tracking-wide">Scan with GPay / PhonePe / Paytm</span>
-        </div>
-
-        <!-- DIRECT HOSTED CHECKOUT LINK -->
-        <a 
-          id="upiIntentLink" 
-          href="#" 
-          target="_blank"
-          class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2">
-          <span>📱</span> Pay via UPI Checkout
-        </a>
-
-        <!-- LIVE AUTO-POLLING STATUS BADGE -->
-        <div class="flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-          <span>Awaiting payment confirmation...</span>
-        </div>
-
-        <!-- TESTING SHORTCUT: Simulate Payment -->
-        <button 
-          onclick="simulateInstantSuccess()" 
-          class="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold hover:bg-emerald-100 transition-all w-full">
-          🧪 [Dev Test] Simulate Instant Payment Received
-        </button>
-
-        <button onclick="closePaymentModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel Order</button>
-      </div>
-    </div>
-
     <!-- AGENT MODAL -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
@@ -435,7 +379,6 @@
           <button onclick="closeAgentModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
         </div>
 
-        <!-- AGENT LOGIN VIEW -->
         <div id="agentLoginView" class="space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile or Email</label>
@@ -458,7 +401,6 @@
           </div>
         </div>
 
-        <!-- AGENT REGISTRATION VIEW -->
         <div id="agentRegisterView" class="hidden space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Shop Name</label>
@@ -498,7 +440,6 @@
           </div>
         </div>
 
-        <!-- AGENT HOLD VIEW -->
         <div id="agentHoldView" class="hidden text-center py-4 space-y-3">
           <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
             ⏳
@@ -523,7 +464,6 @@
           <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
         </div>
 
-        <!-- ADMIN LOGIN VIEW -->
         <div id="adminLoginView" class="space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Master Secret Key</label>
@@ -534,7 +474,6 @@
           </button>
         </div>
 
-        <!-- ADMIN DASHBOARD VIEW -->
         <div id="adminDashboardView" class="hidden space-y-4 overflow-y-auto flex-1">
           <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
             <div>
@@ -612,11 +551,7 @@
     let chosenFormat = 'NEW';
     let activeOrderId = null;
     let activeReportData = null;
-    let pendingOnboardingAgentId = null;
-    let currentUpiUrl = '';
-    let paymentPollInterval = null;
 
-    // Idempotency and Loop Guard Flags
     let isCompleted = false;
     let isDownloading = false;
 
@@ -632,7 +567,6 @@
       document.getElementById('view-success-state').classList.add('hidden');
       closeFormatModal();
       closeCustomerModal();
-      closePaymentModal();
       closeAgentModal();
       closeAdminModal();
       closePolicyModal();
@@ -644,7 +578,6 @@
         document.getElementById('view-input-state').classList.remove('hidden');
         isCompleted = false;
         activeOrderId = null;
-        if (paymentPollInterval) clearInterval(paymentPollInterval);
         if (addToHistory) history.pushState({ view: 'search' }, '', '#search');
       }
     }
@@ -672,18 +605,19 @@
       updatePriceUI();
     });
 
+    // Updated Rates: 150 / 180 / 200 (Public), 80 / 120 / 150 (Agent)
     function getRate(tier) {
       if (currentRole === 'ADMIN') return 0;
       if (currentRole === 'AGENT') {
         if (currentService === 'DL') return 80;
-        if (tier === '3-Wheeler') return 240;
-        if (tier === '4-Wheeler+') return 320;
+        if (tier === '3-Wheeler') return 120;
+        if (tier === '4-Wheeler+') return 150;
         return 80;
       }
-      if (currentService === 'DL') return 100;
-      if (tier === '3-Wheeler') return 300;
-      if (tier === '4-Wheeler+') return 400;
-      return 100;
+      if (currentService === 'DL') return 150;
+      if (tier === '3-Wheeler') return 180;
+      if (tier === '4-Wheeler+') return 200;
+      return 150;
     }
 
     function updatePriceUI() {
@@ -900,6 +834,7 @@
       }
     }
 
+    // Razorpay Integration
     async function startOrderCreation() {
       let targetNumber = '';
       let dob = null;
@@ -913,7 +848,7 @@
 
       const payBtn = document.getElementById('payBtn');
       const originalText = document.getElementById('btnText').innerText;
-      document.getElementById('btnText').innerText = 'Generating Order...';
+      document.getElementById('btnText').innerText = 'Initializing Checkout...';
       payBtn.disabled = true;
 
       const headers = { 'Content-Type': 'application/json' };
@@ -940,23 +875,41 @@
 
         if (data.success) {
           activeOrderId = data.orderId;
-          currentUpiUrl = data.paymentUrl;
           isCompleted = false;
 
+          // Free Admin Mode Bypass
           if (data.role === 'ADMIN' || data.amount === 0) {
             await completeOrderWithoutPayment();
             return;
           }
 
-          document.getElementById('modalOrderId').innerText = data.orderId;
-          document.getElementById('modalTarget').innerText = targetNumber;
-          document.getElementById('modalAmount').innerText = '₹' + (data.payableAmount || data.amount);
+          // Launch Razorpay Live Checkout
+          const options = {
+            key: data.keyId,
+            amount: data.amountPaise,
+            currency: data.currency || 'INR',
+            name: 'RTO BOSS',
+            description: `${currentService} Formatting & Vector PDF Download`,
+            order_id: data.orderId,
+            prefill: {
+              contact: verifiedCustomerMobile || ''
+            },
+            theme: {
+              color: '#1D4ED8'
+            },
+            handler: async function (response) {
+              await verifyAndCompleteRazorpayPayment(response);
+            },
+            modal: {
+              ondismiss: function () {
+                console.log('Payment modal dismissed by user.');
+              }
+            }
+          };
 
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
-          document.getElementById('upiIntentLink').href = currentUpiUrl;
+          const rzp = new Razorpay(options);
+          rzp.open();
 
-          document.getElementById('paymentModal').classList.remove('hidden');
-          startPaymentPolling(activeOrderId);
         } else {
           alert(data.error || 'Failed to initialize payment');
         }
@@ -967,42 +920,26 @@
       }
     }
 
-    function startPaymentPolling(orderId) {
-      if (paymentPollInterval) clearInterval(paymentPollInterval);
-
-      paymentPollInterval = setInterval(async () => {
-        if (isCompleted) return;
-        try {
-          const res = await fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId })
-          });
-          const data = await res.json();
-
-          if (data.status === 'SUCCESS' && !isCompleted) {
-            handleOrderSuccess(data);
-          }
-        } catch (err) {
-          console.error("Polling check failed", err);
-        }
-      }, 2000);
-    }
-
-    async function simulateInstantSuccess() {
-      if (!activeOrderId) return;
+    async function verifyAndCompleteRazorpayPayment(response) {
       try {
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: activeOrderId, forceSuccess: true })
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          })
         });
         const data = await res.json();
+
         if (data.status === 'SUCCESS' && !isCompleted) {
           handleOrderSuccess(data);
+        } else {
+          alert(data.error || 'Payment signature could not be verified.');
         }
-      } catch (e) {
-        alert('Simulation failed: ' + e.message);
+      } catch (err) {
+        alert('Payment verification call error: ' + err.message);
       }
     }
 
@@ -1028,17 +965,11 @@
       if (isCompleted) return;
       isCompleted = true;
 
-      if (paymentPollInterval) {
-        clearInterval(paymentPollInterval);
-        paymentPollInterval = null;
-      }
-
-      closePaymentModal();
       activeReportData = data.report;
       
-      document.getElementById('receiptDocNo').innerText = activeReportData.dlNo || activeReportData.regNo || '---';
+      document.getElementById('receiptDocNo').innerText = activeReportData?.dlNo || activeReportData?.regNo || '---';
       document.getElementById('receiptOrderId').innerText = data.orderId;
-      document.getElementById('receiptAmount').innerText = '₹' + (data.payableAmount || data.amount);
+      document.getElementById('receiptAmount').innerText = '₹' + data.amount;
 
       navigateTo('complete');
 
@@ -1128,7 +1059,6 @@
         });
         const d = await res.json();
         if (d.success) {
-          pendingOnboardingAgentId = d.agentId;
           closeAgentModal();
 
           const orderRes = await fetch('/api/create-order', {
@@ -1145,19 +1075,37 @@
           });
           const orderData = await orderRes.json();
 
-          activeOrderId = orderData.orderId;
-          currentUpiUrl = orderData.paymentUrl;
-          isCompleted = false;
+          const options = {
+            key: orderData.keyId,
+            amount: orderData.amountPaise,
+            currency: 'INR',
+            name: 'RTO BOSS PARTNERS',
+            description: 'Agent Verification & Onboarding Fee (₹500)',
+            order_id: orderData.orderId,
+            prefill: {
+              name,
+              email,
+              contact: mobile
+            },
+            theme: { color: '#059669' },
+            handler: async function (response) {
+              const verifyRes = await fetch('/api/verify-payment', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(response)
+              });
+              const verifyData = await verifyRes.json();
+              if (verifyData.status === 'SUCCESS') {
+                openAgentModal();
+                toggleAgentAuthView('hold');
+              } else {
+                alert('Verification error. Contact support.');
+              }
+            }
+          };
 
-          document.getElementById('modalOrderId').innerText = orderData.orderId;
-          document.getElementById('modalTarget').innerText = `Partner: ${name}`;
-          document.getElementById('modalAmount').innerText = '₹' + (orderData.payableAmount || orderData.amount);
-          
-          document.getElementById('upiQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&ecc=M&data=${encodeURIComponent(currentUpiUrl)}`;
-          document.getElementById('upiIntentLink').href = currentUpiUrl;
-
-          document.getElementById('paymentModal').classList.remove('hidden');
-          startPaymentPolling(activeOrderId);
+          const rzp = new Razorpay(options);
+          rzp.open();
         } else {
           alert(d.error || 'Registration failed');
         }
@@ -1330,14 +1278,6 @@
       document.getElementById('formatChooserModal').classList.add('hidden');
     }
 
-    function closePaymentModal() {
-      if (paymentPollInterval) {
-        clearInterval(paymentPollInterval);
-        paymentPollInterval = null;
-      }
-      document.getElementById('paymentModal').classList.add('hidden');
-    }
-
     // In-Page Policy Content
     const policies = {
       about: {
@@ -1354,7 +1294,7 @@
       },
       refund: {
         title: 'Refund & Cancellation Policy',
-        body: '<p>Payment processing covers the automated software formatting engine. If an order encounters an internal server failure and the final vector PDF cannot be rendered or downloaded, an automatic refund is initiated to the source UPI account within 24–48 banking hours. Contact support@rtoboss.in with your Order ID for refund inquiries.</p>'
+        body: '<p>Payment processing covers the automated software formatting engine. If an order encounters an internal server failure and the final vector PDF cannot be rendered or downloaded, an automatic refund is initiated to the source payment method within 24–48 banking hours. Contact support@rtoboss.in with your Order ID for refund inquiries.</p>'
       },
       contact: {
         title: 'Contact Support',
@@ -1373,23 +1313,6 @@
     function closePolicyModal() {
       document.getElementById('policyModal').classList.add('hidden');
     }
-
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && activeOrderId && !isCompleted) {
-        fetch('/api/verify-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: activeOrderId })
-        })
-        .then(r => r.json())
-        .then(data => {
-          if (data.status === 'SUCCESS' && !isCompleted) {
-            handleOrderSuccess(data);
-          }
-        })
-        .catch(console.error);
-      }
-    });
   </script>
 </body>
 </html>
