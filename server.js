@@ -1211,7 +1211,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    // Embed Live Driver Profile Photo if present
+    // Embed Live Driver Profile Photo (Tuned X/Y to avoid overlapping dates or top curve)
     if (report.profileImage) {
       try {
         const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1223,10 +1223,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
         const embeddedPhoto = await pdfDoc.embedPng(photoPng);
         page.drawImage(embeddedPhoto, {
-          x: leftCardX + (177.0 * S),
-          y: cardY + ((CARD_HEIGHT - 65.0) * S),
-          width: 38.0 * S,
-          height: 46.0 * S
+          x: leftCardX + (191.0 * S),
+          y: cardY + ((CARD_HEIGHT - 70.0) * S),
+          width: 36.0 * S,
+          height: 45.0 * S
         });
       } catch (photoErr) {
         console.warn('Driver photo embed warning:', photoErr.message);
