@@ -20,36 +20,35 @@ app.set('trust proxy', 1);
 // =====================================================================
 // SECURITY HEADERS (HELMET WITH RAZORPAY & CDN CSP RULES)
 // =====================================================================
-app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "https://cdn.tailwindcss.com",
-          "https://checkout.razorpay.com"
-        ],
-        styleSrc: [
-          "'self'",
-          "'unsafe-inline'",
-          "https://fonts.googleapis.com"
-        ],
-        fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: [
-          "'self'",
-          "https://lumberjack.razorpay.com",
-          "https://api.razorpay.com",
-          "https://api.msg91.com"
-        ],
-        frameSrc: ["https://api.razorpay.com", "https://checkout.razorpay.com"]
-      }
-    },
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-  })
-);
+// app.use(
+//   helmet({
+//     contentSecurityPolicy: {
+//       directives: {
+//         defaultSrc: ["'self'"],
+//         scriptSrc: [
+//           "'self'",
+//           "'unsafe-inline'",
+//           "https://cdn.tailwindcss.com",
+//           "https://checkout.razorpay.com"
+//         ],
+//         styleSrc: [
+//           "'self'",
+//           "'unsafe-inline'",
+//           "https://fonts.googleapis.com"
+//         ],
+//         fontSrc: ["'self'", "https://fonts.gstatic.com"],
+//         imgSrc: ["'self'", "data:", "https:"],
+//         connectSrc: [
+//           "'self'",
+//           "https://lumberjack.razorpay.com",
+//           "https://api.razorpay.com",
+//           "https://api.msg91.com"
+//         ],
+//         frameSrc: ["https://api.razorpay.com", "https://checkout.razorpay.com"]
+//       }
+//     },
+//     crossOriginResourcePolicy: { policy: "cross-origin" }
+//   })
 
 // PostgreSQL Connection Setup
 const pool = new Pool({
