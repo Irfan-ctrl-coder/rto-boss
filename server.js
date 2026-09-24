@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const crypto = require('crypto');
 const { Pool } = require('pg');
+const Razorpay = require('razorpay');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,15 +26,18 @@ pool.on('error', (err) => {
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
-const MERCHANT_UPI_ID = process.env.MERCHANT_UPI_ID || 'Q486995291@ybl'; 
-const MERCHANT_NAME = 'RTO BOSS';
 
 // =====================================================================
-// AUTO UPI CREDENTIALS
+// RAZORPAY PRODUCTION GATEWAY CONFIG
 // =====================================================================
-const AUTO_UPI_API_KEY = process.env.AUTO_UPI_API_KEY || 'aupi_live_a1a28dc326c24f3c0a49ec4de4a94f109935da85bf178752';
-const AUTO_UPI_WEBHOOK_SECRET = process.env.AUTO_UPI_WEBHOOK_SECRET || 'whsec_13187aee99157fd316487b3a91a467981d8397a50f5da3ee';
-const AUTO_UPI_BASE_URL = 'https://autoupi.in/api/public/v1';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
+
+const razorpay = new Razorpay({
+  key_id: RAZORPAY_KEY_ID,
+  key_secret: RAZORPAY_KEY_SECRET
+});
 
 // =====================================================================
 // SUREPASS PRODUCTION API CONFIG
@@ -237,16 +241,12 @@ async function generateSignaturePng(fullName) {
   const svg = `
     <svg width="240" height="90" viewBox="0 0 240 90" xmlns="http://www.w3.org/2000/svg">
       <g transform="rotate(-6 120 45)">
-        <!-- Primary fluid cursive name loop -->
         <path d="M 25 55 C 22 28, 42 12, 54 26 C 62 38, 52 58, 40 56 C 32 54, 38 42, 58 40 C 78 38, 86 48, 96 42 C 104 36, 108 26, 116 ${loopY} C 124 38, 126 50, 138 44 C 148 38, 154 30, 162 ${midY} C 172 44, 180 34, ${endX} 28" 
               fill="none" stroke="#142a66" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <!-- Secondary baseline connection & sharp ascent -->
         <path d="M 68 46 C 85 48, 102 46, 118 42 C 132 38, 145 42, 158 39" 
               fill="none" stroke="#142a66" stroke-width="1.8" stroke-linecap="round"/>
-        <!-- Freehand underline flourish flourish stroke -->
         <path d="M 22 64 Q 75 74 135 62 T 215 54" 
               fill="none" stroke="#142a66" stroke-width="2.0" stroke-linecap="round"/>
-        <!-- Hairline return loop flourish -->
         <path d="M 52 70 Q 105 76 160 67" 
               fill="none" stroke="#142a66" stroke-width="1.1" stroke-linecap="round"/>
       </g>
@@ -306,13 +306,11 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       const d = json.data;
 
-      // Normalize body_type so 'SOLO WITH PILLION' becomes 'SOLO'
       let normalizedBody = String(d.body_type || 'SEDAN').trim();
       if (/SOLO/i.test(normalizedBody)) {
         normalizedBody = 'SOLO';
       }
 
-      // Normalize long colors so they fit cleanly
       let normalizedColor = String(d.color || '').trim();
       normalizedColor = normalizedColor
         .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
@@ -688,7 +686,7 @@ app.post('/api/agent/register', async (req, res) => {
       [agentId, name, mobile, email, password, address]
     );
 
-    res.json({ success: true, agentId, amount: 500, paymentProvider: 'AUTOUPI', paymentMode: 'UPI' });
+    res.json({ success: true, agentId, amount: 500, paymentProvider: 'RAZORPAY' });
   } catch (err) {
     console.error('Agent Register DB Error:', err);
     res.status(500).json({ error: 'Failed to process registration' });
@@ -907,7 +905,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & PAYMENT
+// ORDER PROCESSING & PAYMENT (RAZORPAY INTEGRATION)
 // =====================================================================
 app.post('/api/create-order', async (req, res) => {
   try {
@@ -916,82 +914,69 @@ app.post('/api/create-order', async (req, res) => {
 
     const role = await resolveRole(authHeader);
 
-    let finalAmount = 100;
-    if (role === 'ADMIN') {
+    // Updated Pricing Structure: 150 / 180 / 200 (Public), 80 / 120 / 150 (Agent)
+    let finalAmount = 150;
+    if (docType === 'AGENT_ONBOARDING') {
+      finalAmount = 500;
+    } else if (role === 'ADMIN') {
       finalAmount = 0;
     } else if (role === 'AGENT') {
       if (docType === 'DL') finalAmount = 80;
-      else if (tier === '3-Wheeler') finalAmount = 240;
-      else if (tier === '4-Wheeler+') finalAmount = 320;
+      else if (tier === '3-Wheeler') finalAmount = 120;
+      else if (tier === '4-Wheeler+') finalAmount = 150;
       else finalAmount = 80;
     } else {
-      if (docType === 'DL') finalAmount = 100;
-      else if (tier === '3-Wheeler') finalAmount = 300;
-      else if (tier === '4-Wheeler+') finalAmount = 400;
-      else finalAmount = 100;
+      if (docType === 'DL') finalAmount = 150;
+      else if (tier === '3-Wheeler') finalAmount = 180;
+      else if (tier === '4-Wheeler+') finalAmount = 200;
+      else finalAmount = 150;
     }
 
-    let localOrderId = 'ORD' + Date.now();
-    let gatewayOrderId = null;
-    let payableAmount = finalAmount;
-    let paymentUrl = null;
-    let fallbackUpiUrl = `upi://pay?pa=${MERCHANT_UPI_ID}&pn=${encodeURIComponent(MERCHANT_NAME)}&am=${finalAmount}&cu=INR&mode=02`;
+    let localOrderId = 'ORD_' + Date.now();
+    let rzpOrderId = null;
 
     if (role !== 'ADMIN' && finalAmount > 0) {
-      try {
-        const payload = {
-          amount: finalAmount,
-          customer_name: customerName || 'Valued Customer',
-          webhook_url: 'https://www.rtoboss.in/api/bank-webhook'
-        };
-
-        const response = await fetch(`${AUTO_UPI_BASE_URL}/create-order`, {
-          method: 'POST',
-          headers: {
-            'X-API-Key': AUTO_UPI_API_KEY,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const data = await response.json();
-
-        if (data.ok === true) {
-          gatewayOrderId = data.order_id;
-          localOrderId = data.order_id;
-          payableAmount = data.payable_amount || finalAmount;
-          paymentUrl = data.payment_url;
-        }
-      } catch (gatewayErr) {
-        console.error('[Auto Upi Connection Error]:', gatewayErr.message);
+      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        return res.status(500).json({ error: 'Razorpay keys not configured on server.' });
       }
+
+      const options = {
+        amount: Math.round(finalAmount * 100), // in paise
+        currency: 'INR',
+        receipt: localOrderId,
+        notes: {
+          docType: docType || 'RC',
+          targetNumber: targetNumber || '',
+          role
+        }
+      };
+
+      const rzpOrder = await razorpay.orders.create(options);
+      rzpOrderId = rzpOrder.id;
     }
 
-    const effectivePaymentUrl = paymentUrl || fallbackUpiUrl;
+    const effectiveOrderId = rzpOrderId || localOrderId;
     const initialStatus = role === 'ADMIN' ? 'SUCCESS' : 'PENDING';
 
     const orderData = {
-      orderId: localOrderId,
-      gatewayOrderId,
+      orderId: effectiveOrderId,
+      rzpOrderId,
       docType,
       targetNumber,
       tier,
       amount: finalAmount,
-      payableAmount,
       role,
       dob: normalizeDob(dob),
       rcFormat: rcFormat || 'OLD',
       status: initialStatus,
-      paymentProvider: 'AUTOUPI',
+      paymentProvider: 'RAZORPAY',
       currency: 'INR',
       customerMobile: customerMobile || '',
-      paymentUrl: effectivePaymentUrl,
-      upiUrl: effectivePaymentUrl,
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
     };
 
-    orders.set(localOrderId, orderData);
+    orders.set(effectiveOrderId, orderData);
 
     try {
       await pool.query(
@@ -999,7 +984,7 @@ app.post('/api/create-order', async (req, res) => {
          VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
          ON CONFLICT (order_id) DO UPDATE 
          SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at`,
-        [localOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, role === 'ADMIN' ? new Date() : null]
+        [effectiveOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, role === 'ADMIN' ? new Date() : null]
       );
     } catch (pgErr) {
       console.warn('[PostgreSQL Order Save Warning]:', pgErr.message);
@@ -1007,28 +992,29 @@ app.post('/api/create-order', async (req, res) => {
 
     res.json({ 
       success: true, 
-      orderId: localOrderId, 
+      orderId: effectiveOrderId, 
       amount: finalAmount, 
-      payableAmount, 
+      amountPaise: Math.round(finalAmount * 100),
+      currency: 'INR',
+      keyId: RAZORPAY_KEY_ID,
       role, 
-      paymentUrl: effectivePaymentUrl,
-      upiUrl: effectivePaymentUrl,
-      paymentProvider: 'AUTOUPI', 
-      paymentMode: 'UPI' 
+      paymentProvider: 'RAZORPAY'
     });
   } catch (err) {
     console.error('Create Order Error:', err);
-    res.status(500).json({ error: 'Failed to create payment order' });
+    res.status(500).json({ error: 'Failed to create payment order: ' + err.message });
   }
 });
 
 app.post('/api/verify-payment', async (req, res) => {
-  const { orderId, forceSuccess } = req.body;
-  let order = orders.get(orderId);
+  const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature, forceSuccess } = req.body;
+  const lookupId = razorpay_order_id || orderId;
+
+  let order = orders.get(lookupId);
 
   if (!order) {
     try {
-      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [lookupId]);
       if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
         const row = dbOrderRes.rows[0];
         order = {
@@ -1040,7 +1026,7 @@ app.post('/api/verify-payment', async (req, res) => {
           paidAt: row.paid_at,
           paymentId: row.utr
         };
-        orders.set(orderId, order);
+        orders.set(lookupId, order);
       }
     } catch (pgOrderErr) {
       console.warn('[PostgreSQL Order Lookup Warning]:', pgOrderErr.message);
@@ -1051,43 +1037,40 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  if (order.status !== 'SUCCESS' && !forceSuccess && order.role !== 'ADMIN') {
-    try {
-      const checkRes = await fetch(`${AUTO_UPI_BASE_URL}/order-status?order_id=${encodeURIComponent(orderId)}`, {
-        method: 'GET',
-        headers: {
-          'X-API-Key': AUTO_UPI_API_KEY
-        }
-      });
-      const checkData = await checkRes.json();
+  // Cryptographic Signature Verification for Live Razorpay
+  if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
+    const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const generatedSig = crypto
+      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .update(textToSign)
+      .digest('hex');
 
-      if (checkData.ok === true && checkData.order?.status === 'paid') {
-        order.status = 'SUCCESS';
-        order.paidAt = new Date(checkData.order.paid_at || Date.now());
-        order.paymentId = checkData.order.order_id || ('AU_' + Date.now());
+    if (generatedSig === razorpay_signature) {
+      order.status = 'SUCCESS';
+      order.paidAt = new Date();
+      order.paymentId = razorpay_payment_id;
 
-        pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
-          'SUCCESS',
-          order.paidAt,
-          order.paymentId,
-          orderId
-        ]).catch(() => {});
-      }
-    } catch (e) {
-      console.error('Auto Upi Check Status Query Failed:', e.message);
+      pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
+        'SUCCESS',
+        order.paidAt,
+        order.paymentId,
+        lookupId
+      ]).catch(() => {});
+    } else {
+      return res.status(400).json({ error: 'Payment signature verification failed.' });
     }
   }
 
-  if (order.role === 'ADMIN' || forceSuccess || order.status === 'SUCCESS') {
+  if (order.role === 'ADMIN' || forceSuccess) {
     order.status = 'SUCCESS';
     order.paidAt = order.paidAt || new Date();
-    order.paymentId = order.paymentId || ('UPI_' + crypto.randomBytes(8).toString('hex'));
+    order.paymentId = order.paymentId || ('RZP_ADM_' + crypto.randomBytes(6).toString('hex'));
 
     pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
       'SUCCESS',
       order.paidAt,
       order.paymentId,
-      orderId
+      lookupId
     ]).catch(() => {});
   }
 
@@ -1095,7 +1078,17 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.json({
       status: 'PENDING',
       orderId: order.orderId,
-      message: 'Awaiting payment confirmation.'
+      message: 'Awaiting payment verification.'
+    });
+  }
+
+  // Handle agent onboarding completion
+  if (order.docType === 'AGENT_ONBOARDING') {
+    return res.json({
+      status: 'SUCCESS',
+      orderId: order.orderId,
+      docType: order.docType,
+      message: 'Agent fee verified successfully.'
     });
   }
 
@@ -1114,10 +1107,9 @@ app.post('/api/verify-payment', async (req, res) => {
     docType: order.docType,
     rcFormat: order.rcFormat || 'OLD',
     amount: order.amount,
-    payableAmount: order.payableAmount,
-    currency: order.currency,
+    currency: order.currency || 'INR',
     role: order.role,
-    paymentProvider: order.paymentProvider,
+    paymentProvider: 'RAZORPAY',
     paymentId: order.paymentId,
     report
   });
@@ -1126,54 +1118,44 @@ app.post('/api/verify-payment', async (req, res) => {
 app.post('/api/bank-webhook', (req, res) => {
   try {
     const rawBody = req.rawBody || JSON.stringify(req.body);
-    const signatureHeader = req.headers['x-autoupi-signature'] || '';
-    const payload = req.body || {};
+    const signature = req.headers['x-razorpay-signature'] || '';
 
-    if (AUTO_UPI_WEBHOOK_SECRET && AUTO_UPI_WEBHOOK_SECRET !== 'whsec_your_secret_here' && signatureHeader) {
-      try {
-        const parts = {};
-        signatureHeader.split(',').forEach(part => {
-          const [k, v] = part.split('=');
-          if (k && v) parts[k.trim()] = v.trim();
-        });
+    if (RAZORPAY_WEBHOOK_SECRET && signature) {
+      const expectedSig = crypto
+        .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+        .update(rawBody)
+        .digest('hex');
 
-        if (parts.t && parts.v1) {
-          const stringToSign = `${parts.t}.${rawBody}`;
-          const expected = crypto.createHmac('sha256', AUTO_UPI_WEBHOOK_SECRET).update(stringToSign).digest('hex');
-
-          const isValid = crypto.timingSafeEqual(Buffer.from(parts.v1), Buffer.from(expected));
-          if (!isValid) {
-            return res.status(401).send('bad signature');
-          }
-        }
-      } catch (sigErr) {
-        console.warn('⚠️ [Webhook Security] Verification parsing error:', sigErr.message);
+      if (expectedSig !== signature) {
+        return res.status(401).send('Bad webhook signature');
       }
     }
 
-    const { event, order_id, status, amount } = payload;
+    const payload = req.body || {};
+    const event = payload.event;
 
-    if (event === 'payment.paid' || status === 'paid') {
-      const targetId = order_id || payload.client_txn_id;
-      if (targetId) {
-        if (orders.has(targetId)) {
-          const matchedOrder = orders.get(targetId);
-          matchedOrder.status = 'SUCCESS';
-          matchedOrder.paidAt = new Date();
-          matchedOrder.paymentId = targetId;
-        }
+    if (event === 'payment.captured' || event === 'order.paid') {
+      const entity = payload.payload?.payment?.entity || payload.payload?.order?.entity;
+      const rzpOrderId = entity?.order_id || entity?.id;
+      const paymentId = entity?.id;
+
+      if (rzpOrderId && orders.has(rzpOrderId)) {
+        const o = orders.get(rzpOrderId);
+        o.status = 'SUCCESS';
+        o.paidAt = new Date();
+        o.paymentId = paymentId;
 
         pool.query('UPDATE orders SET status = $1, paid_at = NOW(), utr = $2 WHERE order_id = $3', [
           'SUCCESS',
-          targetId,
-          targetId
+          paymentId,
+          rzpOrderId
         ]).catch(() => {});
       }
     }
 
-    return res.status(200).send('ok');
+    return res.status(200).json({ status: 'ok' });
   } catch (err) {
-    console.error('Auto Upi Webhook Error:', err);
+    console.error('Razorpay Webhook Error:', err);
     return res.status(500).json({ error: err.message });
   }
 });
@@ -1256,7 +1238,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    // Embed Live Driver Profile Photo (Positioned below the top bar with height 39)
     if (report.profileImage) {
       try {
         const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1278,7 +1259,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       }
     }
 
-    // Draw Pure Vector Spline Signature above "Holder's Signature"
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
