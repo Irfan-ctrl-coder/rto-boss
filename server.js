@@ -18,37 +18,15 @@ const PORT = process.env.PORT || 3000;
 app.set('trust proxy', 1);
 
 // =====================================================================
-// SECURITY HEADERS (HELMET WITH RAZORPAY & CDN CSP RULES)
+// SECURITY HEADERS (SAFE MODE: NO CSP CONFLICTS WITH TAILWIND / RAZORPAY)
 // =====================================================================
-// app.use(
-//   helmet({
-//     contentSecurityPolicy: {
-//       directives: {
-//         defaultSrc: ["'self'"],
-//         scriptSrc: [
-//           "'self'",
-//           "'unsafe-inline'",
-//           "https://cdn.tailwindcss.com",
-//           "https://checkout.razorpay.com"
-//         ],
-//         styleSrc: [
-//           "'self'",
-//           "'unsafe-inline'",
-//           "https://fonts.googleapis.com"
-//         ],
-//         fontSrc: ["'self'", "https://fonts.gstatic.com"],
-//         imgSrc: ["'self'", "data:", "https:"],
-//         connectSrc: [
-//           "'self'",
-//           "https://lumberjack.razorpay.com",
-//           "https://api.razorpay.com",
-//           "https://api.msg91.com"
-//         ],
-//         frameSrc: ["https://api.razorpay.com", "https://checkout.razorpay.com"]
-//       }
-//     },
-//     crossOriginResourcePolicy: { policy: "cross-origin" }
-//   })
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+  })
+);
 
 // PostgreSQL Connection Setup
 const pool = new Pool({
@@ -297,27 +275,25 @@ function normalizeDob(dobStr) {
   return str;
 }
 
-// Generate an authentic hand-drawn cursive vector path signature (Font-independent)
+// Generate an authentic thin horizontal counter-signature (compact & ballpoint pen realistic)
 async function generateSignaturePng(fullName) {
   const seed = String(fullName || 'Driver')
     .split('')
     .reduce((acc, c) => acc + c.charCodeAt(0), 0);
 
-  const loopY = 22 + (seed % 6);
-  const midY = 32 + ((seed * 3) % 8);
-  const endX = 175 + (seed % 20);
+  const wiggle1 = (seed % 4) - 2;
+  const wiggle2 = ((seed * 2) % 5) - 2;
+  const endX = 165 + (seed % 15);
 
   const svg = `
-    <svg width="240" height="90" viewBox="0 0 240 90" xmlns="http://www.w3.org/2000/svg">
-      <g transform="rotate(-6 120 45)">
-        <path d="M 25 55 C 22 28, 42 12, 54 26 C 62 38, 52 58, 40 56 C 32 54, 38 42, 58 40 C 78 38, 86 48, 96 42 C 104 36, 108 26, 116 ${loopY} C 124 38, 126 50, 138 44 C 148 38, 154 30, 162 ${midY} C 172 44, 180 34, ${endX} 28" 
-              fill="none" stroke="#142a66" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M 68 46 C 85 48, 102 46, 118 42 C 132 38, 145 42, 158 39" 
-              fill="none" stroke="#142a66" stroke-width="1.8" stroke-linecap="round"/>
-        <path d="M 22 64 Q 75 74 135 62 T 215 54" 
-              fill="none" stroke="#142a66" stroke-width="2.0" stroke-linecap="round"/>
-        <path d="M 52 70 Q 105 76 160 67" 
-              fill="none" stroke="#142a66" stroke-width="1.1" stroke-linecap="round"/>
+    <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(-2 110 22)">
+        <path d="M 22 28 C 24 16, 32 10, 38 18 C 44 26, 40 32, 48 24 C 54 18, 62 20, 68 ${22 + wiggle1} C 74 24, 82 17, 92 23 C 102 29, 110 19, 118 ${21 + wiggle2} C 126 23, 134 18, 145 22 C 154 26, 160 20, ${endX} 22" 
+              fill="none" stroke="#0e1e38" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 28 32 C 65 34, 110 32, ${endX + 5} 30" 
+              fill="none" stroke="#0e1e38" stroke-width="1.1" stroke-linecap="round"/>
+        <path d="M 50 35 C 80 37, 120 34, 155 33" 
+              fill="none" stroke="#0e1e38" stroke-width="0.8" stroke-linecap="round"/>
       </g>
     </svg>
   `;
@@ -607,16 +583,16 @@ const fieldLayout = {
 };
 
 const newRcFrontLayout = {
-  regNo:         { x: 56.0,  yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 65 },
-  regDate:       { x: 126.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
-  validUpto:     { x: 186.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
-  chassisNo:     { x: 56.7,  yTop: 58.5,  size: 6.5, font: 'regular', maxW: 140 },
-  engineNo:      { x: 56.7,  yTop: 80.0,  size: 6.5, font: 'regular', maxW: 140 },
-  ownerName:     { x: 56.7,  yTop: 96.0,  size: 6.5, font: 'regular', maxW: 140 },
-  swdName:       { x: 56.7,  yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
-  fuel:          { x: 2.5,   yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
-  emissionNorms: { x: 1.0,   yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
-  address:       { x: 56.7,  line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
+  regNo:          { x: 56.0,  yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 65 },
+  regDate:        { x: 126.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
+  validUpto:      { x: 186.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
+  chassisNo:      { x: 56.7,  yTop: 58.5,  size: 6.5, font: 'regular', maxW: 140 },
+  engineNo:       { x: 56.7,  yTop: 80.0,  size: 6.5, font: 'regular', maxW: 140 },
+  ownerName:      { x: 56.7,  yTop: 96.0,  size: 6.5, font: 'regular', maxW: 140 },
+  swdName:        { x: 56.7,  yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
+  fuel:           { x: 2.5,   yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
+  emissionNorms:  { x: 1.0,   yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
+  address:        { x: 56.7,  line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
 };
 
 const newRcBackLayout = {
@@ -1298,7 +1274,7 @@ app.post('/api/bank-webhook', (req, res) => {
 });
 
 // =====================================================================
-// VECTOR PDF BUILDER FUNCTION (PRESERVING EXACT ORIGINAL VISUAL DESIGN)
+// VECTOR PDF BUILDER FUNCTION
 // =====================================================================
 async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const pdfDoc = await PDFDocument.create();
@@ -1396,14 +1372,17 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       }
     }
 
+    // ==========================================
+    // COMPACT REALISTIC COUNTER SIGNATURE
+    // ==========================================
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
       page.drawImage(embeddedSig, {
-        x: leftCardX + (188.0 * S),
-        y: cardY + ((CARD_HEIGHT - 86.5) * S),
-        width: 39.0 * S,
-        height: 14.5 * S
+        x: leftCardX + (191.0 * S),
+        y: cardY + ((CARD_HEIGHT - 80.5) * S),
+        width: 35.0 * S,
+        height: 7.2 * S
       });
     } catch (sigErr) {
       console.warn('Signature generator warning:', sigErr.message);
@@ -1507,10 +1486,13 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
+    // ==========================================
+    // REFINED COV TABLE WITH DYNAMIC AUTO-SCALING
+    // ==========================================
     if (report.covList && Array.isArray(report.covList)) {
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
-        const rowY = 83.8 + (idx * 11.5);
+        const rowY = 82.5 + (idx * 11.0);
 
         try {
           const isCar = cov.covType === 'CAR' || String(cov.code).includes('LMV');
@@ -1519,25 +1501,28 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
           
           page.drawImage(embeddedIcon, {
-            x: rightCardX + (20.0 * S),
-            y: cardY + ((CARD_HEIGHT - (rowY + 1.5)) * S),
-            width: 14.0 * S,
-            height: 7.0 * S
+            x: rightCardX + (20.5 * S),
+            y: cardY + ((CARD_HEIGHT - (rowY + 1.2)) * S),
+            width: 13.5 * S,
+            height: 6.8 * S
           });
         } catch (e) {
           console.warn('Icon draw warning:', e.message);
         }
 
+        // Column 2: Vehicle Code with Dynamic Auto-Scaling (e.g. LMVCAB)
         const codeVal = String(cov.code || '').trim();
-        const codeW = fontRegular.widthOfTextAtSize(codeVal, 5.8 * S);
+        let codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
+        const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
         page.drawText(codeVal, {
-          x: rightCardX + (49.0 * S) - (codeW / 2),
+          x: rightCardX + (47.5 * S) - (codeW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 5.8 * S,
+          size: codeFontSize,
           font: fontRegular,
           color: softTextColor
         });
 
+        // Column 3: Issued By
         const issuedVal = String(cov.issuedBy || '').trim();
         const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
         page.drawText(issuedVal, {
@@ -1548,20 +1533,22 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
+        // Column 4: Date of Issue
         const doiVal = String(cov.doi || '').trim();
         const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
         page.drawText(doiVal, {
-          x: rightCardX + (108.0 * S) - (doiW / 2),
+          x: rightCardX + (107.5 * S) - (doiW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
           size: 4.8 * S,
           font: fontRegular,
           color: softTextColor
         });
 
+        // Column 5: Vehicle Category (Shifted left to center inside cell)
         const catVal = String(cov.category || 'NT').trim();
         const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
         page.drawText(catVal, {
-          x: rightCardX + (144.0 * S) - (catW / 2),
+          x: rightCardX + (137.0 * S) - (catW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
           size: 5.8 * S,
           font: fontRegular,
