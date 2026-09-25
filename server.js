@@ -136,16 +136,16 @@ const STATE_NAMES = {
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
-// Subtle Vector Silhouette SVGs for Table Cell 1
+// Clean Vector Silhouette SVGs for Table Cell 1
 const SVG_ICONS = {
   CAR: Buffer.from(`
-    <svg width="40" height="20" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 14 C4 11 7 10 10 10 L13 5 C14 3 16 3 18 3 L27 3 C29 3 31 5 32 7 L36 10 C38 10 39 12 39 14 L39 15 C39 16 38 16.5 37 16.5 L35.5 16.5 C35.5 15 34 13.5 32 13.5 C30 13.5 28.5 15 28.5 16.5 L15.5 16.5 C15.5 15 14 13.5 12 13.5 C10 13.5 8.5 15 8.5 16.5 L5 16.5 C4 16.5 4 15 4 14 Z M12 17.5 C13 17.5 14 16.5 14 15.5 C14 14.5 13 13.5 12 13.5 C11 13.5 10 14.5 10 15.5 C10 16.5 11 17.5 12 17.5 Z M32 17.5 C33 17.5 34 16.5 34 15.5 C34 14.5 33 13.5 32 13.5 C31 13.5 30 14.5 30 15.5 C30 16.5 31 17.5 32 17.5 Z M14 9 L24 9 L24 5 L17 5 Z M26 9 L33 9 L30 5 L26 5 Z" fill="#0f172a"/>
+    <svg width="60" height="30" viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 21 C6 16.5 10.5 15 15 15 L19.5 7.5 C21 4.5 24 4.5 27 4.5 L40.5 4.5 C43.5 4.5 46.5 7.5 48 10.5 L54 15 C57 15 58.5 18 58.5 21 L58.5 22.5 C58.5 24 57 24.8 55.5 24.8 L53.3 24.8 C53.3 22.5 51 20.3 48 20.3 C45 20.3 42.8 22.5 42.8 24.8 L23.3 24.8 C23.3 22.5 21 20.3 18 20.3 C15 20.3 12.8 22.5 12.8 24.8 L7.5 24.8 C6 24.8 6 22.5 6 21 Z M18 26.3 C19.5 26.3 21 24.8 21 23.3 C21 21.8 19.5 20.3 18 20.3 C16.5 20.3 15 21.8 15 23.3 C15 24.8 16.5 26.3 18 26.3 Z M48 26.3 C49.5 26.3 51 24.8 51 23.3 C51 21.8 49.5 20.3 48 20.3 C46.5 20.3 45 21.8 45 23.3 C45 24.8 46.5 26.3 48 26.3 Z M21 13.5 L36 13.5 L36 7.5 L25.5 7.5 Z M39 13.5 L49.5 13.5 L45 7.5 L39 7.5 Z" fill="#0f172a"/>
     </svg>
   `),
   BIKE: Buffer.from(`
-    <svg width="40" height="20" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 17 C5.5 17 3.5 15 3.5 12.5 C3.5 10 5.5 8 8 8 C9.8 8 11.3 9.1 12 10.7 L16.5 10.7 L15 6 L12 6 L12 4.5 L16.5 4.5 L18 8 L22 8 L24 5 L29 5 L28 6.5 L25 6.5 L23.5 9 L27 10 L28.5 7 L30 7.5 L28.8 10.3 C30.6 11 31.8 12.6 31.8 14.5 C31.8 17 29.8 19 27.3 19 C25 19 23.2 17.4 22.8 15.2 L17.5 14.5 L14.5 15.5 L12.3 14.5 C11.5 16 9.9 17 8 17 Z M8 15 C9.4 15 10.5 13.9 10.5 12.5 C10.5 11.1 9.4 10 8 10 C6.6 10 5.5 11.1 5.5 12.5 C5.5 13.9 6.6 15 8 15 Z M27.3 17.2 C28.8 17.2 30 16 30 14.5 C30 13 28.8 11.8 27.3 11.8 C25.8 11.8 24.6 13 24.6 14.5 C24.6 16 25.8 17.2 27.3 17.2 Z" fill="#0f172a"/>
+    <svg width="60" height="30" viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 25.5 C8.3 25.5 5.3 22.5 5.3 18.8 C5.3 15 8.3 12 12 12 C14.7 12 17 13.7 18 16 L24.8 16 L22.5 9 L18 9 L18 6.8 L24.8 6.8 L27 12 L33 12 L36 7.5 L43.5 7.5 L42 9.8 L37.5 9.8 L35.3 13.5 L40.5 15 L42.8 10.5 L45 11.3 L43.2 15.5 C45.9 16.5 47.7 18.9 47.7 21.8 C47.7 25.5 44.7 28.5 41 28.5 C37.5 28.5 34.8 26.1 34.2 22.8 L26.3 21.8 L21.8 23.3 L18.5 21.8 C17.3 24 14.9 25.5 12 25.5 Z M12 22.5 C14.1 22.5 15.8 20.9 15.8 18.8 C15.8 16.7 14.1 15 12 15 C9.9 15 8.3 16.7 8.3 18.8 C8.3 20.9 9.9 22.5 12 22.5 Z M41 25.8 C43.2 25.8 45 24 45 21.8 C45 19.5 43.2 17.7 41 17.7 C38.7 17.7 36.9 19.5 36.9 21.8 C36.9 24 38.7 25.8 41 25.8 Z" fill="#0f172a"/>
     </svg>
   `)
 };
@@ -1362,15 +1362,15 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       }
     }
 
-    // ==========================================
-    // REFINED DARK COUNTER SIGNATURE (CENTERED)
-    // ==========================================
+    // ========================================================
+    // REFINED DARK COUNTER SIGNATURE (MICROLOWERED UNDER PHOTO)
+    // ========================================================
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
       page.drawImage(embeddedSig, {
         x: leftCardX + (191.0 * S),
-        y: cardY + ((CARD_HEIGHT - 75.2) * S),
+        y: cardY + ((CARD_HEIGHT - 76.2) * S), // Micro-adjusted down 1mm to clear photo edge cleanly
         width: 35.0 * S,
         height: 7.2 * S
       });
@@ -1477,7 +1477,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     });
 
     // ==========================================
-    // REFINED COV TABLE WITH CENTERED ICONS & GRID
+    // REFINED COV TABLE WITH TRANSPARENT ICONS
     // ==========================================
     if (report.covList && Array.isArray(report.covList)) {
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
@@ -1487,15 +1487,19 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         try {
           const isCar = cov.covType === 'CAR' || String(cov.code).includes('LMV');
           const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
-          const iconPng = await sharp(iconBuffer).png().toBuffer();
+          
+          // Render with verified transparent alpha to protect table grid lines
+          const iconPng = await sharp(iconBuffer)
+            .png({ compressionLevel: 9 })
+            .toBuffer();
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
           
-          // Vertically centered inside the row box
+          // Width bounded inside cell without touching column boundary line
           page.drawImage(embeddedIcon, {
-            x: rightCardX + (20.0 * S),
-            y: cardY + ((CARD_HEIGHT - (rowY + 2.8)) * S),
-            width: 14.5 * S,
-            height: 7.4 * S
+            x: rightCardX + (18.5 * S),
+            y: cardY + ((CARD_HEIGHT - (rowY + 2.4)) * S),
+            width: 13.0 * S,
+            height: 6.5 * S
           });
         } catch (e) {
           console.warn('Icon draw warning:', e.message);
@@ -1535,7 +1539,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Column 5: Vehicle Category (Shifted left to center inside cell)
+        // Column 5: Vehicle Category (Centered cleanly)
         const catVal = String(cov.category || 'NT').trim();
         const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
         page.drawText(catVal, {
