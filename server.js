@@ -139,8 +139,8 @@ const STATE_NAMES = {
 // Clean Vector Silhouette SVGs for Table Cell 1 (Guaranteed 100% transparent bounds)
 const SVG_ICONS = {
   CAR: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE4UlEQVR4nN1WfSz9VRi/12so7y95f5kmc41oslgoRWuN0RLuJPI214ShxdBkZMLSuFJiPy4m08yEqKwsRhgWY5WoXC8hrnfubZ+ts53f173ce3+/1Prjs3vPc57zfD/nc855noclkUhY/2Ww/vcExWIxm2nb3d3VFwqFZsD6+vrDR0dHWv+6gouLi07Nzc0xRUVFhYmJifWxsbGfREVFtYaHh3+akZFRWVZWltvT0/Pi1taW8a0rKBAIIv39/b8KDAz8Ii4u7uOwsLAudXX1My8vr/Hk5OQ6Lpd7Jzg4+HNTU9MNEIayt0awoaHhdTMzM2FxcXH+xsaGKWxLS0uPmJiYbHZ2dr6E8fn5uRqUw9je3v6n+Pj4j6RdjftOUCAQRNra2q5UVFRkXVxcqBL7xMTE40ZGRtsjIyNPMdcMDQ094+Dg8GNtbW3KP0qwq6srzNzc/HeQY8719fU9r6ur++fk5KSntLWNjY2v2dnZ/Tw9Pe0uN0FILq/sCMzhcOZw+aWtaW1tjdLT09tbWFh4VNp6qB0ZGSmIjo5u2d/ff0ghgteRPD4+fmB0dPRJXH5c9oODgwcPDw+18UtwenqqAVWNjY235ufnXZBi6Hng5OREE+paWVmtxcTENHd0dLwMDA8PP315eaki84hlEVxbW7Nqa2t7BYo5Ojous1gsCV5qTk7Ou6mpqR8APB6vBsjKyqrw8/P7WkdHR4RUk56eXk3miG9aWtr7sFtYWPyGWAQYY1Ny3UEo09/fH5SXl/dOUFBQv4GBwQ4dTE1N7ZzNZotvgoqKyqUsO4lBx21paYm+liAyf2FhYVFAQMCXzB0CCAyQMZvxAQJVVdULaXamD9kAseEBySR4dnamDvk1NDROZREjQcl/9t+K0L5EIXoj0sBUFLbq6up0mQRxcbW1tQ/pIKgI0gLSQVlSwDxa5jyJS/yI4tnZ2eUyCeL10cfm5uY2AxtUpYnLOlbWDWrhV1NT8wTlD3E9PT0nmfM+Pj7f7u3t6ZFHe1duCg0N7SYLkO1R/FHK8IKxM7JLRQmyKbVTUlJq29vbI+rr6xObmppedXZ2/oGOqaWldTQwMPDcFYLb29tGHh4e3xPnzMzM95KSkvgYI6fV1NTw3N3dp8mxKKMeh8OZ4/P5SahAGKOJKCgoeJv2hcK9vb0vXCGIjO7r6/sNnJBSysvLsw0NDf8gC5H3CGFlweVy76B6kLG+vv5uaWnpm+hyiA01fHZ21vUKQSAkJOQzOCEZ5+bmltHBXV1dZ5ET74Ugj8eroe8dgIRNjhlAyyYSiXSkPpKSkpK3rK2tV5GY0RLRgWBHS4VjBlkcF4fDmcN/JyenRZQt+EgD5tAcoMrY2Nj8QsdNSEj4EMK4uLjMR0REtA8ODj5LV7a7CII5Sg36OfKiCSwtLX9dXl523NzcNCHtvFAoNMN4ZWXFdmxs7Inx8XEvWZiamnoMPugH6bj5+fnFq6ur1igQeL10Lb5CkAYKN50DUV/ReMrT7UhkAOtxhPTj6e7uDpWrm2FiZ2fHgAQD0bq6umR6Z8qS5PP5SWTj3t7e3yF7KEUQmJmZcUOSrqyszKAv7r1AJBLpVFVVvYFkjc77Jv8bA6K/o5VTVj0xYy16S3nWXRtQEbtEQYLy4sag0sb3g6RYTsK3TlCi4Gko/JHbxl+QvfplZc+fyAAAAABJRU5ErkJggg==', 'base64'),
-  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCjo0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64'),
-  CRANE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE9klEQVR4nO1WeUh8VRid0Smp3HKHXNJATcPcCBFDxaVwSXHfHXHJLXHFrQSXNDQT7VeaSmObqSmmFW6hooRIZopLCm6poGlpuaGOzosD3R/P55txqh9NQX98cOfde7977nfOd+5wKIri/JuDI2sA1P8AKelCJBJx2b4LhULe5OTkcxMTE3YyASgSAwyxuLj4dGxsbLO6uvrPfD5f8I8DFIlEXDaABwcHj1dXV2eamZktcDgcChEaGtoqU4qpP6K/v/8FLy+vLwgwVM/a2vq7yMjID2UGUCgU8qampmxAp5aW1k8EnKWl5fcDAwPudXV1r4SEhHwqNcDr62u54+NjRcTJycljiLOzs0f+CrjNzU29vLy8Ch0dnR0CTF5e/ioqKuqD5eVlY6xpaGh4OTAwsINNIrcS9vT0vITbgAZvb+9eHx+fz7EZCRcWFszomykJwE5PTx9tbW0NdXBwGCfAEEpKSkdFRUXFFxcXD5O1jY2N8RERER8xtXsLIGiAHszNzedtbGymrKyspiFkOTm5aySvrKzMuasBhEIhb3p62iosLOwTRUXFYzo4CwuL2c7OTv+rqyt5+npUOCAg4DMCmp77Bq3R0dEtuMnR0ZHS/Py8+e7urvbe3p6mvb39NzjA1dV1CAnFVW12dtYiPj6+UUNDY58OTEFB4Ry5V1ZWnmLuWV1dNYIuUVnCEP3i9xcCjK6u7lZmZmb1+fm5gp+fX1d9fX0i5pycnEZwkL6+/o/r6+tPMg/Z39/XqKmpSafbBgltbe1dUHh5efkQ26WWlpZMUGkejyecmZl5VmyTwM1BZUFBweuoEmhOS0urxZyzs/MwEffg4KAbvvX19b0IjeIi0BnmCCgulytCYKympvYL6IOucQazQmjAoKCgdhTh8PBQFeyRy9zQYEtLSzQS4lAc7uLi8nVycvI7vb293qampj+Qw8vLy/Oxvra2No1ZLQKOCZIE9MdWxbKyskJIAOPh4WFnyOoWwIqKijx6MlSTeQDCw8PjK6wH/RwWYJK+dXd3+7IBbGpqirO1tf12fHzcAaxBMrcozsrKepOtIszDDA0N17a2tnTHxsaeDw4OboPZigOIUFFR+dXX17cbFMMl2ACiecASXpWMjIy3SJffqGBSUtK7dGrYKCLzbW1twUQ/xcXFRZIuZmRktLqxsWEAbdEdgGlRAoGA7+/v34muZm2SlJSUe0yA+K2pqbnn5uY2aGJiskQOxVqyb2RkxAkix2MP76MHDB5NJ+2rA/cQazNMgOT2sB3QAwm4u7sP4DueLfgln88XwPdSU1Pfxn5m4DuYIevQxah4enp6zdzc3DOFhYVl4eHhH+Ny7e3tQczq3qA4JibmfSY9AOHo6DiKsYGBwUZubu4bqqqqh5Io5YgJY2Pj5cTExHpyeYyhYTIPx2Cr6v0BqsQGUFlZ+Tfy29PT80u65XD+RCAX8VMEfDYnJ6dSaoDQUklJyWulpaWv5ufnl6ObsrOzq+gGjAOqqqqy4+LimhISEt4DbZICa8i6rq4uPzs7uwmSS09Pb7O5uTkWdEMCHR0dgRIBsgU0Q3/wYajSCp5iCTQOyQXpoLPZOlpqgPAjvBx4Y2EB29vbT/wdgKOjo44wZHjn0NCQK3OeDeidSbFpbW3NEH9eJSWi7shBxjs7Ozr4EysNOKkASpOEegD7HghAWQRH1gCo/zrA3wHR0IxayjoasgAAAABJRU5ErkJggg==', 'base64')
+  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCj0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64'),
+  CRANE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE9klEQVR4nO1WeUh8VRid0Smp3HKHXNJATcPcCBFDxaVwSXHfHXHJLXHFrQSXNDQT7VeaSmObqSmmFW6hooRIZopLCm6poGlpuaGOzosD3R/P55txqh9NQX98cOfde7977nfOd+5wKIri/JuDI2sA1P8AKelCJBJx2b4LhULe5OTkcxMTE3YyASgSAwyxuLj4dGxsbLO6uvrPfD5f8I8DFIlEXDaABwcHj1dXV2eamZktcDgcChEaGtoqU4qpP6K/v/8FLy+vLwgwVM/a2vq7yMjID2UGUCgU8qampmxAp5aW1k8EnKWl5fcDAwPudXV1r4SEhHwqNcDr62u54+NjRcTJycljiLOzs0f+CrjNzU29vLy8Ch0dnR0CTF5e/ioqKuqD5eVlY6xpaGh4OTAwsINNIrcS9vT0vITbgAZvb+9eHx+fz7EZCRcWFszomykJwE5PTx9tbW0NdXBwGCfAEEpKSkdFRUXFFxcXD5O1jY2N8RERER8xtXsLIGiAHszNzedtbGymrKyspiFkOTm5aySvrKzMuasBhEIhb3p62iosLOwTRUXFYzo4CwuL2c7OTv+rqyt5+npUOCAg4DMCmp77Bq3R0dEtuMnR0ZHS/Py8+e7urvbe3p6mvb39NzjA1dV1CAnFVW12dtYiPj6+UUNDY58OTEFB4Ry5V1ZWnmLuWV1dNYIuUVnCEP3i9xcCjK6u7lZmZmb1+fm5gp+fX1d9fX0i5pycnEZwkL6+/o/r6+tPMg/Z39/XqKmpSafbBgltbe1dUHh5efkQ26WWlpZMUGkejyecmZl5VmyTwM1BZUFBweuoEmhOS0urxZyzs/MwEffg4KAbvvX19b0IjeIi0BnmCCgulytCYKympvYL6IOucQazQmjAoKCgdhTh8PBQFeyRy9zQYEtLSzQS4lAc7uLi8nVycvI7vb293qampj+Qw8vLy/Oxvra2No1ZLQKOCZIE9MdWxbKyskJIAOPh4WFnyOoWwIqKijx6MlSTeQDCw8PjK6wH/RwWYJK+dXd3+7IBbGpqirO1tf12fHzcAaxBMrcozsrKepOtIszDDA0N17a2tnTHxsaeDw4OboPZigOIUFFR+dXX17cbFMMl2ACiecASXpWMjIy3SJffqGBSUtK7dGrYKCLzbW1twUQ/xcXFRZIuZmRktLqxsWEAbdEdgGlRAoGA7+/v34muZm2SlJSUe0yA+K2pqbnn5uY2aGJiskQOxVqyb2RkxAkix2MP76MHDB5NJ+2rA/cQazNMgOT2sB3QAwm4u7sP4DueLfgln88XwPdSU1Pfxn5m4DuYIevQxah4enp6zdzc3DOFhYVl4eHhH+Ny7e3tQczq3qA4JibmfSY9AOHo6DiKsYGBwUZubu4bqqqqh5Io5YgJY2Pj5cTExHpyeYyhYTIPx2Cr6v0BqsQGUFlZ+Tfy29PT80u65XD+RCAX8VMEfDYnJ6dSaoDQUklJyWulpaWv5ufnl6ObsrOzq+gGjAOqqqqy4+LimhISEt4DbZICa8i6rq4uPzs7uwmSS09Pb7O5uTkWdEMCHR0dgRIBsgU0Q3/wYajSCp5iCTQOyQXpoLPZOlpqgPAjvBx4Y2EB29vbT/wdgKOjo44ZHjn0NCQK3OeDeidSbFpbW3NEH9eJSWi7shBxjs7Ozr4EysNOKkASpOEegD7HghAWQRH1gCo/zrA3wHR0IxayjoasgAAAABJRU5ErkJggg==', 'base64')
 };
 
 // Static Mock Vehicle & DL Database
@@ -231,6 +231,10 @@ const mockDatabase = {
     swd: 'KALASAIAH',
     address: 'Javarayyana Beedi Kurupete Kanakapura, Kanakapura Ramanagar Karnataka 562117',
     firstIssueDate: '12-04-2014',
+    adpVehNo: '',
+    hazardousValidity: '',
+    hillValidity: '',
+    profileImage: '',
     adpVehNo: '',
     hazardousValidity: '',
     hillValidity: '',
@@ -927,6 +931,13 @@ app.post('/api/admin/update-agent-status', async (req, res) => {
   }
 });
 
+// =====================================================================
+// ADMIN DIRECT DOWNLOAD
+// PERFORMANCE FIX:
+// The admin order INSERT is now non-blocking. PDF generation starts
+// immediately after the report is available instead of waiting for the
+// database INSERT to finish.
+// =====================================================================
 app.post('/api/admin/direct-download', async (req, res) => {
   const token = req.headers['authorization'];
   if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
@@ -935,28 +946,44 @@ app.post('/api/admin/direct-download', async (req, res) => {
 
   try {
     const { docType, targetNumber, dob, rcFormat } = req.body;
+
     if (!targetNumber) {
       return res.status(400).json({ error: 'Target reference number is required' });
     }
 
+    // 1. Fetch/enrich the report exactly as before
     const report = await getVehicleOrDlRecord(docType, targetNumber, dob);
+
     if (!report) {
       return res.status(404).json({ error: 'Record not found in live databases.' });
     }
 
+    // 2. Start database logging WITHOUT making the browser wait for it
     const adminOrderId = 'ADM_' + Date.now();
-    await pool.query(
+
+    pool.query(
       `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at)
        VALUES ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW())`,
       [adminOrderId, docType, targetNumber]
-    ).catch(() => {});
+    ).catch((dbErr) => {
+      console.warn('[Admin Direct Order Save Warning]:', dbErr.message);
+    });
 
-    const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
+    // 3. Generate PDF immediately
+    const pdfBuffer = await generateVectorPdfBuffer(
+      docType,
+      rcFormat || 'OLD',
+      report
+    );
 
-    const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
+    const fileName = docType === 'DL'
+      ? `DL_${report.dlNo || targetNumber}.pdf`
+      : `RC_${report.regNo || targetNumber}.pdf`;
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
     res.send(pdfBuffer);
+
   } catch (err) {
     console.error('Admin Direct Download Error:', err);
     res.status(500).json({ error: 'PDF generation failed: ' + err.message });
@@ -1355,9 +1382,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       }
     }
 
-    // ========================================================
-    // REFINED DARK COUNTER SIGNATURE (MICROLOWERED UNDER PHOTO)
-    // ========================================================
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
@@ -1388,6 +1412,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       font: fontRegular,
       color: softTextColor
     });
+
     page.drawText(String(report.validUptoNT || '').trim(), {
       x: leftCardX + (101.0 * S),
       y: cardY + ((CARD_HEIGHT - 59.5) * S),
@@ -1395,6 +1420,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       font: fontRegular,
       color: softTextColor
     });
+
     if (report.validUptoTR) {
       page.drawText(String(report.validUptoTR).trim(), {
         x: leftCardX + (152.0 * S),
@@ -1412,6 +1438,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       font: fontRegular,
       color: softTextColor
     });
+
     page.drawText(String(report.dob || '').trim(), {
       x: leftCardX + (47.0 * S),
       y: cardY + ((CARD_HEIGHT - 111.2) * S),
@@ -1419,6 +1446,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       font: fontRegular,
       color: softTextColor
     });
+
     page.drawText(String(report.bloodGroup || '').trim(), {
       x: leftCardX + (148.0 * S),
       y: cardY + ((CARD_HEIGHT - 111.2) * S),
@@ -1426,6 +1454,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       font: fontRegular,
       color: softTextColor
     });
+
     page.drawText(String(report.organDonor || 'N').trim(), {
       x: leftCardX + (222.0 * S),
       y: cardY + ((CARD_HEIGHT - 111.2) * S),
@@ -1433,6 +1462,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       font: fontRegular,
       color: softTextColor
     });
+
     page.drawText(String(report.swd || '').trim(), {
       x: leftCardX + (79.0 * S),
       y: cardY + ((CARD_HEIGHT - 122.5) * S),
@@ -1469,14 +1499,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    // ==========================================
-    // REFINED COV TABLE WITH CLEAN GRID BOUNDS
-    // ==========================================
     if (report.covList && Array.isArray(report.covList)) {
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
         const rowPitch = 11.0;
-        // Adjusted base from 82.5 to 83.6 so Row 1 drops down away from the blue header
         const rowY = 83.6 + (idx * rowPitch);
 
         try {
@@ -1484,15 +1510,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const isCrane = codeUpper.includes('CRANE');
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
           const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
-          
-          // Render PNG with explicit transparent alpha
+
           const iconPng = await sharp(iconBuffer)
             .ensureAlpha()
             .png()
             .toBuffer();
+
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
-          
-          // Width bounded inside cell (11.5) so it never touches or masks the divider line
+
           page.drawImage(embeddedIcon, {
             x: rightCardX + (18.0 * S),
             y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
@@ -1503,10 +1528,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           console.warn('Icon draw warning:', e.message);
         }
 
-        // Column 2: Vehicle Code with Dynamic Auto-Scaling (e.g. LMVCAB)
         const codeVal = String(cov.code || '').trim();
         let codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
         const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
+
         page.drawText(codeVal, {
           x: rightCardX + (47.5 * S) - (codeW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
@@ -1515,9 +1540,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Column 3: Issued By
         const issuedVal = String(cov.issuedBy || '').trim();
         const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+
         page.drawText(issuedVal, {
           x: rightCardX + (73.0 * S) - (issuedW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
@@ -1526,9 +1551,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Column 4: Date of Issue
         const doiVal = String(cov.doi || '').trim();
         const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+
         page.drawText(doiVal, {
           x: rightCardX + (107.5 * S) - (doiW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
@@ -1537,9 +1562,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
 
-        // Column 5: Vehicle Category (Centered cleanly)
         const catVal = String(cov.category || 'NT').trim();
         const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+
         page.drawText(catVal, {
           x: rightCardX + (137.0 * S) - (catW / 2),
           y: cardY + ((CARD_HEIGHT - rowY) * S),
@@ -1562,6 +1587,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
     const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+
     page.drawText(rtoVal, {
       x: rightCardX + ((236.0 * S) - rtoWidth),
       y: cardY + ((CARD_HEIGHT - 149.5) * S),
@@ -1582,14 +1608,22 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
 
     const frontPath = getTemplatePath(frontCandidates);
+
     if (frontPath) {
       const maskedFrontPng = await sharp(frontPath)
         .resize(1040, 655)
         .composite([{ input: roundedMask, blend: 'dest-in' }])
         .png()
         .toBuffer();
+
       const frontImg = await pdfDoc.embedPng(maskedFrontPng);
-      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+
+      page.drawImage(frontImg, {
+        x: leftCardX,
+        y: cardY,
+        width: cardW,
+        height: cardH
+      });
     }
 
     const backCandidates = isKA 
@@ -1597,23 +1631,37 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
 
     const backPath = getTemplatePath(backCandidates);
+
     if (backPath) {
       const maskedBackPng = await sharp(backPath)
         .resize(1040, 655)
         .composite([{ input: roundedMask, blend: 'dest-in' }])
         .png()
         .toBuffer();
+
       const backImg = await pdfDoc.embedPng(maskedBackPng);
-      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+
+      page.drawImage(backImg, {
+        x: rightCardX,
+        y: cardY,
+        width: cardW,
+        height: cardH
+      });
     }
 
     if (!isKA) {
       const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
       let subTitleSize = 5.6 * S;
-      while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+
+      while (
+        subTitleSize > 4.0 * S &&
+        fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S
+      ) {
         subTitleSize -= 0.2;
       }
+
       const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+
       page.drawText(subTitleText, {
         x: leftCardX + ((cardW - subTitleWidth) / 2),
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
@@ -1639,14 +1687,17 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     Object.entries(newRcFrontLayout).forEach(([key, cfg]) => {
       const val = frontData[key] || '';
       if (!val) return;
+
       const font = cfg.font === 'bold' ? fontBold : fontRegular;
       const textColor = cfg.font === 'bold' ? boldColor : softTextColor;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
         const lines = splitAddress(val, 55);
+
         lines.slice(0, cfg.maxLines).forEach((line, idx) => {
           const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
+
           page.drawText(String(line).trim(), {
             x: leftCardX + (posX * S),
             y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
@@ -1657,9 +1708,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         });
       } else {
         let fontSize = cfg.size * S;
-        while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
+
+        while (
+          fontSize > 4.0 * S &&
+          font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S
+        ) {
           fontSize -= 0.2;
         }
+
         page.drawText(String(val).trim(), {
           x: leftCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
@@ -1694,16 +1750,22 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     Object.entries(newRcBackLayout).forEach(([key, cfg]) => {
       const val = backData[key] || '';
       if (!val) return;
+
       const font = cfg.font === 'bold' ? fontBold : fontRegular;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       let fontSize = cfg.size * S;
-      while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
+
+      while (
+        fontSize > 4.0 * S &&
+        font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S
+      ) {
         fontSize -= 0.2;
       }
 
       if (cfg.rightAnchor) {
         const textWidth = font.widthOfTextAtSize(String(val), fontSize);
+
         page.drawText(String(val).trim(), {
           x: rightCardX + ((cfg.x * S) - textWidth),
           y: cardY + (baselineY * S),
@@ -1724,6 +1786,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
   } else {
     const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
+
     if (fs.existsSync(frontImgPath)) {
       const roundedFrontPng = await sharp(frontImgPath)
         .resize(1040, 655)
@@ -1732,6 +1795,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         .toBuffer();
 
       const frontImg = await pdfDoc.embedPng(roundedFrontPng);
+
       page.drawImage(frontImg, {
         x: leftCardX,
         y: cardY,
@@ -1750,11 +1814,17 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawText(text, x, y, size, maxWidth = 170) {
       if (!text) return;
+
       let fontSize = size * S;
       let displayText = String(text).trim();
-      while (fontSize > 4.0 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
+
+      while (
+        fontSize > 4.0 * S &&
+        fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S
+      ) {
         fontSize -= 0.2;
       }
+
       page.drawText(displayText, {
         x: rightCardX + (x * S),
         y: cardY + (y * S),
@@ -1766,6 +1836,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawTextRightAnchor(text, rightAnchorX, y, size) {
       if (!text) return;
+
       const fontSize = size * S;
       const displayText = String(text).trim();
       const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
@@ -1782,6 +1853,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawTextCenter(text, y, size) {
       if (!text) return;
+
       const fontSize = size * S;
       const displayText = String(text).trim();
       const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
@@ -1797,23 +1869,47 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     const fullRegNoText = `REG NO : ${report.regNo || ''}`;
-    drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
-    drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
-    drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
+
+    drawTextCenter(
+      fullRegNoText,
+      fieldLayout.header.regNoY,
+      fieldLayout.header.regNoFontSize
+    );
+
+    drawTextRightAnchor(
+      fieldLayout.header.form.label,
+      fieldLayout.header.form.rightAnchorX,
+      fieldLayout.header.form.y,
+      fieldLayout.header.form.fontSize
+    );
+
+    drawTextRightAnchor(
+      fieldLayout.header.formNote.label,
+      fieldLayout.header.formNote.rightAnchorX,
+      fieldLayout.header.formNote.y,
+      fieldLayout.header.formNote.fontSize
+    );
 
     fieldLayout.topLeft.forEach((field) => {
       const value = report[getFieldKey(field.label)];
+
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
+
+      if (field.isDot) {
+        drawText('.', field.dotX, field.y, field.fontSize, 5);
+      }
+
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 95);
     });
 
     fieldLayout.topRight.forEach((field) => {
       let value = report[getFieldKey(field.label)];
+
       if (field.label === 'CLASS' && value) {
         value = String(value).replace(/\s*\(2WN\)\s*/i, '').trim();
       }
+
       if (field.label === 'COLOUR' && value) {
         value = String(value)
           .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
@@ -1821,6 +1917,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           .replace(/ELECTRONIC\s+/i, 'E. ')
           .trim();
       }
+
       drawText(field.label, field.labelX, field.y, field.fontSize, 28);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 56);
@@ -1828,11 +1925,13 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.middle.forEach((field) => {
       const value = report[getFieldKey(field.label)];
+
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
 
       if (field.multiLine && value) {
         const lines = splitAddress(value, 44);
+
         lines.slice(0, field.maxLines).forEach((line, idx) => {
           const lineY = field.y - (idx * field.lineHeight);
           drawText(line, field.valueX, lineY, field.fontSize, 175);
@@ -1844,9 +1943,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.bottomLeft.forEach((field) => {
       let value = report[getFieldKey(field.label)];
+
       if (field.label === 'BODY' && value && /SOLO/i.test(String(value))) {
         value = 'SOLO';
       }
+
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
@@ -1854,14 +1955,30 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.bottomRight.forEach((field) => {
       const value = report[getFieldKey(field.label)];
+
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
+
+      if (field.isDot) {
+        drawText('.', field.dotX, field.y, field.fontSize, 5);
+      }
+
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, 35);
     });
 
-    drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
-    drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
+    drawTextRightAnchor(
+      fieldLayout.footer.authority.label,
+      fieldLayout.footer.authority.rightAnchorX,
+      fieldLayout.footer.authority.y,
+      fieldLayout.footer.authority.fontSize
+    );
+
+    drawTextRightAnchor(
+      report.rto || 'RTO OFFICE',
+      fieldLayout.footer.rto.rightAnchorX,
+      fieldLayout.footer.rto.y,
+      fieldLayout.footer.rto.fontSize
+    );
   }
 
   const roundedSvg = Buffer.from(`
@@ -1873,26 +1990,46 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
   const borderImg = await pdfDoc.embedPng(borderPngBuffer);
 
-  page.drawImage(borderImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
-  page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+  page.drawImage(borderImg, {
+    x: leftCardX,
+    y: cardY,
+    width: cardW,
+    height: cardH
+  });
+
+  page.drawImage(borderImg, {
+    x: rightCardX,
+    y: cardY,
+    width: cardW,
+    height: cardH
+  });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 }
 
-// Public Download Route
+// =====================================================================
+// PUBLIC DOWNLOAD ROUTE
+// =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
     const { orderId } = req.body;
+
     if (!orderId) {
       return res.status(400).json({ error: 'Order ID is required' });
     }
 
     let order = orders.get(orderId);
+
     if (!order) {
-      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+      const dbOrderRes = await pool.query(
+        'SELECT * FROM orders WHERE order_id = $1',
+        [orderId]
+      );
+
       if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
         const row = dbOrderRes.rows[0];
+
         order = {
           orderId: row.order_id,
           docType: row.doc_type,
@@ -1907,24 +2044,46 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     }
 
     if (order.status !== 'SUCCESS') {
-      return res.status(403).json({ error: 'Payment has not been verified for this order.' });
+      return res.status(403).json({
+        error: 'Payment has not been verified for this order.'
+      });
     }
 
-    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
+    const report = await getVehicleOrDlRecord(
+      order.docType,
+      order.targetNumber,
+      order.dob
+    );
+
     if (!report) {
-      return res.status(404).json({ error: 'Record could not be retrieved.' });
+      return res.status(404).json({
+        error: 'Record could not be retrieved.'
+      });
     }
 
-    const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
+    const pdfBuffer = await generateVectorPdfBuffer(
+      order.docType,
+      order.rcFormat || 'OLD',
+      report
+    );
 
-    const fileName = order.docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
+    const fileName = order.docType === 'DL'
+      ? `DL_${report.dlNo || 'Document'}.pdf`
+      : `RC_${report.regNo || 'Document'}.pdf`;
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${fileName}`
+    );
+
     res.send(pdfBuffer);
 
   } catch (err) {
     console.error('PDF Generation Error:', err);
-    res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    res.status(500).json({
+      error: 'Failed to generate PDF: ' + err.message
+    });
   }
 });
 
@@ -1953,6 +2112,7 @@ function getFieldKey(label) {
     'STDG/SLPR': 'stdgSlpr',
     'CC': 'cubicCap'
   };
+
   return map[label] || label.toLowerCase();
 }
 
