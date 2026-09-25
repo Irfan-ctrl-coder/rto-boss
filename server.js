@@ -91,7 +91,6 @@ app.use(express.static(__dirname));
 // =====================================================================
 // RATE LIMITING PROTECTION TIERS
 // =====================================================================
-// 1. General traffic limiter (prevents aggressive crawling)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 300,
@@ -101,7 +100,6 @@ const generalLimiter = rateLimit({
 });
 app.use('/api/', generalLimiter);
 
-// 2. Strict OTP request limiter (prevents SMS balance draining)
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 5,
@@ -110,7 +108,6 @@ const otpLimiter = rateLimit({
   message: { error: 'Too many verification code attempts from this connection. Please wait 10 minutes.' }
 });
 
-// 3. Order creation limiter (prevents card/order spamming)
 const orderLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   limit: 10,
@@ -143,17 +140,17 @@ const STATE_NAMES = {
 const SVG_ICONS = {
   CAR: Buffer.from(`
     <svg width="40" height="20" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
-      <path d="M4 14 C4 11 7 10 10 10 L13 5 C14 3 16 3 18 3 L27 3 C29 3 31 5 32 7 L36 10 C38 10 39 12 39 14 L39 15 C39 16 38 16.5 37 16.5 L35.5 16.5 C35.5 15 34 13.5 32 13.5 C30 13.5 28.5 15 28.5 16.5 L15.5 16.5 C15.5 15 14 13.5 12 13.5 C10 13.5 8.5 15 8.5 16.5 L5 16.5 C4 16.5 4 15 4 14 Z M12 17.5 C13 17.5 14 16.5 14 15.5 C14 14.5 13 13.5 12 13.5 C11 13.5 10 14.5 10 15.5 C10 16.5 11 17.5 12 17.5 Z M32 17.5 C33 17.5 34 16.5 34 15.5 C34 14.5 33 13.5 32 13.5 C31 13.5 30 14.5 30 15.5 C30 16.5 31 17.5 32 17.5 Z M14 9 L24 9 L24 5 L17 5 Z M26 9 L33 9 L30 5 L26 5 Z" fill="#141c2b"/>
+      <path d="M4 14 C4 11 7 10 10 10 L13 5 C14 3 16 3 18 3 L27 3 C29 3 31 5 32 7 L36 10 C38 10 39 12 39 14 L39 15 C39 16 38 16.5 37 16.5 L35.5 16.5 C35.5 15 34 13.5 32 13.5 C30 13.5 28.5 15 28.5 16.5 L15.5 16.5 C15.5 15 14 13.5 12 13.5 C10 13.5 8.5 15 8.5 16.5 L5 16.5 C4 16.5 4 15 4 14 Z M12 17.5 C13 17.5 14 16.5 14 15.5 C14 14.5 13 13.5 12 13.5 C11 13.5 10 14.5 10 15.5 C10 16.5 11 17.5 12 17.5 Z M32 17.5 C33 17.5 34 16.5 34 15.5 C34 14.5 33 13.5 32 13.5 C31 13.5 30 14.5 30 15.5 C30 16.5 31 17.5 32 17.5 Z M14 9 L24 9 L24 5 L17 5 Z M26 9 L33 9 L30 5 L26 5 Z" fill="#0f172a"/>
     </svg>
   `),
   BIKE: Buffer.from(`
     <svg width="40" height="20" viewBox="0 0 40 20" xmlns="http://www.w3.org/2000/svg">
-      <path d="M8 17 C5.5 17 3.5 15 3.5 12.5 C3.5 10 5.5 8 8 8 C9.8 8 11.3 9.1 12 10.7 L16.5 10.7 L15 6 L12 6 L12 4.5 L16.5 4.5 L18 8 L22 8 L24 5 L29 5 L28 6.5 L25 6.5 L23.5 9 L27 10 L28.5 7 L30 7.5 L28.8 10.3 C30.6 11 31.8 12.6 31.8 14.5 C31.8 17 29.8 19 27.3 19 C25 19 23.2 17.4 22.8 15.2 L17.5 14.5 L14.5 15.5 L12.3 14.5 C11.5 16 9.9 17 8 17 Z M8 15 C9.4 15 10.5 13.9 10.5 12.5 C10.5 11.1 9.4 10 8 10 C6.6 10 5.5 11.1 5.5 12.5 C5.5 13.9 6.6 15 8 15 Z M27.3 17.2 C28.8 17.2 30 16 30 14.5 C30 13 28.8 11.8 27.3 11.8 C25.8 11.8 24.6 13 24.6 14.5 C24.6 16 25.8 17.2 27.3 17.2 Z" fill="#141c2b"/>
+      <path d="M8 17 C5.5 17 3.5 15 3.5 12.5 C3.5 10 5.5 8 8 8 C9.8 8 11.3 9.1 12 10.7 L16.5 10.7 L15 6 L12 6 L12 4.5 L16.5 4.5 L18 8 L22 8 L24 5 L29 5 L28 6.5 L25 6.5 L23.5 9 L27 10 L28.5 7 L30 7.5 L28.8 10.3 C30.6 11 31.8 12.6 31.8 14.5 C31.8 17 29.8 19 27.3 19 C25 19 23.2 17.4 22.8 15.2 L17.5 14.5 L14.5 15.5 L12.3 14.5 C11.5 16 9.9 17 8 17 Z M8 15 C9.4 15 10.5 13.9 10.5 12.5 C10.5 11.1 9.4 10 8 10 C6.6 10 5.5 11.1 5.5 12.5 C5.5 13.9 6.6 15 8 15 Z M27.3 17.2 C28.8 17.2 30 16 30 14.5 C30 13 28.8 11.8 27.3 11.8 C25.8 11.8 24.6 13 24.6 14.5 C24.6 16 25.8 17.2 27.3 17.2 Z" fill="#0f172a"/>
     </svg>
   `)
 };
 
-// Static Mock Vehicle & DL Database (Zero API-Cost Local Tests)
+// Static Mock Vehicle & DL Database
 const mockDatabase = {
   'KA40EF5093': {
     regNo: 'KA40EF5093',
@@ -275,7 +272,7 @@ function normalizeDob(dobStr) {
   return str;
 }
 
-// Generate an authentic thin horizontal counter-signature (compact & ballpoint pen realistic)
+// Generate dark authentic cursive vector counter signature
 async function generateSignaturePng(fullName) {
   const seed = String(fullName || 'Driver')
     .split('')
@@ -283,17 +280,17 @@ async function generateSignaturePng(fullName) {
 
   const wiggle1 = (seed % 4) - 2;
   const wiggle2 = ((seed * 2) % 5) - 2;
-  const endX = 165 + (seed % 15);
+  const endX = 168 + (seed % 15);
 
   const svg = `
     <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg">
       <g transform="rotate(-2 110 22)">
         <path d="M 22 28 C 24 16, 32 10, 38 18 C 44 26, 40 32, 48 24 C 54 18, 62 20, 68 ${22 + wiggle1} C 74 24, 82 17, 92 23 C 102 29, 110 19, 118 ${21 + wiggle2} C 126 23, 134 18, 145 22 C 154 26, 160 20, ${endX} 22" 
-              fill="none" stroke="#0e1e38" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+              fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M 28 32 C 65 34, 110 32, ${endX + 5} 30" 
-              fill="none" stroke="#0e1e38" stroke-width="1.1" stroke-linecap="round"/>
+              fill="none" stroke="#050c1a" stroke-width="1.5" stroke-linecap="round"/>
         <path d="M 50 35 C 80 37, 120 34, 155 33" 
-              fill="none" stroke="#0e1e38" stroke-width="0.8" stroke-linecap="round"/>
+              fill="none" stroke="#050c1a" stroke-width="1.1" stroke-linecap="round"/>
       </g>
     </svg>
   `;
@@ -302,7 +299,7 @@ async function generateSignaturePng(fullName) {
 }
 
 // =====================================================================
-// LIVE SUREPASS DATA RESOLVER (WITH SILENT RETRY SAFEGUARD)
+// LIVE SUREPASS DATA RESOLVER
 // =====================================================================
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
@@ -345,7 +342,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       let json = await resp.json();
 
-      // Silent retry once on server timeout
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
         console.warn(`[Upstream Timeout] Retrying RC ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
@@ -440,7 +436,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       let json = await resp.json();
 
-      // Silent retry once on server timeout
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
         console.warn(`[Upstream Timeout] Retrying DL ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
@@ -633,7 +628,7 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET (RATE-LIMITED)
+// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET
 // =====================================================================
 app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
   const { mobile } = req.body;
@@ -748,7 +743,7 @@ app.post('/api/customer/verify-otp', async (req, res) => {
 });
 
 // =====================================================================
-// AGENT ROUTES (DATABASE BACKED)
+// AGENT ROUTES
 // =====================================================================
 app.post('/api/agent/register', async (req, res) => {
   try {
@@ -988,7 +983,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & PAYMENT (RAZORPAY INTEGRATION - RATE-LIMITED)
+// ORDER PROCESSING & PAYMENT (RAZORPAY INTEGRATION)
 // =====================================================================
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
@@ -997,7 +992,6 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
 
     const role = await resolveRole(authHeader);
 
-    // Pricing Structure: 150 / 180 / 200 (Public), 80 / 120 / 150 (Agent)
     let finalAmount = 150;
     if (docType === 'AGENT_ONBOARDING') {
       finalAmount = 500;
@@ -1024,7 +1018,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
       }
 
       const options = {
-        amount: Math.round(finalAmount * 100), // in paise
+        amount: Math.round(finalAmount * 100),
         currency: 'INR',
         receipt: localOrderId,
         notes: {
@@ -1120,7 +1114,6 @@ app.post('/api/verify-payment', async (req, res) => {
     return res.status(404).json({ error: 'Order not found' });
   }
 
-  // Cryptographic Signature Verification for Live Razorpay
   if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
     const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
     const generatedSig = crypto
@@ -1165,7 +1158,6 @@ app.post('/api/verify-payment', async (req, res) => {
     });
   }
 
-  // Handle agent onboarding completion
   if (order.docType === 'AGENT_ONBOARDING') {
     return res.json({
       status: 'SUCCESS',
@@ -1175,10 +1167,8 @@ app.post('/api/verify-payment', async (req, res) => {
     });
   }
 
-  // Fetch Document Data
   const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
 
-  // AUTOMATED INSTANT REFUND ON LOOKUP FAILURE
   if (!report) {
     let refundId = null;
 
@@ -1186,7 +1176,7 @@ app.post('/api/verify-payment', async (req, res) => {
       try {
         console.warn(`[Auto-Refund] Triggering instant refund for ${order.paymentId}...`);
         const refund = await razorpay.payments.refund(order.paymentId, {
-          amount: Math.round(order.amount * 100), // in paise
+          amount: Math.round(order.amount * 100),
           speed: 'optimum',
           notes: {
             reason: 'Data retrieval server slow',
@@ -1373,14 +1363,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     // ==========================================
-    // COMPACT REALISTIC COUNTER SIGNATURE
+    // REFINED DARK COUNTER SIGNATURE (CENTERED)
     // ==========================================
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
       page.drawImage(embeddedSig, {
         x: leftCardX + (191.0 * S),
-        y: cardY + ((CARD_HEIGHT - 80.5) * S),
+        y: cardY + ((CARD_HEIGHT - 75.2) * S),
         width: 35.0 * S,
         height: 7.2 * S
       });
@@ -1487,7 +1477,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     });
 
     // ==========================================
-    // REFINED COV TABLE WITH DYNAMIC AUTO-SCALING
+    // REFINED COV TABLE WITH CENTERED ICONS & GRID
     // ==========================================
     if (report.covList && Array.isArray(report.covList)) {
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
@@ -1500,11 +1490,12 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const iconPng = await sharp(iconBuffer).png().toBuffer();
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
           
+          // Vertically centered inside the row box
           page.drawImage(embeddedIcon, {
-            x: rightCardX + (20.5 * S),
-            y: cardY + ((CARD_HEIGHT - (rowY + 1.2)) * S),
-            width: 13.5 * S,
-            height: 6.8 * S
+            x: rightCardX + (20.0 * S),
+            y: cardY + ((CARD_HEIGHT - (rowY + 2.8)) * S),
+            width: 14.5 * S,
+            height: 7.4 * S
           });
         } catch (e) {
           console.warn('Icon draw warning:', e.message);
