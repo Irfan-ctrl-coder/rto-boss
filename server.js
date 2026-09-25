@@ -136,7 +136,7 @@ const STATE_NAMES = {
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
-// Clean Vector Silhouette SVGs for Table Cell 1
+// Clean Vector Silhouette SVGs for Table Cell 1 (Guaranteed 100% transparent bounds)
 const SVG_ICONS = {
   CAR: Buffer.from(`
     <svg width="60" height="30" viewBox="0 0 60 30" xmlns="http://www.w3.org/2000/svg">
@@ -1370,7 +1370,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
       page.drawImage(embeddedSig, {
         x: leftCardX + (191.0 * S),
-        y: cardY + ((CARD_HEIGHT - 76.2) * S), // Micro-adjusted down 1mm to clear photo edge cleanly
+        y: cardY + ((CARD_HEIGHT - 76.2) * S),
         width: 35.0 * S,
         height: 7.2 * S
       });
@@ -1477,29 +1477,32 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     });
 
     // ==========================================
-    // REFINED COV TABLE WITH TRANSPARENT ICONS
+    // REFINED COV TABLE WITH CLEAN GRID BOUNDS
     // ==========================================
     if (report.covList && Array.isArray(report.covList)) {
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
-        const rowY = 82.5 + (idx * 11.0);
+        const rowPitch = 11.0;
+        // Adjusted base from 82.5 to 83.6 so Row 1 drops down away from the blue header
+        const rowY = 83.6 + (idx * rowPitch);
 
         try {
           const isCar = cov.covType === 'CAR' || String(cov.code).includes('LMV');
           const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
           
-          // Render with verified transparent alpha to protect table grid lines
+          // Render PNG with explicit transparent alpha
           const iconPng = await sharp(iconBuffer)
-            .png({ compressionLevel: 9 })
+            .ensureAlpha()
+            .png()
             .toBuffer();
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
           
-          // Width bounded inside cell without touching column boundary line
+          // Width bounded inside cell (11.5) so it never touches or masks the divider line
           page.drawImage(embeddedIcon, {
-            x: rightCardX + (18.5 * S),
-            y: cardY + ((CARD_HEIGHT - (rowY + 2.4)) * S),
-            width: 13.0 * S,
-            height: 6.5 * S
+            x: rightCardX + (18.0 * S),
+            y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
+            width: 11.5 * S,
+            height: 5.8 * S
           });
         } catch (e) {
           console.warn('Icon draw warning:', e.message);
