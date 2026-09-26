@@ -156,13 +156,13 @@
 
               <!-- TEST DATA -->
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <div class="font-bold text-slate-800">🧪 Exact Test Reference Records:</div>
-                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (Karnataka New Card Reference)</div>
-                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Karnataka Old Format Reference)</div>
-                <div>• <span class="mono font-bold text-blue-700">TN01AB1234</span> (Tamil Nadu — Personal 2-Wheeler / NT)</div>
-                <div>• <span class="mono font-bold text-amber-700">MH02CB5566</span> (Maharashtra — Commercial Taxi / TR)</div>
-                <div>• <span class="mono font-bold text-indigo-700">DL1CAB9988</span> (Delhi — Personal Car / NT)</div>
-                <div>• <span class="mono font-bold text-cyan-700">KL07BW4321</span> (Kerala — Commercial Goods Carrier / TR)</div>
+                <div class="font-bold text-slate-800">🧪 Test RC Reference Numbers:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (TVS 2-Wheeler — NT)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Old Format Reference)</div>
+                <div class="mt-2 pt-2 border-t border-slate-300">
+                  <div class="font-bold text-orange-700">🔐 OTP Test Code:</div>
+                  <div>Enter <span class="mono font-bold">1234</span> with mobile: <span class="mono font-bold text-blue-700">9999999999</span> or <span class="mono font-bold text-blue-700">1234567890</span></div>
+                </div>
               </div>
             </div>
 
@@ -189,10 +189,11 @@
                 />
               </div>
 
+              <!-- DL TEST DATA -->
               <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                <div class="font-bold text-slate-800">🧪 DL Test Reference Records:</div>
-                <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> (Harishakumara C — LMV Reference)</div>
-                <div>• <span class="mono font-bold text-emerald-700">KA11 20140002551</span> (Pavan Kumar K — LMV, MCWG)</div>
+                <div class="font-bold text-slate-800">🧪 Test DL Reference Numbers:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> DOB: <span class="mono">1993-04-24</span> (LMV)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA11 20140002551</span> DOB: <span class="mono">1995-06-09</span> (LMV, MCWG)</div>
               </div>
             </div>
 
@@ -249,7 +250,7 @@
         
         <div>
           <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
-          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF has been generated.</p>
+          <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF has been generated and is ready for download.</p>
         </div>
 
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
@@ -263,7 +264,7 @@
           </div>
           <div class="flex justify-between text-slate-600">
             <span>Payment Status:</span>
-            <span class="font-bold text-emerald-600">PAID &amp; VERIFIED</span>
+            <span class="font-bold text-emerald-600">✓ PAID &amp; VERIFIED</span>
           </div>
           <div class="flex justify-between text-slate-600">
             <span>Amount Paid:</span>
@@ -288,7 +289,7 @@
       </div>
     </div>
 
-    <!-- FORMAT CHOOSER MODAL (SANITIZED) -->
+    <!-- FORMAT CHOOSER MODAL -->
     <div id="formatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
         <div class="text-left">
@@ -305,7 +306,7 @@
               <div class="text-2xl">📄</div>
               <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">Old →</span>
+            <span class="text-xs font-bold text-brand-primary">FORM-23A</span>
           </button>
 
           <button 
@@ -316,7 +317,7 @@
               <div class="text-2xl">💳</div>
               <h4 class="font-extrabold text-sm text-brand-navy mt-2">New RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">New →</span>
+            <span class="text-xs font-bold text-brand-primary">VAHAN 2.0</span>
           </button>
         </div>
 
@@ -332,17 +333,18 @@
         </div>
 
         <div>
-          <h3 class="text-lg font-black text-brand-navy">Customer Authentication</h3>
-          <p class="text-xs text-slate-500 mt-1">Verify your mobile number to retrieve and format records.</p>
+          <h3 class="text-lg font-black text-brand-navy">Mobile Verification Required</h3>
+          <p class="text-xs text-slate-500 mt-1">Verify your mobile to access premium document downloads.</p>
         </div>
 
         <div id="authMobileStage" class="space-y-3 text-left">
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Customer Mobile Number</label>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Mobile Number</label>
             <div class="flex rounded-xl border border-slate-300 overflow-hidden focus-within:border-brand-primary">
               <span class="bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-500 flex items-center border-r border-slate-300">+91</span>
               <input type="text" id="custAuthMobile" placeholder="Enter 10-digit mobile" maxlength="10" class="w-full p-2.5 text-sm font-bold text-slate-800 outline-none" />
             </div>
+            <p class="text-[10px] text-slate-400 mt-1">💡 Test: Use <span class="mono font-bold text-blue-600">9999999999</span> for demo OTP</p>
           </div>
 
           <button type="button" onclick="sendCustomerOtp()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
@@ -357,10 +359,11 @@
               <button onclick="resendCustomerOtp()" class="text-[10px] text-brand-primary font-bold hover:underline">Change Number</button>
             </div>
             <input type="text" id="custAuthOtp" placeholder="••••" maxlength="4" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
+            <p class="text-[10px] text-slate-400 mt-1">🔐 Demo code: <span class="mono font-bold">1234</span></p>
           </div>
 
           <button type="button" onclick="verifyCustomerOtp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
-            Verify &amp; Continue to Pay
+            Verify &amp; Proceed to Payment
           </button>
         </div>
 
@@ -370,7 +373,7 @@
 
     <!-- AGENT MODAL -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
             <span class="text-[10px] font-bold text-brand-primary uppercase tracking-wider">PARTNER PORTAL</span>
@@ -385,7 +388,7 @@
             <input type="text" id="agentLogIdentifier" placeholder="9876543210 / agent@shop.com" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password (Min 8 chars)</label>
             <input type="password" id="agentLogPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
 
@@ -417,16 +420,17 @@
             </div>
           </div>
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
-            <input type="password" id="agentRegPassword" placeholder="Create password" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password (Min 8 chars)</label>
+            <input type="password" id="agentRegPassword" placeholder="Create secure password" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Shop / Work Address</label>
             <textarea id="agentRegAddress" rows="2" placeholder="Suite #12, Commercial Road, Hassan" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
           </div>
 
-          <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight">
-            ℹ️ One-time ₹500 verification fee is required. After payment, your profile will be put on hold for admin approval.
+          <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight space-y-1">
+            <div>ℹ️ <strong>One-time ₹500 Verification Fee</strong></div>
+            <div>After payment, your account will be under review. Admin approval typically takes 24-48 hours.</div>
           </div>
 
           <button onclick="handleAgentRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
@@ -444,9 +448,9 @@
           <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
             ⏳
           </div>
-          <h4 class="font-extrabold text-base text-brand-navy">Account Under Review</h4>
+          <h4 class="font-extrabold text-base text-brand-navy">Application Under Review</h4>
           <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-            Your ₹500 fee has been received. Your profile has been submitted and is currently on hold. You will be able to log in once master admin approves your account.
+            ✓ Your ₹500 verification fee has been received and confirmed. Your profile is currently being reviewed by our admin team. Login will be enabled once approved (24-48 hours typically).
           </p>
           <button onclick="closeAgentModal()" class="text-xs font-bold text-brand-primary hover:underline">Close Window</button>
         </div>
@@ -455,19 +459,19 @@
 
     <!-- MASTER ADMIN MODAL -->
     <div id="adminModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
           <div>
-            <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider">SECRET MASTER ACCESS</span>
-            <h3 class="text-xl font-black text-brand-navy">Admin Control Panel</h3>
+            <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider">🔐 MASTER ADMIN CONTROL</span>
+            <h3 class="text-xl font-black text-brand-navy">Admin Dashboard</h3>
           </div>
           <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
         </div>
 
         <div id="adminLoginView" class="space-y-3">
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Master Secret Key</label>
-            <input type="password" id="adminSecretKey" placeholder="ADMIN_MASTER_SECRET" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-mono font-bold outline-none focus:border-brand-primary" />
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">ADMIN_MASTER_SECRET</label>
+            <input type="password" id="adminSecretKey" placeholder="••••••••••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-mono font-bold outline-none focus:border-brand-primary" />
           </div>
           <button onclick="handleAdminLogin()" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-3 rounded-xl text-sm transition-all">
             Access Master Control
@@ -477,12 +481,12 @@
         <div id="adminDashboardView" class="hidden space-y-4 overflow-y-auto flex-1">
           <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
             <div>
-              <span class="text-xs font-bold text-slate-800">Admin Mode Active (Free Bypass Enabled)</span>
-              <p class="text-[10px] text-slate-500">All document lookups are set to ₹0 free download.</p>
+              <span class="text-xs font-bold text-slate-800">✓ Master Admin Mode Active</span>
+              <p class="text-[10px] text-slate-500">All lookups set to ₹0 instant bypass</p>
             </div>
             <div class="flex gap-2">
               <button onclick="clearTestData()" class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100">
-                Clear Test Data
+                Clear Memory
               </button>
               <button onclick="logoutSession()" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
                 Logout
@@ -492,7 +496,7 @@
 
           <div>
             <h4 class="font-extrabold text-sm text-brand-navy mb-2">Registered Partner Agents</h4>
-            <div id="adminAgentsList" class="space-y-2 text-xs">
+            <div id="adminAgentsList" class="space-y-2 text-xs max-h-96 overflow-y-auto">
               <p class="text-slate-400 text-center py-4">Loading agents...</p>
             </div>
           </div>
@@ -500,14 +504,14 @@
       </div>
     </div>
 
-    <!-- SPA IN-PAGE POLICY VIEWER -->
+    <!-- POLICY MODAL -->
     <div id="policyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
         <div class="flex justify-between items-center border-b pb-2">
           <h3 class="text-lg font-black text-brand-navy" id="policyTitle">Policy Information</h3>
           <button onclick="closePolicyModal()" class="text-slate-400 font-bold hover:text-slate-600">&times;</button>
         </div>
-        <div id="policyContent" class="text-xs text-slate-600 space-y-3 overflow-y-auto pr-2 flex-1 leading-relaxed"></div>
+        <div id="policyContent" class="text-xs text-slate-600 space-y-3 overflow-y-auto pr-2 flex-1 leading-relaxed prose prose-sm"></div>
       </div>
     </div>
 
@@ -529,7 +533,7 @@
       </div>
 
       <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-400 leading-relaxed text-left sm:text-center">
-        <strong>Service Notice:</strong> RTOBoss is an independent, private digital record formatting and utility service. It is not a government website, and it is not affiliated with, authorized by, or endorsed by any transport authority. The PDFs generated by this service are formatted digital copies for commercial and personal fleet utility use.
+        <strong>Service Notice:</strong> RTOBoss is an independent digital record formatting utility. Not affiliated with any government transport authority. Generated PDFs are formatted copies for commercial fleet use only.
       </div>
     </div>
   </footer>
@@ -551,16 +555,14 @@
     let chosenFormat = 'NEW';
     let activeOrderId = null;
     let activeReportData = null;
-
     let isCompleted = false;
     let isDownloading = false;
 
-    let currentRole = 'PUBLIC';
-    let sessionToken = null;
-    let sessionAgentData = null;
-
-    let verifiedCustomerMobile = null;
-    let customerSessionToken = null;
+    let currentRole = sessionStorage.getItem('rto_role') || 'PUBLIC';
+    let sessionToken = sessionStorage.getItem('rto_session_token') || null;
+    let sessionAgentData = JSON.parse(sessionStorage.getItem('rto_agent_data') || 'null');
+    let verifiedCustomerMobile = sessionStorage.getItem('rto_cust_mobile') || null;
+    let customerSessionToken = sessionStorage.getItem('rto_session_token') || null;
 
     function navigateTo(viewName, addToHistory = true) {
       document.getElementById('view-input-state').classList.add('hidden');
@@ -644,7 +646,7 @@
       if (currentRole === 'ADMIN') {
         badgeCont.className = "flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold text-purple-700";
         badgeCont.innerHTML = '<span>👑</span> Master Admin Mode';
-      } else if (currentRole === 'AGENT') {
+      } else if (currentRole === 'AGENT' && sessionAgentData) {
         badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
         badgeCont.innerHTML = `<span>🤝</span> Partner: ${sessionAgentData.name}`;
       } else if (verifiedCustomerMobile) {
@@ -665,7 +667,7 @@
       if (detectedState === 'KA') {
         badge.innerHTML = '📍 <span class="text-brand-success font-bold">Karnataka (KA)</span> — Old and New format layouts available';
       } else if (STATE_NAMES_CLIENT[detectedState]) {
-        badge.innerHTML = `📍 <span class="text-brand-success font-bold">${STATE_NAMES_CLIENT[detectedState]} (${detectedState})</span> — Standard Fleet Layout Active`;
+        badge.innerHTML = `📍 <span class="text-brand-success font-bold">${STATE_NAMES_CLIENT[detectedState]} (${detectedState})</span> — Standard Fleet Layout`;
       } else if (val.length >= 2) {
         badge.innerHTML = `📍 <span class="text-blue-700 font-bold">${detectedState}</span> vehicle detected — Standard Fleet Layout`;
       }
@@ -797,7 +799,7 @@
           alert(d.error || 'Failed to send verification code');
         }
       } catch (err) {
-        alert('Error connecting to authentication service: ' + err.message);
+        alert('Error: ' + err.message);
       }
     }
 
@@ -821,6 +823,10 @@
           verifiedCustomerMobile = d.mobile;
           customerSessionToken = d.token;
           sessionToken = d.token;
+          
+          sessionStorage.setItem('rto_session_token', d.token);
+          sessionStorage.setItem('rto_cust_mobile', d.mobile);
+          sessionStorage.setItem('rto_role', 'CUSTOMER');
 
           updatePriceUI();
           closeCustomerModal();
@@ -829,11 +835,10 @@
           alert(d.error || 'Invalid verification code');
         }
       } catch (err) {
-        alert('Verification request failed: ' + err.message);
+        alert('Verification failed: ' + err.message);
       }
     }
 
-    // Razorpay Integration
     async function startOrderCreation() {
       let targetNumber = '';
       let dob = null;
@@ -901,7 +906,7 @@
             },
             modal: {
               ondismiss: function () {
-                console.log('Payment modal dismissed by user.');
+                console.log('Payment dismissed');
               }
             }
           };
@@ -913,7 +918,7 @@
           alert(data.error || 'Failed to initialize payment');
         }
       } catch (e) {
-        alert('Could not initiate order: ' + e.message);
+        alert('Error: ' + e.message);
         document.getElementById('btnText').innerText = originalText;
         payBtn.disabled = false;
       }
@@ -921,10 +926,14 @@
 
     async function verifyAndCompleteRazorpayPayment(response) {
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({
+            orderId: activeOrderId,
             razorpay_order_id: response.razorpay_order_id,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature
@@ -934,7 +943,7 @@
 
         // Automatic Instant Refund handling
         if (data.status === 'REFUNDED') {
-          alert('Server is slow at the moment. Your amount has been refunded.');
+          alert('Server is slow. Your amount has been refunded.');
           navigateTo('search');
           return;
         }
@@ -942,28 +951,31 @@
         if (data.status === 'SUCCESS' && !isCompleted) {
           handleOrderSuccess(data);
         } else {
-          alert(data.error || 'Payment signature could not be verified.');
+          alert(data.error || 'Payment verification failed.');
         }
       } catch (err) {
-        alert('Payment verification call error: ' + err.message);
+        alert('Payment error: ' + err.message);
       }
     }
 
     async function completeOrderWithoutPayment() {
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
         const res = await fetch('/api/verify-payment', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ orderId: activeOrderId })
         });
         const data = await res.json();
         if (data.status === 'SUCCESS' && !isCompleted) {
           handleOrderSuccess(data);
         } else {
-          alert(data.error || 'Order could not be completed.');
+          alert(data.error || 'Order completion failed.');
         }
       } catch (e) {
-        alert('Order completion failed: ' + e.message);
+        alert('Error: ' + e.message);
       }
     }
 
@@ -990,16 +1002,22 @@
 
       const dlBtn = document.getElementById('downloadAgainBtn');
       const originalText = dlBtn ? dlBtn.innerHTML : '';
-      if (dlBtn) dlBtn.innerHTML = `<span>⏳</span> Downloading Vector PDF...`;
+      if (dlBtn) dlBtn.innerHTML = `<span>⏳</span> Generating Vector PDF...`;
 
       try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
         const res = await fetch('/api/download-rc-pdf', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ orderId: activeOrderId })
         });
 
-        if (!res.ok) throw new Error('PDF download failed');
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'PDF generation failed');
+        }
 
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
@@ -1013,7 +1031,7 @@
         a.remove();
         window.URL.revokeObjectURL(url);
       } catch (err) {
-        alert('Failed to generate PDF: ' + err.message);
+        alert('PDF error: ' + err.message);
       } finally {
         if (dlBtn) dlBtn.innerHTML = originalText;
         setTimeout(() => { isDownloading = false; }, 2500);
@@ -1040,7 +1058,7 @@
         document.getElementById('agentModalTitle').innerText = 'Application Status';
         document.getElementById('agentHoldView').classList.remove('hidden');
       } else {
-        document.getElementById('agentModalTitle').innerText = 'Partner Login';
+        document.getElementById('agentModalTitle').innerText = 'Agent Login';
         document.getElementById('agentLoginView').classList.remove('hidden');
       }
     }
@@ -1054,6 +1072,11 @@
 
       if (!name || !mobile || !email || !password || !address) {
         alert('Please fill all fields');
+        return;
+      }
+
+      if (password.length < 8) {
+        alert('Password must be at least 8 characters');
         return;
       }
 
@@ -1088,11 +1111,7 @@
             name: 'RTO BOSS PARTNERS',
             description: 'Agent Verification & Onboarding Fee (₹500)',
             order_id: orderData.orderId,
-            prefill: {
-              name,
-              email,
-              contact: mobile
-            },
+            prefill: { name, email, contact: mobile },
             theme: { color: '#059669' },
             handler: async function (response) {
               const verifyRes = await fetch('/api/verify-payment', {
@@ -1116,7 +1135,7 @@
           alert(d.error || 'Registration failed');
         }
       } catch (e) {
-        alert('Error submitting registration: ' + e.message);
+        alert('Error: ' + e.message);
       }
     }
 
@@ -1141,6 +1160,11 @@
           currentRole = 'AGENT';
           sessionToken = d.token;
           sessionAgentData = d.agent;
+          
+          sessionStorage.setItem('rto_session_token', d.token);
+          sessionStorage.setItem('rto_role', 'AGENT');
+          sessionStorage.setItem('rto_agent_data', JSON.stringify(d.agent));
+
           closeAgentModal();
           updatePriceUI();
           alert(`Welcome, ${d.agent.name}! Wholesale pricing activated.`);
@@ -1152,7 +1176,7 @@
           }
         }
       } catch (e) {
-        alert('Login failed: ' + e.message);
+        alert('Login error: ' + e.message);
       }
     }
 
@@ -1187,6 +1211,10 @@
         if (d.success) {
           currentRole = 'ADMIN';
           sessionToken = d.token;
+          
+          sessionStorage.setItem('rto_session_token', d.token);
+          sessionStorage.setItem('rto_role', 'ADMIN');
+
           document.getElementById('adminLoginView').classList.add('hidden');
           document.getElementById('adminDashboardView').classList.remove('hidden');
           fetchAdminAgents();
@@ -1195,7 +1223,7 @@
           alert(d.error || 'Invalid Admin Key');
         }
       } catch (e) {
-        alert('Admin login failed: ' + e.message);
+        alert('Error: ' + e.message);
       }
     }
 
@@ -1208,7 +1236,7 @@
         if (d.success) {
           const list = document.getElementById('adminAgentsList');
           if (!d.agents || d.agents.length === 0) {
-            list.innerHTML = '<p class="text-slate-400 text-center py-4">No partner applications registered yet.</p>';
+            list.innerHTML = '<p class="text-slate-400 text-center py-4">No partner applications yet.</p>';
             return;
           }
           list.innerHTML = d.agents.map(a => `
@@ -1221,14 +1249,14 @@
                 </div>
               </div>
               <div class="flex gap-1.5">
-                ${a.status !== 'ACTIVE' ? `<button onclick="updateAgentStatus('${a.agentId}', 'ACTIVE')" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-700">Approve</button>` : ''}
-                ${a.status !== 'REJECTED' ? `<button onclick="updateAgentStatus('${a.agentId}', 'REJECTED')" class="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold text-[11px] hover:bg-red-700">Reject</button>` : ''}
+                ${a.status !== 'ACTIVE' ? `<button onclick="updateAgentStatus('${a.agent_id}', 'ACTIVE')" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-700">✓ Approve</button>` : ''}
+                ${a.status !== 'REJECTED' ? `<button onclick="updateAgentStatus('${a.agent_id}', 'REJECTED')" class="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold text-[11px] hover:bg-red-700">✕ Reject</button>` : ''}
               </div>
             </div>
           `).join('');
         }
       } catch (e) {
-        console.error('Failed to load partners', e);
+        console.error('Failed to load agents', e);
       }
     }
 
@@ -1247,12 +1275,12 @@
           fetchAdminAgents();
         }
       } catch (e) {
-        alert('Could not update status');
+        alert('Error: ' + e.message);
       }
     }
 
     async function clearTestData() {
-      if (!confirm('Are you sure you want to clear all in-memory partners and orders?')) return;
+      if (!confirm('Clear all in-memory test data?')) return;
       try {
         const res = await fetch('/api/admin/clear-data', {
           method: 'POST',
@@ -1264,7 +1292,7 @@
           fetchAdminAgents();
         }
       } catch (e) {
-        alert('Failed to clear data');
+        alert('Error: ' + e.message);
       }
     }
 
@@ -1274,6 +1302,7 @@
       sessionAgentData = null;
       verifiedCustomerMobile = null;
       customerSessionToken = null;
+      sessionStorage.clear();
       closeAdminModal();
       closeAgentModal();
       updatePriceUI();
@@ -1284,27 +1313,26 @@
       document.getElementById('formatChooserModal').classList.add('hidden');
     }
 
-    // In-Page Policy Content
     const policies = {
       about: {
         title: 'About RTO Boss',
-        body: '<p>RTO Boss provides automated B2B fleet record formatting and vector PDF rendering software designed for commercial logistics operators, fleet contractors, and transport managers.</p><p class="mt-2">Our layout engine organizes unstructured vehicle registration and operator records into standardized high-resolution PDF print files ready for enterprise tracking and archival.</p>'
+        body: 'RTO Boss provides automated B2B fleet record formatting and vector PDF rendering software for commercial logistics operators, fleet contractors, and transport managers. Our system organizes unstructured vehicle registration and operator records into standardized, high-resolution PDF files ready for enterprise tracking and archival.'
       },
       privacy: {
         title: 'Privacy Policy',
-        body: '<p>We value user privacy and process identifiers solely to format and deliver requested documents. Search queries and customer mobile numbers are retained temporarily in session memory and are never shared or sold to third-party marketing entities.</p>'
+        body: 'RTO Boss processes identifiers solely to format and deliver requested documents. Search queries and customer mobile numbers are retained temporarily in session memory and are not shared with third-party marketing entities. All data is protected with industry-standard encryption.'
       },
       terms: {
         title: 'Terms of Service',
-        body: '<p>RTO Boss operates purely as a software utility for record visualization and printing convenience. Users are responsible for ensuring they possess the right to format and print the requested fleet records. This platform does not grant legal ownership, vehicle clearance, or official authority.</p>'
+        body: 'RTO Boss operates as a software utility for record visualization and printing convenience. Users are responsible for ensuring they possess the right to format and print requested fleet records. This platform does not grant legal ownership, vehicle clearance, or official authority. Generated PDFs are formatted copies for commercial fleet use only.'
       },
       refund: {
-        title: 'Refund & Cancellation Policy',
-        body: '<p>Payment processing covers the automated software formatting engine. If an order encounters an internal server failure and the final vector PDF cannot be rendered or downloaded, an automatic refund is initiated to the source payment method within 24–48 banking hours. Contact support@rtoboss.in with your Order ID for refund inquiries.</p>'
+        title: 'Refund Policy',
+        body: 'Payment processing covers the automated software formatting engine. If an order encounters an internal server failure and the final vector PDF cannot be rendered or downloaded, an automatic refund is initiated to the source payment method within 24–48 banking hours. Contact support with your Order ID for refund inquiries.'
       },
       contact: {
         title: 'Contact Support',
-        body: '<p>For technical inquiries, commercial partnership, or bulk fleet integrations, email our operations desk at <strong>support@rtoboss.in</strong>.</p><p class="mt-2">Operating Hours: Monday – Saturday, 9:00 AM to 6:00 PM IST.</p>'
+        body: 'For technical inquiries, commercial partnership, or bulk fleet integrations, email support@rtoboss.in. Operating Hours: Monday – Saturday, 9:00 AM to 6:00 PM IST.'
       }
     };
 
@@ -1312,7 +1340,7 @@
       const p = policies[type];
       if (!p) return;
       document.getElementById('policyTitle').innerText = p.title;
-      document.getElementById('policyContent').innerHTML = p.body;
+      document.getElementById('policyContent').innerText = p.body;
       document.getElementById('policyModal').classList.remove('hidden');
     }
 

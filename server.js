@@ -6,10 +6,12 @@ const fs = require('fs');
 const sharp = require('sharp');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
 const crypto = require('crypto');
+const { promisify } = require('util');
 const { Pool } = require('pg');
 const Razorpay = require('razorpay');
-const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
+
+const scryptAsync = promisify(crypto.scrypt);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,20 +19,15 @@ const PORT = process.env.PORT || 3000;
 // Trust reverse proxy (Nginx on VPS) for accurate IP resolution in rate limiting
 app.set('trust proxy', 1);
 
-// =====================================================================
-// SECURITY HEADERS (SAFE MODE: NO CSP CONFLICTS WITH TAILWIND / RAZORPAY)
-// =====================================================================
-// app.use(
-//   helmet({
-//     contentSecurityPolicy: false,
-//     crossOriginEmbedderPolicy: false,
-//     crossOriginResourcePolicy: { policy: "cross-origin" }
-//   })
-// );
-
 // PostgreSQL Connection Setup
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (process.env.NODE_ENV === 'production' && !DATABASE_URL) {
+  throw new Error('DATABASE_URL must be configured in production.');
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://rtoboss_user:Rt0BossSecureDB2026!@localhost:5432/rtoboss_db',
+  connectionString: DATABASE_URL || 'postgresql://rtoboss_user:CHANGE_ME@localhost:5432/rtoboss_db',
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000
@@ -66,10 +63,18 @@ const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 // =====================================================================
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
 const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID || '3669776c5531333237393636';
-const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '574412TrnBJtZox6ab3d430P1';
+const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '';
 
-if (process.env.NODE_ENV === 'production' && !ADMIN_MASTER_SECRET) {
-  throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
+if (process.env.NODE_ENV === 'production') {
+  if (!ADMIN_MASTER_SECRET) {
+    throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
+  }
+  if (!DATABASE_URL) {
+    throw new Error('DATABASE_URL must be configured in production.');
+  }
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured in production.');
+  }
 }
 
 app.use(cors({
@@ -83,8 +88,8 @@ app.use(express.json({
     req.rawBody = buf.toString('utf8');
   }
 }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(__dirname));
 
@@ -116,16 +121,36 @@ const orderLimiter = rateLimit({
   message: { error: 'Too many order requests. Please slow down.' }
 });
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' }
+});
+
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many admin login attempts. Please try again later.' }
+});
+
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// In-Memory Fallback Stores
+// =====================================================================
+// IN-MEMORY STORES
+// =====================================================================
 const orders = new Map();
 const otpStore = new Map();
 const customers = new Map();
 
-// All-India State Master Mapping
+// =====================================================================
+// ALL-INDIA STATE MASTER MAPPING
+// =====================================================================
 const STATE_NAMES = {
   AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
   BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
@@ -136,11 +161,13 @@ const STATE_NAMES = {
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
-// Clean Vector Silhouette SVGs for Table Cell 1 (Guaranteed 100% transparent bounds)
+// =====================================================================
+// CLEAN VECTOR SILHOUETTE SVGs
+// =====================================================================
 const SVG_ICONS = {
   CAR: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE4UlEQVR4nN1WfSz9VRi/12so7y95f5kmc41oslgoRWuN0RLuJPI214ShxdBkZMLSuFJiPy4m08yEqKwsRhgWY5WoXC8hrnfubZ+ts53f173ce3+/1Prjs3vPc57zfD/nc855noclkUhY/2Ww/vcExWIxm2nb3d3VFwqFZsD6+vrDR0dHWv+6gouLi07Nzc0xRUVFhYmJifWxsbGfREVFtYaHh3+akZFRWVZWltvT0/Pi1taW8a0rKBAIIv39/b8KDAz8Ii4u7uOwsLAudXX1My8vr/Hk5OQ6Lpd7Jzg4+HNTU9MNEIayt0awoaHhdTMzM2FxcXH+xsaGKWxLS0uPmJiYbHZ2dr6E8fn5uRqUw9je3v6n+Pj4j6RdjftOUCAQRNra2q5UVFRkXVxcqBL7xMTE40ZGRtsjIyNPMdcMDQ094+Dg8GNtbW3KP0qwq6srzNzc/HeQY8719fU9r6ur++fk5KSntLWNjY2v2dnZ/Tw9Pe0uN0FILq/sCMzhcOZw+aWtaW1tjdLT09tbWFh4VNp6qB0ZGSmIjo5u2d/ff0ghgteRPD4+fmB0dPRJXH5c9oODgwcPDw+18UtwenqqAVWNjY235ufnXZBi6Hng5OREE+paWVmtxcTENHd0dLwMDA8PP315eaki84hlEVxbW7Nqa2t7BYo5Ojous1gsCV5qTk7Ou6mpqR8APB6vBsjKyqrw8/P7WkdHR4RUk56eXk3miG9aWtr7sFtYWPyGWAQYY1Ny3UEo09/fH5SXl/dOUFBQv4GBwQ4dTE1N7ZzNZotvgoqKyqUsO4lBx21paYm+liAyf2FhYVFAQMCXzB0CCAyQMZvxAQJVVdULaXamD9kAseEBySR4dnamDvk1NDROZREjQcl/9t+K0L5EIXoj0sBUFLbq6up0mQRxcbW1tQ/pIKgI0gLSQVlSwDxa5jyJS/yI4tnZ2eUyCeL10cfm5uY2AxtUpYnLOlbWDWrhV1NT8wTlD3E9PT0nmfM+Pj7f7u3t6ZFHe1duCg0N7SYLkO1R/FHK8IKxM7JLRQmyKbVTUlJq29vbI+rr6xObmppedXZ2/oGOqaWldTQwMPDcFYLb29tGHh4e3xPnzMzM95KSkvgYI6fV1NTw3N3dp8mxKKMeh8OZ4/P5SahAGKOJKCgoeJv2hcK9vb0vXCGIjO7r6/sNnJBSysvLsw0NDf8gC5H3CGFlweVy76B6kLG+vv5uaWnpm+hyiA01fHZ21vUKQSAkJOQzOCEZ5+bmltHBXV1dZ5ET74Ugj8eroe8dgIRNjhlAyyYSiXSkPpKSkpK3rK2tV5GY0RLRgWBHS4VjBlkcF4fDmcN/JyenRZQt+EgD5tAcoMrY2Nj8QsdNSEj4EMK4uLjMR0REtA8ODj5LV7a7CII5Sg36OfKiCSwtLX9dXl523NzcNCHtvFAoNMN4ZWXFdmxs7Inx8XEvWZiamnoMPugH6bj5+fnFq6ur1igQeL10Lb5CkAYKN50DUV/ReMrT7UhkAOtxhPTj6e7uDpWrm2FiZ2fHgAQD0bq6umR6Z8qS5PP5SWTj3t7e3yF7KEUQmJmZcUOSrqyszKAv7r1AJBLpVFVVvYFkjc77Jv8bA6K/o5VTVj0xYy16S3nWXRtQEbtEQYLy4sag0sb3g6RYTsK3TlCi4Gko/JHbxl+QvfplZc+fyAAAAABJRU5ErkJggg==', 'base64'),
   BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCj0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64'),
-  CRANE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE9klEQVR4nO1WeUh8VRid0Smp3HKHXNJATcPcCBFDxaVwSXHfHXHJLXHFrQSXNDQT7VeaSmObqSmmFW6hooRIZopLCm6poGlpuaGOzosD3R/P55txqh9NQX98cOfde7977nfOd+5wKIri/JuDI2sA1P8AKelCJBJx2b4LhULe5OTkcxMTE3YyASgSAwyxuLj4dGxsbLO6uvrPfD5f8I8DFIlEXDaABwcHj1dXV2eamZktcDgcChEaGtoqU4qpP6K/v/8FLy+vLwgwVM/a2vq7yMjID2UGUCgU8qampmxAp5aW1k8EnKWl5fcDAwPudXV1r4SEhHwqNcDr62u54+NjRcTJycljiLOzs0f+CrjNzU29vLy8Ch0dnR0CTF5e/ioqKuqD5eVlY6xpaGh4OTAwsINNIrcS9vT0vITbgAZvb+9eHx+fz7EZCRcWFszomykJwE5PTx9tbW0NdXBwGCfAEEpKSkdFRUXFFxcXD5O1jY2N8RERER8xtXsLIGiAHszNzedtbGymrKyspiFkOTm5aySvrKzMuasBhEIhb3p62iosLOwTRUXFYzo4CwuL2c7OTv+rqyt5+npUOCAg4DMCmp77Bq3R0dEtuMnR0ZHS/Py8+e7urvbe3p6mvb39NzjA1dV1CAnFVW12dtYiPj6+UUNDY58OTEFB4Ry5V1ZWnmLuWV1dNYIuUVnCEP3i9xcCjK6u7lZmZmb1+fm5gp+fX1d9fX0i5pycnEZwkL6+/o/r6+tPMg/Z39/XqKmpSafbBgltbe1dUHh5efkQ26WWlpZMUGkejyecmZl5VmyTwM1BZUFBweuoEmhOS0urxZyzs/MwEffg4KAbvvX19b0IjeIi0BnmCCgulytCYKympvYL6IOucQazQmjAoKCgdhTh8PBQFeyRy9zQYEtLSzQS4lAc7uLi8nVycvI7vb293qampj+Qw8vLy/Oxvra2No1ZLQKOCZIE9MdWxbKyskJIAOPh4WFnyOoWwIqKijx6MlSTeQDCw8PjK6wH/RwWYJK+dXd3+7IBbGpqirO1tf12fHzcAaxBMrcozsrKepOtIszDDA0N17a2tnTHxsaeDw4OboPZigOIUFFR+dXX17cbFMMl2ACiecASXpWMjIy3SJffqGBSUtK7dGrYKCLzbW1twUQ/xcXFRZIuZmRktLqxsWEAbdEdgGlRAoGA7+/v34muZm2SlJSUe0yA+K2pqbnn5uY2aGJiskQOxVqyb2RkxAkix2MP76MHDB5NJ+2rA/cQazNMgOT2sB3QAwm4u7sP4DueLfgln88XwPdSU1Pfxn5m4DuYIevQxah4enp6zdzc3DOFhYVl4eHhH+Ny7e3tQczq3qA4JibmfSY9AOHo6DiKsYGBwUZubu4bqqqqh5Io5YgJY2Pj5cTExHpyeYyhYTIPx2Cr6v0BqsQGUFlZ+Tfy29PT80u65XD+RCAX8VMEfDYnJ6dSaoDQUklJyWulpaWv5ufnl6ObsrOzq+gGjAOqqqqy4+LimhISEt4DbZICa8i6rq4uPzs7uwmSS09Pb7O5uTkWdEMCHR0dgRIBsgU0Q3/wYajSCp5iCTQOyQXpoLPZOlpqgPAjvBx4Y2EB29vbT/wdgKOjo44ZHjn0NCQK3OeDeidSbFpbW3NEH9eJSWi7shBxjs7Ozr4EysNOKkASpOEegD7HghAWQRH1gCo/zrA3wHR0IxayjoasgAAAABJRU5ErkJggg==', 'base64')
+  CRANE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE9klEQVR4nO1WeUh8VRid0Smp3HKHXNJATcPcCBFDxaVwSXHfHXHJLXHFrQSXNDQT7VeaSmObqSmmFW6hooRIZopLCm6poGlpuaGOzosD3R/P55txqh9NQX98cOfde7977nfOd+5wKIri/JuDI2sA1P8AKelCJBJx2b4LhULe5OTkcxMTE3YyASgSAwyxuLj4dGxsbLO6uvrPfD5f8I8DFIlEXDaABwcHj1dXV2eamZktcDgcChEaGtoqU4qpP6K/v/8FLy+vLwgwVM/a2vq7yMjID2UGUCgU8qampmxAp5aW1k8EnKWl5fcDAwPudXV1r4SEhHwqNcDr62u54+NjRcTJycljiLOzs0f+CrjNzU29vLy8Ch0dnR0CTF5e/ioqKuqD5eVlY6xpaGh4OTAwsINNIrcS9vT0vITbgAZvb+9eHx+fz7EZCRcWFszomykJwE5PTx9tbW0NdXBwGCfAEEpKSkdFRUXFFxcXD5O1jY2N8RERER8xtXsLIGiAHszNzedtbGymrKyspiFkOTm5aySvrKzMuasBhEIhb3p62iosLOwTRUXFYzo4CwuL2c7OTv+rqyt5+npUOCAg4DMCmp77Bq3R0dEtuMnR0ZHS/Py8+e7urvbe3p6mvb39NzjA1dV1CAnFVW12dtYiPj6+UUNDY58OTEFB4Ry5V1ZWnmLuWV1dNYIuUVnCEP3i9xcCjK6u7lZmZmb1+fm5gp+fX1d9fX0i5pycnEZwkL6+/o/r6+tPMg/Z39/XqKmpSafbBgltbe1dUHh5efkQ26WWlpZMUGkejyecmZl5VmyTwM1BZUFBweuoEmhOS0urxZyzs/MwEffg4KAbvvX19b0IjeIi0BnmCCgulytCYKympvYL6IOucQazQmjAoKCgdhTh8PBFeyRy9zQYEtLSzQS4lAc7uLi8nVycvI7vb293qampj+Qw8vLy/Oxvra2No1ZLQKOCZIE9MdWxbKyskJIAOPh4WFnyOoWwIqKijx6MlSTeQDCw8PjK6wH/RwWYJK+dXd3+7IBbGpqirO1tf12fHzcAaxBMrcozsrKepOtIszDDA0N17a2tnTHxsaeDw4OboPZigOIUFFR+dXX17cbFMMl2ACiecASXpWMjIy3SJffqGBSUtK7dGrYKCLzbW1twUQ/xcXFRZIuZmRktLqxsWEAbdEdgGlRAoGA7+/v34muZm2SlJSUe0yA+K2pqbnn5uY2aGJiskQOxVqyb2RkxAkix2MP76MHDB5NJ+2rA/cQazNMgOT2sB3QAwm4u7sP4DueLfgln88XwPdSU1Pfxn5m4DuYIevQxah4enp6zdzc3DOFhYVl4eHhH+Ny7e3tQczq3qA4JibmfSY9AOHo6DiKsYGBwUZubu4bqqqqh5Io5YgJY2Pj5cTExHpyeYyhYTIPx2Cr6v0BqsQGUFlZ+Tfy29PT80u65XD+RCAX8VMEfDYnJ6dSaoDQUklJyWulpaWv5ufnl6ObsrOzq+gGjAOqqqqy4+LimhISEt4DbZICa8i6rq4uPzs7uwmSS09Pb7O5uTkWdEMCHR0dgRIBsgU0Q3/wYajSCp5iCTQOyQXpoLPZOlpqgPAjvBx4Y2EB29vbT/wdgKOjo44ZHjn0NCQK3OeDeidSbFpbW3NEH9eJSWi7shBxjs7Ozr4EysNOKkASpOEegD7HghAWQRH1gCo/zrA3wHR0IxayjoasgAAAABJRU5ErkJggg==', 'base64')
 };
 
 // Static Mock Vehicle & DL Database
@@ -234,10 +261,6 @@ const mockDatabase = {
     adpVehNo: '',
     hazardousValidity: '',
     hillValidity: '',
-    profileImage: '',
-    adpVehNo: '',
-    hazardousValidity: '',
-    hillValidity: '',
     covList: [
       { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA11', doi: '12-04-2014', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' },
       { covType: 'CAR', code: 'LMV', issuedBy: 'KA42', doi: '23-08-2022', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
@@ -269,7 +292,107 @@ function normalizeDob(dobStr) {
   return str;
 }
 
-// Generate dark authentic cursive vector counter signature
+function safeEqual(a, b) {
+  const aBuf = Buffer.from(String(a || ''));
+  const bBuf = Buffer.from(String(b || ''));
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derivedKey = await scryptAsync(String(password), salt, 64);
+  return `scrypt$${salt}$${Buffer.from(derivedKey).toString('hex')}`;
+}
+
+async function verifyPassword(password, storedPassword) {
+  if (!storedPassword) return { valid: false, legacy: false };
+  const stored = String(storedPassword);
+  if (stored.startsWith('scrypt$')) {
+    const parts = stored.split('$');
+    if (parts.length !== 3) return { valid: false, legacy: false };
+    const salt = parts[1];
+    const storedHash = parts[2];
+    try {
+      const derivedKey = await scryptAsync(String(password), salt, 64);
+      const derivedHex = Buffer.from(derivedKey).toString('hex');
+      return { valid: safeEqual(derivedHex, storedHash), legacy: false };
+    } catch {
+      return { valid: false, legacy: false };
+    }
+  }
+  return { valid: safeEqual(String(password), stored), legacy: true };
+}
+
+function findCustomerByToken(token) {
+  if (!token) return null;
+  for (const customer of customers.values()) {
+    if (!customer || !customer.sessionToken) continue;
+    if (safeEqual(customer.sessionToken, token)) {
+      if (customer.expiresAt && Date.now() > customer.expiresAt) {
+        customers.delete(customer.customerId);
+        return null;
+      }
+      return customer;
+    }
+  }
+  return null;
+}
+
+async function resolveAuthContext(authHeader) {
+  const header = String(authHeader || '');
+  if (!header.startsWith('Bearer ')) {
+    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+  }
+  const token = header.slice(7).trim();
+  if (!token) {
+    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+  }
+
+  if (ADMIN_SESSION_TOKEN && safeEqual(token, ADMIN_SESSION_TOKEN)) {
+    return { role: 'ADMIN', agentId: null, customerId: null, mobile: null };
+  }
+
+  if (token.startsWith('TOK_AGT_')) {
+    try {
+      const agt = await pool.query('SELECT * FROM agents WHERE session_token = $1 AND status = $2', [token, 'ACTIVE']);
+      if (agt.rows.length > 0) {
+        const agent = agt.rows[0];
+        return { role: 'AGENT', agentId: agent.agent_id, customerId: null, mobile: agent.mobile || null, agent };
+      }
+    } catch (err) {
+      console.error('[Agent Auth DB Error]:', err.message);
+    }
+  }
+
+  if (token.startsWith('TOK_CUST_')) {
+    const customer = findCustomerByToken(token);
+    if (customer) {
+      return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
+    }
+    // Fallback: Check if token has valid format TOK_CUST_<hex>
+    return { role: 'CUSTOMER', agentId: null, customerId: null, mobile: null, customer: null };
+  }
+
+  return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+}
+
+const ordersSecuritySchemaReady = (async () => {
+  try {
+    await pool.query(`
+      ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS owner_id TEXT,
+        ADD COLUMN IF NOT EXISTS owner_role TEXT,
+        ADD COLUMN IF NOT EXISTS rzp_order_id TEXT,
+        ADD COLUMN IF NOT EXISTS dob TEXT,
+        ADD COLUMN IF NOT EXISTS rc_format TEXT
+    `);
+    console.log('[Security] Orders security schema verified.');
+  } catch (err) {
+    console.error('[Security] Orders schema migration warning:', err.message);
+  }
+})();
+
 async function generateSignaturePng(fullName) {
   const seed = String(fullName || 'Driver')
     .split('')
@@ -282,11 +405,11 @@ async function generateSignaturePng(fullName) {
   const svg = `
     <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg">
       <g transform="rotate(-2 110 22)">
-        <path d="M 22 28 C 24 16, 32 10, 38 18 C 44 26, 40 32, 48 24 C 54 18, 62 20, 68 ${22 + wiggle1} C 74 24, 82 17, 92 23 C 102 29, 110 19, 118 ${21 + wiggle2} C 126 23, 134 18, 145 22 C 154 26, 160 20, ${endX} 22" 
+        <path d="M 22 28 C 24 16, 32 10, 38 18 C 44 26, 40 32, 48 24 C 54 18, 62 20, 68 ${22 + wiggle1} C 74 24, 82 17, 92 23 C 102 29, 110 19, 118 ${21 + wiggle2} C 126 23, 134 18, 145 22 C 154 26, 160 20, ${endX} 22"
               fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M 28 32 C 65 34, 110 32, ${endX + 5} 30" 
+        <path d="M 28 32 C 65 34, 110 32, ${endX + 5} 30"
               fill="none" stroke="#050c1a" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M 50 35 C 80 37, 120 34, 155 33" 
+        <path d="M 50 35 C 80 37, 120 34, 155 33"
               fill="none" stroke="#050c1a" stroke-width="1.1" stroke-linecap="round"/>
       </g>
     </svg>
@@ -295,9 +418,6 @@ async function generateSignaturePng(fullName) {
   return await sharp(Buffer.from(svg)).png().toBuffer();
 }
 
-// =====================================================================
-// LIVE SUREPASS DATA RESOLVER
-// =====================================================================
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
 
@@ -331,10 +451,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
         },
-        body: JSON.stringify({
-          id_number: lookupKey,
-          enrich: true
-        })
+        body: JSON.stringify({ id_number: lookupKey, enrich: true })
       });
 
       let json = await resp.json();
@@ -348,10 +465,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
           },
-          body: JSON.stringify({
-            id_number: lookupKey,
-            enrich: false
-          })
+          body: JSON.stringify({ id_number: lookupKey, enrich: false })
         });
         json = await resp.json();
       }
@@ -362,14 +476,10 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       }
 
       const d = json.data;
-
       let normalizedBody = String(d.body_type || 'SEDAN').trim();
-      if (/SOLO/i.test(normalizedBody)) {
-        normalizedBody = 'SOLO';
-      }
+      if (/SOLO/i.test(normalizedBody)) normalizedBody = 'SOLO';
 
-      let normalizedColor = String(d.color || '').trim();
-      normalizedColor = normalizedColor
+      let normalizedColor = String(d.color || '').trim()
         .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
         .replace(/METALLIC\s+/i, 'MET. ')
         .replace(/ELECTRONIC\s+/i, 'E. ');
@@ -408,8 +518,8 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       pool.query(
         `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
          VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key) DO UPDATE 
-         SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+         ON CONFLICT (lookup_key)
+         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
         [docType, lookupKey, JSON.stringify(formattedRc)]
       ).catch(() => {});
 
@@ -425,10 +535,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
         },
-        body: JSON.stringify({
-          id_number: lookupKey,
-          dob: cleanDob
-        })
+        body: JSON.stringify({ id_number: lookupKey, dob: cleanDob })
       });
 
       let json = await resp.json();
@@ -442,10 +549,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
           },
-          body: JSON.stringify({
-            id_number: lookupKey,
-            dob: cleanDob
-          })
+          body: JSON.stringify({ id_number: lookupKey, dob: cleanDob })
         });
         json = await resp.json();
       }
@@ -456,7 +560,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       }
 
       const d = json.data;
-
       let rawClasses = [];
       if (Array.isArray(d.vehicle_classes) && d.vehicle_classes.length > 0) {
         rawClasses = d.vehicle_classes;
@@ -475,7 +578,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           code: str,
           issuedBy: issuingOfficeCode,
           doi: issueDateClean,
-          category: (d.transport_doe && d.transport_doe !== '1800-01-01') ? 'TR' : 'NT',
+          category: d.transport_doe && d.transport_doe !== '1800-01-01' ? 'TR' : 'NT',
           badgeNo: '',
           badgeDoi: '',
           badgeBy: ''
@@ -490,7 +593,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         dlNo: d.license_number || lookupKey,
         doi: issueDateClean,
         validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to || (d.validity && d.validity.non_transport)),
-        validUptoTR: (d.transport_doe && d.transport_doe !== '1800-01-01') ? formatDateDisplay(d.transport_doe) : '',
+        validUptoTR: d.transport_doe && d.transport_doe !== '1800-01-01' ? formatDateDisplay(d.transport_doe) : '',
         name: d.name || '',
         dob: formatDateDisplay(d.dob || cleanDob),
         bloodGroup: d.blood_group || '',
@@ -510,8 +613,8 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       pool.query(
         `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
          VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key) DO UPDATE 
-         SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+         ON CONFLICT (lookup_key)
+         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
         [docType, lookupKey, JSON.stringify(formattedDl)]
       ).catch(() => {});
 
@@ -575,37 +678,37 @@ const fieldLayout = {
 };
 
 const newRcFrontLayout = {
-  regNo:          { x: 56.0,  yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 65 },
-  regDate:        { x: 126.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
-  validUpto:      { x: 186.0, yTop: 41.0,  size: 6.5, font: 'bold',    maxW: 55 },
-  chassisNo:      { x: 56.7,  yTop: 58.5,  size: 6.5, font: 'regular', maxW: 140 },
-  engineNo:       { x: 56.7,  yTop: 80.0,  size: 6.5, font: 'regular', maxW: 140 },
-  ownerName:      { x: 56.7,  yTop: 96.0,  size: 6.5, font: 'regular', maxW: 140 },
-  swdName:        { x: 56.7,  yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
-  fuel:           { x: 2.5,   yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
-  emissionNorms:  { x: 1.0,   yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
-  address:        { x: 56.7,  line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
+  regNo: { x: 56.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 65 },
+  regDate: { x: 126.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
+  validUpto: { x: 186.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
+  chassisNo: { x: 56.7, yTop: 58.5, size: 6.5, font: 'regular', maxW: 140 },
+  engineNo: { x: 56.7, yTop: 80.0, size: 6.5, font: 'regular', maxW: 140 },
+  ownerName: { x: 56.7, yTop: 96.0, size: 6.5, font: 'regular', maxW: 140 },
+  swdName: { x: 56.7, yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
+  fuel: { x: 2.5, yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
+  emissionNorms: { x: 1.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
+  address: { x: 56.7, line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
 };
 
 const newRcBackLayout = {
-  vehicleClass:     { x: 101.0, yTop: 13.5, size: 6.0, font: 'regular', maxW: 120 },
-  regNo:            { x: 10.0,  yTop: 32.5, size: 6.0, font: 'regular', maxW: 40 },
-  maker:            { x: 58.0,  yTop: 32.5, size: 6.0, font: 'regular', maxW: 175 },
-  model:            { x: 58.0,  yTop: 49.0, size: 6.0, font: 'regular', maxW: 175 },
-  bodyType:         { x: 58.0,  yTop: 66.0, size: 6.0, font: 'regular', maxW: 175 },
-  seatingCapacity:  { x: 60.0,  yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
+  vehicleClass: { x: 101.0, yTop: 13.5, size: 6.0, font: 'regular', maxW: 120 },
+  regNo: { x: 10.0, yTop: 32.5, size: 6.0, font: 'regular', maxW: 40 },
+  maker: { x: 58.0, yTop: 32.5, size: 6.0, font: 'regular', maxW: 175 },
+  model: { x: 58.0, yTop: 49.0, size: 6.0, font: 'regular', maxW: 175 },
+  bodyType: { x: 58.0, yTop: 66.0, size: 6.0, font: 'regular', maxW: 175 },
+  seatingCapacity: { x: 60.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
   standingCapacity: { x: 104.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
-  sleeperCapacity:  { x: 138.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
-  mfgDate:          { x: 10.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 35 },
-  unladenWeight:    { x: 64.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-  ladenWeight:      { x: 94.0,  yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-  grossWeight:      { x: 126.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-  cylinders:        { x: 18.0,  yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
-  cubicCapacity:    { x: 64.0,  yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
-  horsePower:       { x: 104.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
-  wheelbase:        { x: 166.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 35 },
-  financer:         { x: 58.0,  yTop: 135.5, size: 5.5, font: 'regular', maxW: 110 },
-  rtoAuthority:     { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
+  sleeperCapacity: { x: 138.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
+  mfgDate: { x: 10.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 35 },
+  unladenWeight: { x: 64.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
+  ladenWeight: { x: 94.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
+  grossWeight: { x: 126.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
+  cylinders: { x: 18.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
+  cubicCapacity: { x: 64.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
+  horsePower: { x: 104.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
+  wheelbase: { x: 166.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 35 },
+  financer: { x: 58.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 110 },
+  rtoAuthority: { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
 };
 
 function getTemplatePath(candidates) {
@@ -619,9 +722,11 @@ function getTemplatePath(candidates) {
 function isCommercialClass(vClass) {
   if (!vClass) return false;
   const str = String(vClass).toUpperCase();
-  return str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') || 
-         str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') || 
-         str.includes('CARRIAGE') || str.includes('STAGE');
+  return (
+    str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') ||
+    str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') ||
+    str.includes('CARRIAGE') || str.includes('STAGE')
+  );
 }
 
 // =====================================================================
@@ -636,11 +741,20 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
   }
 
   if (cleanMobile === '9999999999' || cleanMobile === '1234567890') {
-    otpStore.set(cleanMobile, { reqId: 'DEV_TEST', expiresAt: Date.now() + 5 * 60 * 1000 });
+    otpStore.set(cleanMobile, {
+      reqId: 'DEV_TEST',
+      devTest: true,
+      attempts: 0,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    });
     return res.json({ success: true, message: 'Test verification code active.', mobile: cleanMobile });
   }
 
   try {
+    if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
+      return res.status(503).json({ error: 'SMS verification service is not configured.' });
+    }
+
     const response = await fetch('https://api.msg91.com/api/v5/widget/sendOtp', {
       method: 'POST',
       headers: {
@@ -659,34 +773,28 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
     if (data.type === 'success' || data.message === 'OTP sent successfully' || data.reqId) {
       otpStore.set(cleanMobile, {
         reqId: data.reqId || data.message,
+        devTest: false,
+        attempts: 0,
         expiresAt: Date.now() + 10 * 60 * 1000
       });
-
-      res.json({
-        success: true,
-        message: 'Verification code sent via SMS.',
-        mobile: cleanMobile
-      });
-    } else {
-      console.error('[MSG91 Send Error]:', data);
-      res.status(400).json({ error: data.message || 'Failed to dispatch SMS OTP.' });
+      return res.json({ success: true, message: 'Verification code sent via SMS.', mobile: cleanMobile });
     }
+
+    console.error('[MSG91 Send Error]:', data);
+    return res.status(400).json({ error: data.message || 'Failed to dispatch SMS OTP.' });
   } catch (err) {
     console.error('[MSG91 Gateway Exception]:', err.message);
-    res.status(500).json({ error: 'SMS service temporarily unavailable.' });
+    return res.status(500).json({ error: 'SMS service temporarily unavailable.' });
   }
 });
 
-app.post('/api/customer/verify-otp', async (req, res) => {
+app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
   const { mobile, otp } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
   const enteredOtp = String(otp || '').trim();
 
-  if (enteredOtp === '1234') {
-    const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
-    const customerId = 'CUST_' + cleanMobile;
-    customers.set(customerId, { customerId, mobile: cleanMobile, sessionToken: token, verifiedAt: new Date() });
-    return res.json({ success: true, token, mobile: cleanMobile, message: 'Identity verified.' });
+  if (cleanMobile.length !== 10) {
+    return res.status(400).json({ error: 'Invalid mobile number.' });
   }
 
   const record = otpStore.get(cleanMobile);
@@ -694,7 +802,41 @@ app.post('/api/customer/verify-otp', async (req, res) => {
     return res.status(400).json({ error: 'No OTP session found for this number. Please request a new code.' });
   }
 
+  if (!record.expiresAt || Date.now() > record.expiresAt) {
+    otpStore.delete(cleanMobile);
+    return res.status(400).json({ error: 'OTP session has expired. Please request a new code.' });
+  }
+
+  record.attempts = Number(record.attempts || 0) + 1;
+  if (record.attempts > 5) {
+    otpStore.delete(cleanMobile);
+    return res.status(429).json({ error: 'Too many OTP attempts. Please request a new code.' });
+  }
+
+  if (record.devTest === true) {
+    if (enteredOtp !== '1234') {
+      return res.status(400).json({ error: 'Invalid or expired OTP code.' });
+    }
+    otpStore.delete(cleanMobile);
+    const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
+    const customerId = 'CUST_' + cleanMobile;
+
+    customers.set(customerId, {
+      customerId,
+      mobile: cleanMobile,
+      sessionToken: token,
+      verifiedAt: new Date(),
+      expiresAt: Date.now() + 24 * 60 * 60 * 1000
+    });
+
+    return res.json({ success: true, token, mobile: cleanMobile, message: 'Identity verified.' });
+  }
+
   try {
+    if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
+      return res.status(503).json({ error: 'SMS verification service is not configured.' });
+    }
+
     const response = await fetch('https://api.msg91.com/api/v5/widget/verifyOtp', {
       method: 'POST',
       headers: {
@@ -713,7 +855,6 @@ app.post('/api/customer/verify-otp', async (req, res) => {
 
     if (data.type === 'success' || data['access-token'] || data.message === 'OTP verified success') {
       otpStore.delete(cleanMobile);
-
       const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
       const customerId = 'CUST_' + cleanMobile;
 
@@ -721,21 +862,17 @@ app.post('/api/customer/verify-otp', async (req, res) => {
         customerId,
         mobile: cleanMobile,
         sessionToken: token,
-        verifiedAt: new Date()
+        verifiedAt: new Date(),
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000
       });
 
-      res.json({
-        success: true,
-        token,
-        mobile: cleanMobile,
-        message: 'Mobile identity verified successfully.'
-      });
-    } else {
-      res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
+      return res.json({ success: true, token, mobile: cleanMobile, message: 'Mobile identity verified successfully.' });
     }
+
+    return res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
   } catch (err) {
     console.error('[MSG91 Verification Exception]:', err.message);
-    res.status(500).json({ error: 'Verification service error.' });
+    return res.status(500).json({ error: 'Verification service error.' });
   }
 });
 
@@ -748,6 +885,9 @@ app.post('/api/agent/register', async (req, res) => {
     if (!name || !mobile || !email || !password || !address) {
       return res.status(400).json({ error: 'All fields are required' });
     }
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
 
     const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
     if (checkRes.rows.length > 0) {
@@ -755,10 +895,12 @@ app.post('/api/agent/register', async (req, res) => {
     }
 
     const agentId = 'AGT_' + Date.now();
+    const passwordHash = await hashPassword(password);
+
     await pool.query(
       `INSERT INTO agents (agent_id, name, mobile, email, password, address, status, created_at, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_APPROVAL', NOW(), NOW())`,
-      [agentId, name, mobile, email, password, address]
+      [agentId, name, mobile, email, passwordHash, address]
     );
 
     res.json({ success: true, agentId, amount: 500, paymentProvider: 'RAZORPAY' });
@@ -768,12 +910,16 @@ app.post('/api/agent/register', async (req, res) => {
   }
 });
 
-app.post('/api/agent/login', async (req, res) => {
+app.post('/api/agent/login', loginLimiter, async (req, res) => {
   try {
     const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Mobile/email and password are required.' });
+    }
+
     const dbRes = await pool.query(
-      'SELECT * FROM agents WHERE (mobile = $1 OR email = $1) AND password = $2',
-      [identifier, password]
+      'SELECT * FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1',
+      [identifier]
     );
 
     if (dbRes.rows.length === 0) {
@@ -781,6 +927,20 @@ app.post('/api/agent/login', async (req, res) => {
     }
 
     const agent = dbRes.rows[0];
+    const passwordResult = await verifyPassword(password, agent.password);
+
+    if (!passwordResult.valid) {
+      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+    }
+
+    if (passwordResult.legacy) {
+      try {
+        const newHash = await hashPassword(password);
+        await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE agent_id = $2', [newHash, agent.agent_id]);
+      } catch (migrationErr) {
+        console.warn('[Agent Password Migration Warning]:', migrationErr.message);
+      }
+    }
 
     if (agent.status === 'PENDING_PAYMENT') {
       return res.status(403).json({ error: 'Onboarding fee pending', status: 'PENDING_PAYMENT', agentId: agent.agent_id });
@@ -798,11 +958,7 @@ app.post('/api/agent/login', async (req, res) => {
     res.json({
       success: true,
       token,
-      agent: {
-        name: agent.name,
-        mobile: agent.mobile,
-        email: agent.email
-      }
+      agent: { name: agent.name, mobile: agent.mobile, email: agent.email }
     });
   } catch (err) {
     console.error('Agent Login DB Error:', err);
@@ -810,27 +966,12 @@ app.post('/api/agent/login', async (req, res) => {
   }
 });
 
-async function resolveRole(authHeader) {
-  if (authHeader === `Bearer ${ADMIN_SESSION_TOKEN}`) {
-    return 'ADMIN';
-  }
-  if (authHeader.startsWith('Bearer TOK_AGT_')) {
-    const token = authHeader.replace('Bearer ', '');
-    const agt = await pool.query('SELECT * FROM agents WHERE session_token = $1 AND status = $2', [token, 'ACTIVE']);
-    if (agt.rows.length > 0) return 'AGENT';
-  }
-  if (authHeader.startsWith('Bearer TOK_CUST_')) {
-    return 'CUSTOMER';
-  }
-  return 'PUBLIC';
-}
-
 // =====================================================================
 // ADMIN ROUTES
 // =====================================================================
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   const { secretKey } = req.body;
-  if (ADMIN_MASTER_SECRET && secretKey === ADMIN_MASTER_SECRET) {
+  if (ADMIN_MASTER_SECRET && secretKey && safeEqual(secretKey, ADMIN_MASTER_SECRET)) {
     return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
   }
   return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
@@ -838,23 +979,23 @@ app.post('/api/admin/login', (req, res) => {
 
 app.get('/api/admin/stats', async (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
   try {
     const statsRes = await pool.query(`
-      SELECT 
+      SELECT
         COUNT(*)::int AS total_downloads,
         COUNT(CASE WHEN doc_type = 'RC' THEN 1 END)::int AS rc_count,
         COUNT(CASE WHEN doc_type = 'DL' THEN 1 END)::int AS dl_count,
         COALESCE(SUM(amount), 0)::numeric AS total_revenue
-      FROM orders 
+      FROM orders
       WHERE status = 'SUCCESS';
     `);
 
     const agentStatsRes = await pool.query(`
-      SELECT 
+      SELECT
         COUNT(*)::int AS total_agents,
         COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END)::int AS active_agents,
         COUNT(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 END)::int AS pending_agents
@@ -874,15 +1015,15 @@ app.get('/api/admin/stats', async (req, res) => {
 
 app.get('/api/admin/orders', async (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
   try {
     const result = await pool.query(`
       SELECT order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at
-      FROM orders 
-      ORDER BY created_at DESC 
+      FROM orders
+      ORDER BY created_at DESC
       LIMIT 100;
     `);
     res.json({ success: true, orders: result.rows });
@@ -894,12 +1035,14 @@ app.get('/api/admin/orders', async (req, res) => {
 
 app.get('/api/admin/agents', async (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
   try {
-    const result = await pool.query('SELECT agent_id, name, mobile, email, address, status, created_at FROM agents ORDER BY created_at DESC');
+    const result = await pool.query(
+      'SELECT agent_id, name, mobile, email, address, status, created_at FROM agents ORDER BY created_at DESC'
+    );
     res.json({ success: true, agents: result.rows });
   } catch (err) {
     console.error('Admin Agents Fetch Error:', err);
@@ -909,11 +1052,16 @@ app.get('/api/admin/agents', async (req, res) => {
 
 app.post('/api/admin/update-agent-status', async (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
   const { agentId, status } = req.body;
+  const allowedStatuses = ['PENDING_PAYMENT', 'PENDING_APPROVAL', 'ACTIVE', 'REJECTED'];
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid agent status.' });
+  }
+
   try {
     const result = await pool.query(
       'UPDATE agents SET status = $1, updated_at = NOW() WHERE agent_id = $2 RETURNING *',
@@ -931,59 +1079,40 @@ app.post('/api/admin/update-agent-status', async (req, res) => {
   }
 });
 
-// =====================================================================
-// ADMIN DIRECT DOWNLOAD
-// PERFORMANCE FIX:
-// The admin order INSERT is now non-blocking. PDF generation starts
-// immediately after the report is available instead of waiting for the
-// database INSERT to finish.
-// =====================================================================
 app.post('/api/admin/direct-download', async (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
   try {
     const { docType, targetNumber, dob, rcFormat } = req.body;
-
     if (!targetNumber) {
       return res.status(400).json({ error: 'Target reference number is required' });
     }
 
-    // 1. Fetch/enrich the report exactly as before
     const report = await getVehicleOrDlRecord(docType, targetNumber, dob);
-
     if (!report) {
       return res.status(404).json({ error: 'Record not found in live databases.' });
     }
 
-    // 2. Start database logging WITHOUT making the browser wait for it
     const adminOrderId = 'ADM_' + Date.now();
-
     pool.query(
-      `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at)
-       VALUES ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW())`,
-      [adminOrderId, docType, targetNumber]
+      `INSERT INTO orders
+        (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
+       VALUES
+        ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW(), 'ADMIN', 'ADMIN', NULL, $4, $5)`,
+      [adminOrderId, docType, targetNumber, normalizeDob(dob), rcFormat || 'OLD']
     ).catch((dbErr) => {
       console.warn('[Admin Direct Order Save Warning]:', dbErr.message);
     });
 
-    // 3. Generate PDF immediately
-    const pdfBuffer = await generateVectorPdfBuffer(
-      docType,
-      rcFormat || 'OLD',
-      report
-    );
-
-    const fileName = docType === 'DL'
-      ? `DL_${report.dlNo || targetNumber}.pdf`
-      : `RC_${report.regNo || targetNumber}.pdf`;
+    const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
+    const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
     res.send(pdfBuffer);
-
   } catch (err) {
     console.error('Admin Direct Download Error:', err);
     res.status(500).json({ error: 'PDF generation failed: ' + err.message });
@@ -992,7 +1121,7 @@ app.post('/api/admin/direct-download', async (req, res) => {
 
 app.post('/api/admin/clear-data', (req, res) => {
   const token = req.headers['authorization'];
-  if (token !== `Bearer ${ADMIN_SESSION_TOKEN}`) {
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
     return res.status(403).json({ error: 'Unauthorized admin access' });
   }
 
@@ -1003,14 +1132,15 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & PAYMENT (RAZORPAY INTEGRATION)
+// ORDER PROCESSING & PAYMENT
 // =====================================================================
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
+    await ordersSecuritySchemaReady;
     const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName } = req.body;
     const authHeader = req.headers['authorization'] || '';
-
-    const role = await resolveRole(authHeader);
+    const authContext = await resolveAuthContext(authHeader);
+    const role = authContext.role;
 
     let finalAmount = 150;
     if (docType === 'AGENT_ONBOARDING') {
@@ -1029,7 +1159,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
       else finalAmount = 150;
     }
 
-    let localOrderId = 'ORD_' + Date.now();
+    const localOrderId = 'ORD_' + Date.now();
     let rzpOrderId = null;
 
     if (role !== 'ADMIN' && finalAmount > 0) {
@@ -1055,20 +1185,35 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
     const effectiveOrderId = rzpOrderId || localOrderId;
     const initialStatus = role === 'ADMIN' ? 'SUCCESS' : 'PENDING';
 
+    let ownerId = null;
+    if (role === 'CUSTOMER') {
+      ownerId = authContext.mobile || customerMobile || null;
+    } else if (role === 'AGENT') {
+      ownerId = authContext.agentId;
+    } else if (role === 'ADMIN') {
+      ownerId = 'ADMIN';
+    } else if (customerMobile) {
+      ownerId = customerMobile;
+    }
+
     const orderData = {
       orderId: effectiveOrderId,
       rzpOrderId,
+      localOrderId,
       docType,
       targetNumber,
       tier,
       amount: finalAmount,
       role,
+      ownerId,
       dob: normalizeDob(dob),
       rcFormat: rcFormat || 'OLD',
       status: initialStatus,
       paymentProvider: 'RAZORPAY',
       currency: 'INR',
       customerMobile: customerMobile || '',
+      customerEmail: customerEmail || '',
+      customerName: customerName || '',
       paidAt: role === 'ADMIN' ? new Date() : null,
       createdAt: new Date()
     };
@@ -1077,24 +1222,46 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
 
     try {
       await pool.query(
-        `INSERT INTO orders (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, paid_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
-         ON CONFLICT (order_id) DO UPDATE 
-         SET status = EXCLUDED.status, paid_at = EXCLUDED.paid_at`,
-        [effectiveOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, role === 'ADMIN' ? new Date() : null]
+        `INSERT INTO orders
+          (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, paid_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
+         VALUES
+          ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11, $12)
+         ON CONFLICT (order_id)
+         DO UPDATE SET
+           status = EXCLUDED.status,
+           paid_at = EXCLUDED.paid_at,
+           owner_id = EXCLUDED.owner_id,
+           owner_role = EXCLUDED.owner_role,
+           rzp_order_id = EXCLUDED.rzp_order_id,
+           dob = EXCLUDED.dob,
+           rc_format = EXCLUDED.rc_format`,
+        [
+          effectiveOrderId,
+          customerMobile || '',
+          docType,
+          targetNumber,
+          finalAmount,
+          initialStatus,
+          role === 'ADMIN' ? new Date() : null,
+          ownerId,
+          role,
+          rzpOrderId,
+          normalizeDob(dob),
+          rcFormat || 'OLD'
+        ]
       );
     } catch (pgErr) {
       console.warn('[PostgreSQL Order Save Warning]:', pgErr.message);
     }
 
-    res.json({ 
-      success: true, 
-      orderId: effectiveOrderId, 
-      amount: finalAmount, 
+    res.json({
+      success: true,
+      orderId: effectiveOrderId,
+      amount: finalAmount,
       amountPaise: Math.round(finalAmount * 100),
       currency: 'INR',
       keyId: RAZORPAY_KEY_ID,
-      role, 
+      role,
       paymentProvider: 'RAZORPAY'
     });
   } catch (err) {
@@ -1103,176 +1270,280 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
   }
 });
 
+// =====================================================================
+// PAYMENT VERIFICATION
+// =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
-  const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature, forceSuccess } = req.body;
-  const lookupId = razorpay_order_id || orderId;
+  try {
+    await ordersSecuritySchemaReady;
+    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const lookupId = razorpay_order_id || orderId;
 
-  let order = orders.get(lookupId);
+    if (!lookupId) {
+      return res.status(400).json({ error: 'Order ID is required.' });
+    }
 
-  if (!order) {
-    try {
-      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [lookupId]);
-      if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
-        const row = dbOrderRes.rows[0];
-        order = {
-          orderId: row.order_id,
-          docType: row.doc_type,
-          targetNumber: row.lookup_key,
-          amount: Number(row.amount),
-          status: row.status,
-          paidAt: row.paid_at,
-          paymentId: row.utr
-        };
-        orders.set(lookupId, order);
+    let order = orders.get(lookupId);
+
+    if (!order) {
+      try {
+        const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1', [lookupId]);
+        if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
+          const row = dbOrderRes.rows[0];
+          order = {
+            orderId: row.order_id,
+            rzpOrderId: row.rzp_order_id || row.order_id,
+            docType: row.doc_type,
+            targetNumber: row.lookup_key,
+            amount: Number(row.amount),
+            role: row.owner_role || 'PUBLIC',
+            ownerId: row.owner_id || null,
+            dob: row.dob || '',
+            rcFormat: row.rc_format || 'OLD',
+            status: row.status,
+            currency: 'INR',
+            paidAt: row.paid_at,
+            paymentId: row.utr
+          };
+          orders.set(lookupId, order);
+        }
+      } catch (pgOrderErr) {
+        console.warn('[PostgreSQL Order Lookup Warning]:', pgOrderErr.message);
       }
-    } catch (pgOrderErr) {
-      console.warn('[PostgreSQL Order Lookup Warning]:', pgOrderErr.message);
     }
-  }
 
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
-  }
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
 
-  if (razorpay_order_id && razorpay_payment_id && razorpay_signature) {
-    const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const generatedSig = crypto
-      .createHmac('sha256', RAZORPAY_KEY_SECRET)
-      .update(textToSign)
-      .digest('hex');
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
 
-    if (generatedSig === razorpay_signature) {
+    // ADMIN orders can only be verified by ADMIN.
+    if (order.role === 'ADMIN' && authContext.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized order access.' });
+    }
+
+    // Process Admin Free Orders
+    if (order.role === 'ADMIN') {
       order.status = 'SUCCESS';
-      order.paidAt = new Date();
-      order.paymentId = razorpay_payment_id;
+      order.paidAt = order.paidAt || new Date();
+      order.paymentId = order.paymentId || ('RZP_ADM_' + crypto.randomBytes(6).toString('hex'));
 
-      pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
-        'SUCCESS',
-        order.paidAt,
-        order.paymentId,
-        lookupId
-      ]).catch(() => {});
+      pool.query(
+        'UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4',
+        ['SUCCESS', order.paidAt, order.paymentId, lookupId]
+      ).catch(() => {});
     } else {
-      return res.status(400).json({ error: 'Payment signature verification failed.' });
+      // Normal Customer/Agent Payment through Razorpay
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        if (order.status !== 'SUCCESS') {
+          return res.json({
+            status: 'PENDING',
+            orderId: order.orderId,
+            message: 'Awaiting payment verification.'
+          });
+        }
+      } else {
+        const expectedRzpOrderId = order.rzpOrderId || order.orderId;
+        if (!safeEqual(razorpay_order_id, expectedRzpOrderId)) {
+          return res.status(400).json({ error: 'Razorpay order does not match this order.' });
+        }
+
+        // Verify HMAC SHA256 Signature
+        const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
+        const generatedSig = crypto
+          .createHmac('sha256', RAZORPAY_KEY_SECRET)
+          .update(textToSign)
+          .digest('hex');
+
+        if (!safeEqual(generatedSig, razorpay_signature)) {
+          return res.status(400).json({ error: 'Payment signature verification failed.' });
+        }
+
+        // Double check payment with Razorpay API
+        let payment;
+        try {
+          payment = await razorpay.payments.fetch(razorpay_payment_id);
+        } catch (gatewayErr) {
+          console.error('[Razorpay Payment Fetch Error]:', gatewayErr.message);
+          return res.status(502).json({ error: 'Unable to verify payment with Razorpay.' });
+        }
+
+        if (!payment || payment.id !== razorpay_payment_id) {
+          return res.status(400).json({ error: 'Invalid Razorpay payment.' });
+        }
+
+        const expectedAmountPaise = Math.round(Number(order.amount) * 100);
+        if (Number(payment.amount) !== expectedAmountPaise) {
+          return res.status(400).json({ error: 'Paid amount does not match the order.' });
+        }
+
+        // Bind verified ownership if available
+        if (authContext.mobile && !order.ownerId) {
+          order.ownerId = authContext.mobile;
+        }
+
+        order.status = 'SUCCESS';
+        order.paidAt = new Date();
+        order.paymentId = razorpay_payment_id;
+
+        pool.query(
+          'UPDATE orders SET status = $1, paid_at = $2, utr = $3, owner_id = COALESCE(owner_id, $4) WHERE order_id = $5',
+          ['SUCCESS', order.paidAt, order.paymentId, order.ownerId, lookupId]
+        ).catch((dbErr) => {
+          console.warn('[Payment DB Update Warning]:', dbErr.message);
+        });
+      }
     }
-  }
 
-  if (order.role === 'ADMIN' || forceSuccess) {
-    order.status = 'SUCCESS';
-    order.paidAt = order.paidAt || new Date();
-    order.paymentId = order.paymentId || ('RZP_ADM_' + crypto.randomBytes(6).toString('hex'));
+    if (order.status !== 'SUCCESS') {
+      return res.json({
+        status: 'PENDING',
+        orderId: order.orderId,
+        message: 'Awaiting payment verification.'
+      });
+    }
 
-    pool.query('UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4', [
-      'SUCCESS',
-      order.paidAt,
-      order.paymentId,
-      lookupId
-    ]).catch(() => {});
-  }
+    if (order.docType === 'AGENT_ONBOARDING') {
+      return res.json({
+        status: 'SUCCESS',
+        orderId: order.orderId,
+        docType: order.docType,
+        message: 'Agent fee verified successfully.'
+      });
+    }
 
-  if (order.status !== 'SUCCESS') {
-    return res.json({
-      status: 'PENDING',
-      orderId: order.orderId,
-      message: 'Awaiting payment verification.'
-    });
-  }
+    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
 
-  if (order.docType === 'AGENT_ONBOARDING') {
-    return res.json({
+    if (!report) {
+      let refundId = null;
+      if (order.paymentId && order.paymentId.startsWith('pay_')) {
+        try {
+          console.warn(`[Auto-Refund] Triggering instant refund for ${order.paymentId}...`);
+          const refund = await razorpay.payments.refund(order.paymentId, {
+            amount: Math.round(order.amount * 100),
+            speed: 'optimum',
+            notes: { reason: 'Data retrieval server slow', orderId: order.orderId }
+          });
+          refundId = refund.id;
+          order.status = 'REFUNDED';
+          pool.query('UPDATE orders SET status = $1, utr = $2 WHERE order_id = $3', ['REFUNDED', refundId, lookupId]).catch(() => {});
+        } catch (refundErr) {
+          console.error('[Auto-Refund Gateway Error]:', refundErr.message);
+        }
+      }
+
+      return res.json({
+        status: refundId ? 'REFUNDED' : 'SUCCESS',
+        orderId: order.orderId,
+        refundId,
+        amount: order.amount,
+        message: refundId
+          ? 'Server is slow at the moment. Your amount has been refunded.'
+          : 'Payment verified, but the requested record could not be retrieved.'
+      });
+    }
+
+    res.json({
       status: 'SUCCESS',
       orderId: order.orderId,
       docType: order.docType,
-      message: 'Agent fee verified successfully.'
-    });
-  }
-
-  const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-
-  if (!report) {
-    let refundId = null;
-
-    if (order.paymentId && order.paymentId.startsWith('pay_')) {
-      try {
-        console.warn(`[Auto-Refund] Triggering instant refund for ${order.paymentId}...`);
-        const refund = await razorpay.payments.refund(order.paymentId, {
-          amount: Math.round(order.amount * 100),
-          speed: 'optimum',
-          notes: {
-            reason: 'Data retrieval server slow',
-            orderId: order.orderId
-          }
-        });
-        refundId = refund.id;
-
-        pool.query('UPDATE orders SET status = $1, utr = $2 WHERE order_id = $3', [
-          'REFUNDED',
-          refundId,
-          lookupId
-        ]).catch(() => {});
-      } catch (refundErr) {
-        console.error('[Auto-Refund Gateway Error]:', refundErr.message);
-      }
-    }
-
-    return res.json({
-      status: 'REFUNDED',
-      orderId: order.orderId,
-      refundId,
+      rcFormat: order.rcFormat || 'OLD',
       amount: order.amount,
-      message: 'Server is slow at the moment. Your amount has been refunded.'
+      currency: order.currency || 'INR',
+      role: order.role,
+      paymentProvider: 'RAZORPAY',
+      paymentId: order.paymentId,
+      report
     });
+  } catch (err) {
+    console.error('Verify Payment Error:', err);
+    res.status(500).json({ error: 'Payment verification failed.' });
   }
-
-  res.json({
-    status: 'SUCCESS',
-    orderId: order.orderId,
-    docType: order.docType,
-    rcFormat: order.rcFormat || 'OLD',
-    amount: order.amount,
-    currency: order.currency || 'INR',
-    role: order.role,
-    paymentProvider: 'RAZORPAY',
-    paymentId: order.paymentId,
-    report
-  });
 });
 
-app.post('/api/bank-webhook', (req, res) => {
+// =====================================================================
+// RAZORPAY WEBHOOK
+// =====================================================================
+app.post('/api/bank-webhook', async (req, res) => {
   try {
+    await ordersSecuritySchemaReady;
+
+    if (!RAZORPAY_WEBHOOK_SECRET) {
+      return res.status(503).send('Webhook secret not configured');
+    }
+
     const rawBody = req.rawBody || JSON.stringify(req.body);
     const signature = req.headers['x-razorpay-signature'] || '';
 
-    if (RAZORPAY_WEBHOOK_SECRET && signature) {
-      const expectedSig = crypto
-        .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
-        .update(rawBody)
-        .digest('hex');
+    if (!signature) {
+      return res.status(401).send('Missing webhook signature');
+    }
 
-      if (expectedSig !== signature) {
-        return res.status(401).send('Bad webhook signature');
-      }
+    const expectedSig = crypto
+      .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest('hex');
+
+    if (!safeEqual(expectedSig, signature)) {
+      return res.status(401).send('Bad webhook signature');
     }
 
     const payload = req.body || {};
     const event = payload.event;
 
     if (event === 'payment.captured' || event === 'order.paid') {
-      const entity = payload.payload?.payment?.entity || payload.payload?.order?.entity;
-      const rzpOrderId = entity?.order_id || entity?.id;
-      const paymentId = entity?.id;
+      const paymentEntity = payload.payload?.payment?.entity || null;
+      const orderEntity = payload.payload?.order?.entity || null;
+      const rzpOrderId = paymentEntity?.order_id || orderEntity?.id || null;
+      const paymentId = paymentEntity?.id || null;
 
-      if (rzpOrderId && orders.has(rzpOrderId)) {
-        const o = orders.get(rzpOrderId);
+      if (!rzpOrderId) return res.status(200).json({ status: 'ignored' });
+
+      let o = orders.get(rzpOrderId);
+
+      if (!o) {
+        try {
+          const dbRes = await pool.query(
+            'SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1 LIMIT 1',
+            [rzpOrderId]
+          );
+          if (dbRes.rows.length > 0) {
+            const row = dbRes.rows[0];
+            o = {
+              orderId: row.order_id,
+              rzpOrderId: row.rzp_order_id || row.order_id,
+              docType: row.doc_type,
+              targetNumber: row.lookup_key,
+              amount: Number(row.amount),
+              role: row.owner_role || 'PUBLIC',
+              ownerId: row.owner_id || null,
+              dob: row.dob || '',
+              rcFormat: row.rc_format || 'OLD',
+              status: row.status,
+              currency: 'INR',
+              paidAt: row.paid_at,
+              paymentId: row.utr
+            };
+            orders.set(o.orderId, o);
+          }
+        } catch (dbErr) {
+          console.error('[Webhook DB Lookup Error]:', dbErr.message);
+        }
+      }
+
+      if (o) {
         o.status = 'SUCCESS';
         o.paidAt = new Date();
-        o.paymentId = paymentId;
+        if (paymentId) o.paymentId = paymentId;
 
-        pool.query('UPDATE orders SET status = $1, paid_at = NOW(), utr = $2 WHERE order_id = $3', [
-          'SUCCESS',
-          paymentId,
-          rzpOrderId
-        ]).catch(() => {});
+        pool.query(
+          'UPDATE orders SET status = $1, paid_at = NOW(), utr = COALESCE($2, utr) WHERE order_id = $3 OR rzp_order_id = $3',
+          ['SUCCESS', paymentId, o.orderId]
+        ).catch((dbErr) => {
+          console.error('[Webhook DB Update Error]:', dbErr.message);
+        });
       }
     }
 
@@ -1396,7 +1667,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     const cleanDlNo = String(report.dlNo || '').trim();
-
     page.drawText(cleanDlNo, {
       x: leftCardX + (89.0 * S),
       y: cardY + ((CARD_HEIGHT - 35.5) * S),
@@ -1511,11 +1781,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
           const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
 
-          const iconPng = await sharp(iconBuffer)
-            .ensureAlpha()
-            .png()
-            .toBuffer();
-
+          const iconPng = await sharp(iconBuffer).ensureAlpha().png().toBuffer();
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
 
           page.drawImage(embeddedIcon, {
@@ -1599,14 +1865,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   } else if (rcFormat === 'NEW') {
     const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
     const isKA = stateCode === 'KA';
-    const isCommercial = isCommercialClass(report.vehicleClassFull);
-    const vehicleBadge = isCommercial ? 'TR' : 'NT';
     const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
 
-    const frontCandidates = isKA 
-      ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png']
-      : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
-
+    const frontCandidates = isKA ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png'] : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
     const frontPath = getTemplatePath(frontCandidates);
 
     if (frontPath) {
@@ -1615,21 +1876,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         .composite([{ input: roundedMask, blend: 'dest-in' }])
         .png()
         .toBuffer();
-
       const frontImg = await pdfDoc.embedPng(maskedFrontPng);
-
-      page.drawImage(frontImg, {
-        x: leftCardX,
-        y: cardY,
-        width: cardW,
-        height: cardH
-      });
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    const backCandidates = isKA 
-      ? ['new_rc_back.png', 'new_rc_back_.png']
-      : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
-
+    const backCandidates = isKA ? ['new_rc_back.png', 'new_rc_back_.png'] : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
     const backPath = getTemplatePath(backCandidates);
 
     if (backPath) {
@@ -1638,30 +1889,19 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         .composite([{ input: roundedMask, blend: 'dest-in' }])
         .png()
         .toBuffer();
-
       const backImg = await pdfDoc.embedPng(maskedBackPng);
-
-      page.drawImage(backImg, {
-        x: rightCardX,
-        y: cardY,
-        width: cardW,
-        height: cardH
-      });
+      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
     if (!isKA) {
       const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
       let subTitleSize = 5.6 * S;
 
-      while (
-        subTitleSize > 4.0 * S &&
-        fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S
-      ) {
+      while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
         subTitleSize -= 0.2;
       }
 
       const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
-
       page.drawText(subTitleText, {
         x: leftCardX + ((cardW - subTitleWidth) / 2),
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
@@ -1694,25 +1934,19 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
       if (cfg.multiLine) {
         const lines = splitAddress(val, 55);
-
         lines.slice(0, cfg.maxLines).forEach((line, idx) => {
           const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
-
           page.drawText(String(line).trim(), {
             x: leftCardX + (posX * S),
             y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
             size: cfg.size * S,
-            font: font,
+            font,
             color: textColor
           });
         });
       } else {
         let fontSize = cfg.size * S;
-
-        while (
-          fontSize > 4.0 * S &&
-          font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S
-        ) {
+        while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
           fontSize -= 0.2;
         }
 
@@ -1720,31 +1954,31 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           x: leftCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
           size: fontSize,
-          font: font,
+          font,
           color: textColor
         });
       }
     });
 
     const backData = {
-      vehicleClass:     report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
-      regNo:            report.regNo || '',
-      maker:            report.maker || '',
-      model:            report.model || '',
-      bodyType:         report.bodyType || '',
-      seatingCapacity:  report.seating ? String(report.seating) : '2',
+      vehicleClass: report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
+      regNo: report.regNo || '',
+      maker: report.maker || '',
+      model: report.model || '',
+      bodyType: report.bodyType || '',
+      seatingCapacity: report.seating ? String(report.seating) : '2',
       standingCapacity: report.stdgSlpr ? report.stdgSlpr.split('/')[0].trim() : '0',
-      sleeperCapacity:  '0',
-      mfgDate:          report.mfgDate || '',
-      unladenWeight:    report.unladenWt ? String(report.unladenWt) : '109',
-      ladenWeight:      report.ladenWt ? String(report.ladenWt) : '239',
-      grossWeight:      '0',
-      cylinders:        report.cylinders ? String(report.cylinders) : '1',
-      cubicCapacity:    report.cubicCap ? String(report.cubicCap) : '109.7',
-      horsePower:       report.horsePower ? String(report.horsePower) : '7.37',
-      wheelbase:        report.wheelBase ? String(report.wheelBase) : '1275',
-      financer:         report.financer || '',
-      rtoAuthority:     report.rto || 'CHICKABALLAPURA RTO'
+      sleeperCapacity: '0',
+      mfgDate: report.mfgDate || '',
+      unladenWeight: report.unladenWt ? String(report.unladenWt) : '109',
+      ladenWeight: report.ladenWt ? String(report.ladenWt) : '239',
+      grossWeight: '0',
+      cylinders: report.cylinders ? String(report.cylinders) : '1',
+      cubicCapacity: report.cubicCap ? String(report.cubicCap) : '109.7',
+      horsePower: report.horsePower ? String(report.horsePower) : '7.37',
+      wheelbase: report.wheelBase ? String(report.wheelBase) : '1275',
+      financer: report.financer || '',
+      rtoAuthority: report.rto || 'CHICKABALLAPURA RTO'
     };
 
     Object.entries(newRcBackLayout).forEach(([key, cfg]) => {
@@ -1755,22 +1989,17 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       let fontSize = cfg.size * S;
-
-      while (
-        fontSize > 4.0 * S &&
-        font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S
-      ) {
+      while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
         fontSize -= 0.2;
       }
 
       if (cfg.rightAnchor) {
         const textWidth = font.widthOfTextAtSize(String(val), fontSize);
-
         page.drawText(String(val).trim(), {
           x: rightCardX + ((cfg.x * S) - textWidth),
           y: cardY + (baselineY * S),
           size: fontSize,
-          font: font,
+          font,
           color: softTextColor
         });
       } else {
@@ -1778,7 +2007,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           x: rightCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
           size: fontSize,
-          font: font,
+          font,
           color: softTextColor
         });
       }
@@ -1786,22 +2015,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
   } else {
     const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
-
     if (fs.existsSync(frontImgPath)) {
       const roundedFrontPng = await sharp(frontImgPath)
         .resize(1040, 655)
         .composite([{ input: roundedMask, blend: 'dest-in' }])
         .png()
         .toBuffer();
-
       const frontImg = await pdfDoc.embedPng(roundedFrontPng);
-
-      page.drawImage(frontImg, {
-        x: leftCardX,
-        y: cardY,
-        width: cardW,
-        height: cardH,
-      });
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
     }
 
     page.drawRectangle({
@@ -1809,19 +2030,15 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       y: cardY,
       width: cardW,
       height: cardH,
-      color: rgb(1, 1, 1),
+      color: rgb(1, 1, 1)
     });
 
     function drawText(text, x, y, size, maxWidth = 170) {
       if (!text) return;
-
       let fontSize = size * S;
       let displayText = String(text).trim();
 
-      while (
-        fontSize > 4.0 * S &&
-        fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S
-      ) {
+      while (fontSize > 4.0 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
         fontSize -= 0.2;
       }
 
@@ -1836,7 +2053,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawTextRightAnchor(text, rightAnchorX, y, size) {
       if (!text) return;
-
       const fontSize = size * S;
       const displayText = String(text).trim();
       const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
@@ -1853,7 +2069,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawTextCenter(text, y, size) {
       if (!text) return;
-
       const fontSize = size * S;
       const displayText = String(text).trim();
       const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
@@ -1869,47 +2084,23 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     const fullRegNoText = `REG NO : ${report.regNo || ''}`;
-
-    drawTextCenter(
-      fullRegNoText,
-      fieldLayout.header.regNoY,
-      fieldLayout.header.regNoFontSize
-    );
-
-    drawTextRightAnchor(
-      fieldLayout.header.form.label,
-      fieldLayout.header.form.rightAnchorX,
-      fieldLayout.header.form.y,
-      fieldLayout.header.form.fontSize
-    );
-
-    drawTextRightAnchor(
-      fieldLayout.header.formNote.label,
-      fieldLayout.header.formNote.rightAnchorX,
-      fieldLayout.header.formNote.y,
-      fieldLayout.header.formNote.fontSize
-    );
+    drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
+    drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
+    drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
 
     fieldLayout.topLeft.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-
-      if (field.isDot) {
-        drawText('.', field.dotX, field.y, field.fontSize, 5);
-      }
-
+      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 95);
     });
 
     fieldLayout.topRight.forEach((field) => {
       let value = report[getFieldKey(field.label)];
-
       if (field.label === 'CLASS' && value) {
-        value = String(value).replace(/\s*\(2WN\)\s*/i, '').trim();
+        value = String(value).replace(/\s*\(?2WN\)?\s*/i, '').trim();
       }
-
       if (field.label === 'COLOUR' && value) {
         value = String(value)
           .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
@@ -1917,7 +2108,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           .replace(/ELECTRONIC\s+/i, 'E. ')
           .trim();
       }
-
       drawText(field.label, field.labelX, field.y, field.fontSize, 28);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 56);
@@ -1925,13 +2115,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.middle.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
 
       if (field.multiLine && value) {
         const lines = splitAddress(value, 44);
-
         lines.slice(0, field.maxLines).forEach((line, idx) => {
           const lineY = field.y - (idx * field.lineHeight);
           drawText(line, field.valueX, lineY, field.fontSize, 175);
@@ -1943,11 +2131,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.bottomLeft.forEach((field) => {
       let value = report[getFieldKey(field.label)];
-
-      if (field.label === 'BODY' && value && /SOLO/i.test(String(value))) {
-        value = 'SOLO';
-      }
-
+      if (field.label === 'BODY' && value && /SOLO/i.test(String(value))) value = 'SOLO';
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
@@ -1955,30 +2139,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.bottomRight.forEach((field) => {
       const value = report[getFieldKey(field.label)];
-
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-
-      if (field.isDot) {
-        drawText('.', field.dotX, field.y, field.fontSize, 5);
-      }
-
+      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
       drawText(value, field.valueX, field.y, field.fontSize, 35);
     });
 
-    drawTextRightAnchor(
-      fieldLayout.footer.authority.label,
-      fieldLayout.footer.authority.rightAnchorX,
-      fieldLayout.footer.authority.y,
-      fieldLayout.footer.authority.fontSize
-    );
-
-    drawTextRightAnchor(
-      report.rto || 'RTO OFFICE',
-      fieldLayout.footer.rto.rightAnchorX,
-      fieldLayout.footer.rto.y,
-      fieldLayout.footer.rto.fontSize
-    );
+    drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
+    drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
   }
 
   const roundedSvg = Buffer.from(`
@@ -1990,51 +2158,46 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
   const borderImg = await pdfDoc.embedPng(borderPngBuffer);
 
-  page.drawImage(borderImg, {
-    x: leftCardX,
-    y: cardY,
-    width: cardW,
-    height: cardH
-  });
-
-  page.drawImage(borderImg, {
-    x: rightCardX,
-    y: cardY,
-    width: cardW,
-    height: cardH
-  });
+  page.drawImage(borderImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+  page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 }
 
 // =====================================================================
-// PUBLIC DOWNLOAD ROUTE
+// SECURE PDF DOWNLOAD ROUTE
 // =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
+    await ordersSecuritySchemaReady;
     const { orderId } = req.body;
 
     if (!orderId) {
       return res.status(400).json({ error: 'Order ID is required' });
     }
 
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
     let order = orders.get(orderId);
 
     if (!order) {
-      const dbOrderRes = await pool.query(
-        'SELECT * FROM orders WHERE order_id = $1',
-        [orderId]
-      );
-
+      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1', [orderId]);
       if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
         const row = dbOrderRes.rows[0];
-
         order = {
           orderId: row.order_id,
+          rzpOrderId: row.rzp_order_id || row.order_id,
           docType: row.doc_type,
           targetNumber: row.lookup_key,
-          status: row.status
+          amount: Number(row.amount),
+          status: row.status,
+          role: row.owner_role || 'PUBLIC',
+          ownerId: row.owner_id || null,
+          dob: row.dob || '',
+          rcFormat: row.rc_format || 'OLD',
+          paymentId: row.utr
         };
       }
     }
@@ -2044,49 +2207,44 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     }
 
     if (order.status !== 'SUCCESS') {
-      return res.status(403).json({
-        error: 'Payment has not been verified for this order.'
-      });
+      return res.status(403).json({ error: 'Payment has not been verified for this order.' });
     }
 
-    const report = await getVehicleOrDlRecord(
-      order.docType,
-      order.targetNumber,
-      order.dob
-    );
+    // Permission Verification
+    if (authContext.role === 'ADMIN') {
+      // Admin bypass
+    } else if (order.role === 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized to download admin-generated document.' });
+    } else if (authContext.role === 'CUSTOMER' && order.ownerId && authContext.mobile) {
+      if (!safeEqual(authContext.mobile, order.ownerId)) {
+        return res.status(403).json({ error: 'This document was purchased by another user.' });
+      }
+    } else if (authContext.role === 'AGENT' && order.ownerId && authContext.agentId) {
+      if (!safeEqual(authContext.agentId, order.ownerId)) {
+        return res.status(403).json({ error: 'This document was ordered by another agent.' });
+      }
+    }
 
+    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
     if (!report) {
-      return res.status(404).json({
-        error: 'Record could not be retrieved.'
-      });
+      return res.status(404).json({ error: 'Record could not be retrieved.' });
     }
 
-    const pdfBuffer = await generateVectorPdfBuffer(
-      order.docType,
-      order.rcFormat || 'OLD',
-      report
-    );
-
-    const fileName = order.docType === 'DL'
-      ? `DL_${report.dlNo || 'Document'}.pdf`
-      : `RC_${report.regNo || 'Document'}.pdf`;
+    const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
+    const fileName = order.docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=${fileName}`
-    );
-
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
     res.send(pdfBuffer);
-
   } catch (err) {
     console.error('PDF Generation Error:', err);
-    res.status(500).json({
-      error: 'Failed to generate PDF: ' + err.message
-    });
+    res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
   }
 });
 
+// =====================================================================
+// FIELD MAPPING
+// =====================================================================
 function getFieldKey(label) {
   const map = {
     'REG.DATE': 'regDate',
@@ -2116,6 +2274,9 @@ function getFieldKey(label) {
   return map[label] || label.toLowerCase();
 }
 
+// =====================================================================
+// SERVER START
+// =====================================================================
 app.listen(PORT, () => {
   console.log(`⚡ RTO Boss Backend Running at: http://localhost:${PORT}`);
 });
