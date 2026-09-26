@@ -473,16 +473,12 @@ async function generateSignaturePng(fullName) {
 
   let pathData = '';
   if (style === 0) {
-    // Cursive looped flow
     pathData = `M 22 28 C 25 15, 35 8, 42 18 C 50 28, 42 35, 52 24 C 60 16, 70 18, 78 22 C 86 26, 95 15, 105 22 C 115 29, 122 18, 132 20 C 142 22, 150 16, 165 22 M 26 31 C 70 35, 120 32, 172 28`;
   } else if (style === 1) {
-    // Initial heavy and sharp peaks
     pathData = `M 20 25 C 28 8, 38 32, 45 15 C 52 2, 60 22, 70 20 C 85 18, 95 28, 110 21 C 125 14, 140 24, 168 21 M 25 33 C 75 36, 125 33, 170 30`;
   } else if (style === 2) {
-    // Angular zig-zag scribble
     pathData = `M 22 22 L 35 12 L 48 26 L 62 15 L 75 28 L 92 18 C 110 15, 125 25, 145 20 C 155 18, 162 22, 172 21 M 24 32 C 70 35, 120 33, 170 29`;
   } else {
-    // Compact wave
     pathData = `M 24 26 C 30 18, 38 15, 45 22 C 52 29, 60 18, 70 21 C 82 24, 92 17, 105 22 C 120 27, 135 19, 168 21 M 28 33 C 70 35, 120 32, 172 30`;
   }
 
@@ -1732,13 +1728,13 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0.05, 0.15, 0.3)
     });
 
-    // Draw DL State Badge in Orange Circle (~ top-right) with black text
+    // Draw DL State Badge right-aligned to match template circle (~230 pt)
     const dlBadgeText = dlStateCode;
-    const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.5 * S);
+    const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.0 * S);
     page.drawText(dlBadgeText, {
-      x: leftCardX + (224.0 * S) - (dlBadgeW / 2),
+      x: leftCardX + (229.0 * S) - (dlBadgeW / 2),
       y: cardY + ((CARD_HEIGHT - 12.3) * S),
-      size: 5.5 * S,
+      size: 5.0 * S,
       font: fontBold,
       color: rgb(0, 0, 0)
     });
@@ -1892,7 +1888,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
           const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
 
-          const iconPng = await sharp(iconBuffer).resize(60, 30, { fit: 'contain' }).png().toBuffer();
+          const iconPng = await sharp(iconBuffer).png().toBuffer();
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
 
           page.drawImage(embeddedIcon, {
@@ -2022,7 +2018,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     }
 
-    // Draw RC Badges (Blue = NT/TR, Orange = State Code) with black text
+    // Draw RC Badges (Blue = NT/TR, Orange = State Code) right-aligned to match circles (~210 and ~229 pt)
     if (!isKA) {
       const isCommercial = isCommercialClass(report.vehicleClassFull);
       const blueBadgeText = isCommercial ? 'TR' : 'NT';
@@ -2030,7 +2026,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
       const blueW = fontBold.widthOfTextAtSize(blueBadgeText, 5.0 * S);
       page.drawText(blueBadgeText, {
-        x: leftCardX + (205.5 * S) - (blueW / 2),
+        x: leftCardX + (210.0 * S) - (blueW / 2),
         y: cardY + ((CARD_HEIGHT - 12.3) * S),
         size: 5.0 * S,
         font: fontBold,
@@ -2039,7 +2035,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
       const orangeW = fontBold.widthOfTextAtSize(orangeBadgeText, 5.0 * S);
       page.drawText(orangeBadgeText, {
-        x: leftCardX + (224.0 * S) - (orangeW / 2),
+        x: leftCardX + (229.0 * S) - (orangeW / 2),
         y: cardY + ((CARD_HEIGHT - 12.3) * S),
         size: 5.0 * S,
         font: fontBold,
