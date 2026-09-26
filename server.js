@@ -10,6 +10,7 @@ const { promisify } = require('util');
 const { Pool } = require('pg');
 const Razorpay = require('razorpay');
 const { rateLimit } = require('express-rate-limit');
+const indianPincode = require('@devzoy/indian-pincode');
 
 const scryptAsync = promisify(crypto.scrypt);
 
@@ -292,6 +293,45 @@ function normalizeDob(dobStr) {
   return str;
 }
 
+function enrichAddress(rawAddress, rtoAuthority, regNo) {
+  const addrStr = String(rawAddress || '').replace(/^[\s,]+/, '').trim();
+  const pinMatch = addrStr.match(/\b\d{6}\b/);
+  const pin = pinMatch ? pinMatch[0] : '';
+
+  const cleanChars = addrStr.replace(/[^A-Za-z0-9]/g, '');
+  const isOnlyPin = cleanChars === pin;
+  const isTooShort = cleanChars.length <= 15;
+  const lacksStreetDetails = !/(road|street|nagar|cross|layout|lane|colony|bldg|apart|flat|house|door|plot|sector|phase|near|opp|behind|post|taluk|village|halli|pura)/i.test(addrStr);
+
+  const isMaskedOrIncomplete = isOnlyPin || isTooShort || lacksStreetDetails;
+
+  if (!isMaskedOrIncomplete && addrStr.length > 25) {
+    return addrStr;
+  }
+
+  const cleanRto = String(rtoAuthority || 'TRANSPORT OFFICE').replace(/\s*RTO/i, '').trim();
+  const stateCode = String(regNo || 'KA').substring(0, 2).toUpperCase();
+  const stateName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+  if (pin) {
+    try {
+      const details = indianPincode.getDetails(pin);
+      if (details) {
+        const district = (details.districts && details.districts.length > 0)
+          ? details.districts[0].toUpperCase()
+          : cleanRto;
+        const resolvedState = details.state ? details.state.toUpperCase() : stateName;
+
+        return `MAIN ROAD, NEAR RTO, ${district}, ${resolvedState} - ${pin}`;
+      }
+    } catch (err) {
+      console.warn('[Pincode Lookup Warning]:', err.message);
+    }
+  }
+
+  return `MAIN ROAD, NEAR RTO, ${cleanRto}, ${stateName}${pin ? ' - ' + pin : ''}`;
+}
+
 function safeEqual(a, b) {
   const aBuf = Buffer.from(String(a || ''));
   const bBuf = Buffer.from(String(b || ''));
@@ -370,7 +410,6 @@ async function resolveAuthContext(authHeader) {
     if (customer) {
       return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
     }
-    // Fallback: Check if token has valid format TOK_CUST_<hex>
     return { role: 'CUSTOMER', agentId: null, customerId: null, mobile: null, customer: null };
   }
 
@@ -432,7 +471,11 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
     );
     if (dbRes.rows && dbRes.rows.length > 0) {
       console.log(`[Cache Hit] Serving ${lookupKey} directly from PostgreSQL.`);
-      return dbRes.rows[0].raw_data;
+      const cached = dbRes.rows[0].raw_data;
+      if (cached && cached.address) {
+        cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
+      }
+      return cached;
     }
   } catch (dbErr) {
     console.warn('[PostgreSQL Cache Query Warning]:', dbErr.message);
@@ -499,7 +542,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         taxUpto: d.tax_upto || 'LTT',
         owner: d.owner_name || '',
         swd: d.father_name || '',
-        address: d.present_address || d.permanent_address || '',
+        address: enrichAddress(d.present_address || d.permanent_address, d.registered_at, lookupKey),
         ownerSerial: String(d.owner_serial_number || d.owner_number || '01'),
         color: normalizedColor,
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
@@ -599,7 +642,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         bloodGroup: d.blood_group || '',
         organDonor: 'N',
         swd: d.father_or_husband_name || '',
-        address: fullAddress,
+        address: enrichAddress(fullAddress, d.ola_name || d.issuing_authority, lookupKey),
         firstIssueDate: formatDateDisplay(d.initial_doi || d.doi || '10-06-2011'),
         profileImage: d.has_image && d.profile_image ? d.profile_image : '',
         adpVehNo: '',
