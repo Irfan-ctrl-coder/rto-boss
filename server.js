@@ -467,23 +467,29 @@ const ordersSecuritySchemaReady = (async () => {
 })();
 
 async function generateSignaturePng(fullName) {
-  const seed = String(fullName || 'Driver')
-    .split('')
-    .reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const seedStr = String(fullName || 'Driver');
+  const seed = seedStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const style = seed % 4;
 
-  const wiggle1 = (seed % 4) - 2;
-  const wiggle2 = ((seed * 2) % 5) - 2;
-  const endX = 168 + (seed % 15);
+  let pathData = '';
+  if (style === 0) {
+    // Cursive looped flow
+    pathData = `M 22 28 C 25 15, 35 8, 42 18 C 50 28, 42 35, 52 24 C 60 16, 70 18, 78 22 C 86 26, 95 15, 105 22 C 115 29, 122 18, 132 20 C 142 22, 150 16, 165 22 M 26 31 C 70 35, 120 32, 172 28`;
+  } else if (style === 1) {
+    // Initial heavy and sharp peaks
+    pathData = `M 20 25 C 28 8, 38 32, 45 15 C 52 2, 60 22, 70 20 C 85 18, 95 28, 110 21 C 125 14, 140 24, 168 21 M 25 33 C 75 36, 125 33, 170 30`;
+  } else if (style === 2) {
+    // Angular zig-zag scribble
+    pathData = `M 22 22 L 35 12 L 48 26 L 62 15 L 75 28 L 92 18 C 110 15, 125 25, 145 20 C 155 18, 162 22, 172 21 M 24 32 C 70 35, 120 33, 170 29`;
+  } else {
+    // Compact wave
+    pathData = `M 24 26 C 30 18, 38 15, 45 22 C 52 29, 60 18, 70 21 C 82 24, 92 17, 105 22 C 120 27, 135 19, 168 21 M 28 33 C 70 35, 120 32, 172 30`;
+  }
 
   const svg = `
     <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg">
       <g transform="rotate(-2 110 22)">
-        <path d="M 22 28 C 24 16, 32 10, 38 18 C 44 26, 40 32, 48 24 C 54 18, 62 20, 68 ${22 + wiggle1} C 74 24, 82 17, 92 23 C 102 29, 110 19, 118 ${21 + wiggle2} C 126 23, 134 18, 145 22 C 154 26, 160 20, ${endX} 22"
-              fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M 28 32 C 65 34, 110 32, ${endX + 5} 30"
-              fill="none" stroke="#050c1a" stroke-width="1.5" stroke-linecap="round"/>
-        <path d="M 50 35 C 80 37, 120 34, 155 33"
-              fill="none" stroke="#050c1a" stroke-width="1.1" stroke-linecap="round"/>
+        <path d="${pathData}" fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
       </g>
     </svg>
   `;
@@ -575,7 +581,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         validUpto: formatDateDisplay(d.fit_up_to || d.fitness_upto || ''),
         taxUpto: d.tax_upto || 'LTT',
         owner: d.owner_name || '',
-        swd: d.father_name || '',
+        swd: d.father_name || 'NA',
         address: enrichAddress(d.present_address || d.permanent_address, d.registered_at, lookupKey),
         ownerSerial: String(d.owner_serial_number || d.owner_number || '01'),
         color: normalizedColor,
@@ -675,7 +681,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         dob: formatDateDisplay(d.dob || cleanDob),
         bloodGroup: d.blood_group || '',
         organDonor: 'N',
-        swd: d.father_or_husband_name || '',
+        swd: d.father_or_husband_name || 'NA',
         address: enrichAddress(fullAddress, d.ola_name || d.issuing_authority, lookupKey),
         firstIssueDate: formatDateDisplay(d.initial_doi || d.doi || '10-06-2011'),
         profileImage: d.has_image && d.profile_image ? d.profile_image : '',
@@ -730,7 +736,7 @@ const fieldLayout = {
   middle: [
     { label: 'OWNERNAME', labelX: 6, colonX: 57, valueX: 62, y: 93, fontSize: 6.8, maxW: 175 },
     { label: 'S/W/D OF', labelX: 6, colonX: 57, valueX: 62, y: 86, fontSize: 6.8, maxW: 175 },
-    { label: 'ADDRESS', labelX: 6, colonX: 57, valueX: 62, y: 79, fontSize: 6.8, multiLine: true, maxLines: 2, lineHeight: 6.5, maxW: 175 }
+    { label: 'ADDRESS', labelX: 6, colonX: 57, valueX: 62, y: 79, fontSize: 6.8, multiLine: true, maxLines: 3, lineHeight: 5.8, maxW: 175 }
   ],
   bottomLeft: [
     { label: 'MODEL', labelX: 6, colonX: 57, valueX: 62, y: 56, fontSize: 6.8, maxW: 120 },
@@ -764,7 +770,7 @@ const newRcFrontLayout = {
   swdName: { x: 56.7, yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
   fuel: { x: 2.5, yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
   emissionNorms: { x: 1.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
-  address: { x: 56.7, line2X: 64.0, yTop: 135.5, size: 6.5, font: 'regular', multiLine: true, maxLines: 2, lineHeight: 6.8, maxW: 180 }
+  address: { x: 56.7, line2X: 56.7, yTop: 132.5, size: 5.8, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.8, maxW: 180 }
 };
 
 const newRcBackLayout = {
@@ -1726,15 +1732,15 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0.05, 0.15, 0.3)
     });
 
-    // Draw DL State Badge in Orange Circle (~ top-right)
+    // Draw DL State Badge in Orange Circle (~ top-right) with black text
     const dlBadgeText = dlStateCode;
-    const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 6.0 * S);
+    const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.5 * S);
     page.drawText(dlBadgeText, {
       x: leftCardX + (224.0 * S) - (dlBadgeW / 2),
-      y: cardY + ((CARD_HEIGHT - 12.0) * S),
-      size: 6.0 * S,
+      y: cardY + ((CARD_HEIGHT - 12.3) * S),
+      size: 5.5 * S,
       font: fontBold,
-      color: rgb(1, 1, 1)
+      color: rgb(0, 0, 0)
     });
 
     if (report.profileImage) {
@@ -1838,7 +1844,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: softTextColor
     });
 
-    page.drawText(String(report.swd || '').trim(), {
+    page.drawText(String(report.swd || 'NA').trim(), {
       x: leftCardX + (79.0 * S),
       y: cardY + ((CARD_HEIGHT - 122.5) * S),
       size: 6.5 * S,
@@ -1847,11 +1853,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     });
 
     const dlAddrLines = splitAddress(report.address || '', 40);
-    dlAddrLines.slice(0, 2).forEach((line, idx) => {
+    dlAddrLines.slice(0, 3).forEach((line, idx) => {
       page.drawText(String(line).trim(), {
         x: leftCardX + (35.0 * S),
-        y: cardY + ((CARD_HEIGHT - (136.0 + (idx * 6.8))) * S),
-        size: 6.0 * S,
+        y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
+        size: 5.5 * S,
         font: fontRegular,
         color: softTextColor
       });
@@ -1886,7 +1892,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
           const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
 
-          const iconPng = await sharp(iconBuffer).ensureAlpha().png().toBuffer();
+          const iconPng = await sharp(iconBuffer).resize(60, 30, { fit: 'contain' }).png().toBuffer();
           const embeddedIcon = await pdfDoc.embedPng(iconPng);
 
           page.drawImage(embeddedIcon, {
@@ -2016,28 +2022,28 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     }
 
-    // Draw RC Badges (Blue = NT/TR, Orange = State Code) if not KA pre-rendered template
+    // Draw RC Badges (Blue = NT/TR, Orange = State Code) with black text
     if (!isKA) {
       const isCommercial = isCommercialClass(report.vehicleClassFull);
       const blueBadgeText = isCommercial ? 'TR' : 'NT';
       const orangeBadgeText = stateCode;
 
-      const blueW = fontBold.widthOfTextAtSize(blueBadgeText, 5.5 * S);
+      const blueW = fontBold.widthOfTextAtSize(blueBadgeText, 5.0 * S);
       page.drawText(blueBadgeText, {
         x: leftCardX + (205.5 * S) - (blueW / 2),
-        y: cardY + ((CARD_HEIGHT - 12.0) * S),
-        size: 5.5 * S,
+        y: cardY + ((CARD_HEIGHT - 12.3) * S),
+        size: 5.0 * S,
         font: fontBold,
-        color: rgb(1, 1, 1)
+        color: rgb(0, 0, 0)
       });
 
-      const orangeW = fontBold.widthOfTextAtSize(orangeBadgeText, 5.5 * S);
+      const orangeW = fontBold.widthOfTextAtSize(orangeBadgeText, 5.0 * S);
       page.drawText(orangeBadgeText, {
         x: leftCardX + (224.0 * S) - (orangeW / 2),
-        y: cardY + ((CARD_HEIGHT - 12.0) * S),
-        size: 5.5 * S,
+        y: cardY + ((CARD_HEIGHT - 12.3) * S),
+        size: 5.0 * S,
         font: fontBold,
-        color: rgb(1, 1, 1)
+        color: rgb(0, 0, 0)
       });
     }
 
@@ -2048,7 +2054,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       chassisNo: report.chassisNo,
       engineNo: report.engineNo,
       ownerName: report.owner,
-      swdName: report.swd,
+      swdName: report.swd || 'NA',
       address: report.address,
       fuel: report.fuel,
       emissionNorms: report.emissionNorms || 'BHARAT STAGE VI'
@@ -2244,7 +2250,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     });
 
     fieldLayout.middle.forEach((field) => {
-      const value = report[getFieldKey(field.label)];
+      const value = field.label === 'S/W/D OF' ? (report.swd || 'NA') : report[getFieldKey(field.label)];
       drawText(field.label, field.labelX, field.y, field.fontSize, 48);
       drawText(':', field.colonX, field.y, field.fontSize, 5);
 
@@ -2252,7 +2258,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         const lines = splitAddress(value, 40);
         lines.slice(0, field.maxLines).forEach((line, idx) => {
           const lineY = field.y - (idx * field.lineHeight);
-          drawText(line, field.valueX, lineY, field.fontSize, 175);
+          drawText(line, field.valueX, lineY, 5.8, 175);
         });
       } else {
         drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 175);
