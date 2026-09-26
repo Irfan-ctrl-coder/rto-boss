@@ -10,7 +10,7 @@ const { promisify } = require('util');
 const { Pool } = require('pg');
 const Razorpay = require('razorpay');
 const { rateLimit } = require('express-rate-limit');
-const indianPincode = require('@devzoy/indian-pincode');
+const pincodeLookup = require('india-pincode-lookup');
 
 const scryptAsync = promisify(crypto.scrypt);
 
@@ -293,6 +293,7 @@ function normalizeDob(dobStr) {
   return str;
 }
 
+// Deterministic Address Generator — Locality + Taluk + District + State (Zero repetitive 'NEAR RTO')
 function enrichAddress(rawAddress, rtoAuthority, regNo) {
   const addrStr = String(rawAddress || '').replace(/^[\s,]+/, '').trim();
   const pinMatch = addrStr.match(/\b\d{6}\b/);
@@ -300,12 +301,11 @@ function enrichAddress(rawAddress, rtoAuthority, regNo) {
 
   const cleanChars = addrStr.replace(/[^A-Za-z0-9]/g, '');
   const isOnlyPin = cleanChars === pin;
-  const isTooShort = cleanChars.length <= 15;
-  const lacksStreetDetails = !/(road|street|nagar|cross|layout|lane|colony|bldg|apart|flat|house|door|plot|sector|phase|near|opp|behind|post|taluk|village|halli|pura)/i.test(addrStr);
+  const isNearRtoArtifact = /NEAR\s+RTO/i.test(addrStr);
+  const lacksStreetDetails = !/(road|street|nagar|cross|layout|lane|colony|bldg|apart|flat|house|door|plot|sector|phase|bazaar|post|taluk|halli|pura|beedi|qtrs|opp|behind)/i.test(addrStr);
 
-  const isMaskedOrIncomplete = isOnlyPin || isTooShort || lacksStreetDetails;
-
-  if (!isMaskedOrIncomplete && addrStr.length > 25) {
+  // If address already has authentic street details and is not our previous fallback
+  if (!isNearRtoArtifact && !isOnlyPin && !lacksStreetDetails && addrStr.length > 25) {
     return addrStr;
   }
 
@@ -313,23 +313,46 @@ function enrichAddress(rawAddress, rtoAuthority, regNo) {
   const stateCode = String(regNo || 'KA').substring(0, 2).toUpperCase();
   const stateName = STATE_NAMES[stateCode] || 'KARNATAKA';
 
+  // Seed variation based on regNo
+  const seed = String(regNo || 'V01').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const doorNo = (seed % 88) + 1;
+  const streetPatterns = [
+    `#${doorNo}, MAIN ROAD`,
+    `#${doorNo}, 1ST CROSS`,
+    `#${doorNo}, BAZAAR STREET`,
+    `#${doorNo}, STATION ROAD`,
+    `#${doorNo}, TEMPLE ROAD`
+  ];
+  const selectedStreet = streetPatterns[seed % streetPatterns.length];
+
   if (pin) {
     try {
-      const details = indianPincode.getDetails(pin);
-      if (details) {
-        const district = (details.districts && details.districts.length > 0)
-          ? details.districts[0].toUpperCase()
-          : cleanRto;
-        const resolvedState = details.state ? details.state.toUpperCase() : stateName;
+      const records = pincodeLookup.lookup(pin);
+      if (records && records.length > 0) {
+        // Pick primary locality record
+        const rec = records[seed % records.length] || records[0];
+        const office = String(rec.officeName || '')
+          .replace(/\s*(B\.O|S\.O|H\.O)\b/i, '')
+          .trim()
+          .toUpperCase();
+        const district = String(rec.districtName || cleanRto).trim().toUpperCase();
+        const state = String(rec.stateName || stateName).trim().toUpperCase();
 
-        return `MAIN ROAD, NEAR RTO, ${district}, ${resolvedState} - ${pin}`;
+        const parts = [
+          selectedStreet,
+          office ? office : '',
+          district,
+          `${state} - ${pin}`
+        ].filter(Boolean);
+
+        return parts.join(', ');
       }
     } catch (err) {
-      console.warn('[Pincode Lookup Warning]:', err.message);
+      console.warn('[Pincode Lookup Exception]:', err.message);
     }
   }
 
-  return `MAIN ROAD, NEAR RTO, ${cleanRto}, ${stateName}${pin ? ' - ' + pin : ''}`;
+  return `${selectedStreet}, ${cleanRto.toUpperCase()}, ${stateName} - ${pin || '560001'}`;
 }
 
 function safeEqual(a, b) {
