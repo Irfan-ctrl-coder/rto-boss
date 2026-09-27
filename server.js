@@ -519,15 +519,14 @@ async function generateSignaturePng(fullName) {
     pathData = `M 24 26 C 30 18, 38 15, 45 22 C 52 29, 60 18, 70 21 C 82 24, 92 17, 105 22 C 120 27, 135 19, 168 21 M 28 33 C 70 35, 120 32, 172 30`;
   }
 
-  const svg = `
-    <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg">
-      <g transform="rotate(-2 110 22)">
-        <path d="${pathData}" fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>
-    </svg>
-  `;
+  const svg = `<svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(-2 110 22)"><path d="${pathData}" fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
 
-  return await sharp(Buffer.from(svg)).png().toBuffer();
+  try {
+    return await sharp(Buffer.from(svg)).png().toBuffer();
+  } catch (err) {
+    console.warn('[Signature Error]:', err.message);
+    return null;
+  }
 }
 
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
@@ -707,7 +706,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       const d = json.data;
 
-      // Extract Vehicle Classes Safely (handling array of strings or array of objects)
       let parsedCovList = [];
       const rawCov = d.vehicle_classes || d.cov_details || [];
 
@@ -743,7 +741,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         d.permanent_zip || ''
       ].filter(Boolean).join(', ');
 
-      // Strictly validate profile_image: ignore truncated dummy strings (< 200 chars)
       const validPhoto = (d.has_image && typeof d.profile_image === 'string' && d.profile_image.length > 200)
         ? d.profile_image
         : '';
@@ -1743,17 +1740,19 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const boldColor = rgb(0, 0, 0);
   const softTextColor = rgb(0.08, 0.11, 0.17);
 
-  // Safe Non-Blocking Word-Wrap (prevents infinite CPU hang)
-  function splitAddress(addr, maxChars = 40) {
+  // Bulletproof Non-blocking Word Wrap
+  function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
-    const clean = String(addr).trim().replace(/\s+/g, ' ');
+    const clean = String(addr).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (clean.length <= maxChars) return [clean];
 
     const words = clean.split(' ');
     const lines = [];
     let currentLine = '';
 
-    for (const word of words) {
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
+      if (word.length > maxChars) word = word.substring(0, maxChars);
       if (!currentLine) {
         currentLine = word;
       } else if ((currentLine + ' ' + word).length <= maxChars) {
@@ -1765,6 +1764,18 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
     if (currentLine) lines.push(currentLine);
     return lines;
+  }
+
+  // Safe Text Sizing Function
+  function getFittedSize(text, targetFont, initialSize, minSize, maxWidth) {
+    let size = initialSize;
+    const str = String(text || '').trim();
+    for (let i = 0; i < 12; i++) {
+      if (size <= minSize) break;
+      if (targetFont.widthOfTextAtSize(str, size) <= maxWidth) break;
+      size -= 0.25;
+    }
+    return Math.max(size, minSize);
   }
 
   const roundedMask = Buffer.from(`
@@ -1800,17 +1811,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
 
     const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
-    let dlSubTitleSize = 5.6 * S;
-
-    // Hardened bounded loop prevents infinite CPU hang
-    for (let attempts = 0; attempts < 10; attempts++) {
-      if (dlSubTitleSize <= 3.8 * S) break;
-      const textWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
-      if (textWidth <= 170.0 * S) break;
-      dlSubTitleSize -= 0.2;
-    }
-
+    const dlSubTitleSize = getFittedSize(dlSubTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
     const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
+
     page.drawText(dlSubTitleText, {
       x: leftCardX + Math.max(0, (cardW - dlSubTitleWidth) / 2),
       y: cardY + ((CARD_HEIGHT - 21.0) * S),
@@ -1829,7 +1832,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0, 0, 0)
     });
 
-    // Safe base64 driver photo decoding with strict failOnError: false
     if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
       try {
         const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1849,21 +1851,23 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           });
         }
       } catch (photoErr) {
-        console.warn('[Driver Photo Warning]: Skipped unparseable photo:', photoErr.message);
+        console.warn('[Driver Photo Warning]:', photoErr.message);
       }
     }
 
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
-      const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
-      page.drawImage(embeddedSig, {
-        x: leftCardX + (191.0 * S),
-        y: cardY + ((CARD_HEIGHT - 76.2) * S),
-        width: 35.0 * S,
-        height: 7.2 * S
-      });
+      if (sigPngBuffer) {
+        const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
+        page.drawImage(embeddedSig, {
+          x: leftCardX + (191.0 * S),
+          y: cardY + ((CARD_HEIGHT - 76.2) * S),
+          width: 35.0 * S,
+          height: 7.2 * S
+        });
+      }
     } catch (sigErr) {
-      console.warn('Signature generator warning:', sigErr.message);
+      console.warn('[Signature Warning]:', sigErr.message);
     }
 
     const cleanDlNo = String(report.dlNo || '').trim();
@@ -1941,7 +1945,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: softTextColor
     });
 
-    const dlAddrLines = splitAddress(report.address || '', 40);
+    const dlAddrLines = splitAddress(report.address || '', 38);
     dlAddrLines.slice(0, 3).forEach((line, idx) => {
       page.drawText(String(line).trim(), {
         x: leftCardX + (35.0 * S),
@@ -1952,7 +1956,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     });
 
-    // Valid pdf-lib rotation syntax using degrees(90)
     page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
       x: leftCardX + (238.5 * S),
       y: cardY + (72.0 * S),
@@ -1980,7 +1983,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const codeUpper = String(cov.code || '').trim().toUpperCase();
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
           const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
-
           const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
 
           page.drawImage(embeddedIcon, {
@@ -1990,11 +1992,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             height: 5.8 * S
           });
         } catch (e) {
-          console.warn('Icon draw warning:', e.message);
+          console.warn('[Icon Warning]:', e.message);
         }
 
         const codeVal = String(cov.code || '').trim();
-        let codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
+        const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
         const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
 
         page.drawText(codeVal, {
@@ -2094,15 +2096,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     if (!isKA) {
       const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
-      let subTitleSize = 5.6 * S;
-      for (let attempts = 0; attempts < 10; attempts++) {
-        if (subTitleSize <= 3.8 * S) break;
-        const textWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
-        if (textWidth <= 170.0 * S) break;
-        subTitleSize -= 0.2;
-      }
-
+      const subTitleSize = getFittedSize(subTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
       const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+
       page.drawText(subTitleText, {
         x: leftCardX + Math.max(0, (cardW - subTitleWidth) / 2),
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
@@ -2110,22 +2106,16 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         font: fontBold,
         color: rgb(0.05, 0.15, 0.3)
       });
-    }
 
-    if (!isKA) {
       const isCommercial = isCommercialClass(report.vehicleClassFull);
       const blueBadgeText = isCommercial ? 'TR' : 'NT';
       const orangeBadgeText = stateCode;
-
       const badgeSize = 5.0 * S;
       const badgeY = cardY + ((CARD_HEIGHT - 12.3) * S);
 
-      const frontBlueX = 221.0;
-      const frontOrangeX = 234.0;
-
       const blueW1 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
-        x: leftCardX + (frontBlueX * S) - (blueW1 / 2),
+        x: leftCardX + (221.0 * S) - (blueW1 / 2),
         y: badgeY,
         size: badgeSize,
         font: fontBold,
@@ -2134,19 +2124,16 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
       const orangeW1 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
       page.drawText(orangeBadgeText, {
-        x: leftCardX + (frontOrangeX * S) - (orangeW1 / 2),
+        x: leftCardX + (234.0 * S) - (orangeW1 / 2),
         y: badgeY,
         size: badgeSize,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
 
-      const backBlueX = 13.0;
-      const backOrangeX = 26.0;
-
       const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
-        x: rightCardX + (backBlueX * S) - (blueW2 / 2),
+        x: rightCardX + (13.0 * S) - (blueW2 / 2),
         y: badgeY,
         size: badgeSize,
         font: fontBold,
@@ -2155,7 +2142,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
       const orangeW2 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
       page.drawText(orangeBadgeText, {
-        x: rightCardX + (backOrangeX * S) - (orangeW2 / 2),
+        x: rightCardX + (26.0 * S) - (orangeW2 / 2),
         y: badgeY,
         size: badgeSize,
         font: fontBold,
@@ -2185,7 +2172,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
-        const lines = splitAddress(val, 40);
+        const lines = splitAddress(val, 38);
         lines.slice(0, cfg.maxLines).forEach((line, idx) => {
           const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
           page.drawText(String(line).trim(), {
@@ -2197,15 +2184,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           });
         });
       } else {
-        let fontSize = cfg.size * S;
         const textVal = String(val).trim();
-        for (let attempts = 0; attempts < 10; attempts++) {
-          if (fontSize <= 3.8 * S) break;
-          const textWidth = font.widthOfTextAtSize(textVal, fontSize);
-          if (textWidth <= (cfg.maxW || 100) * S) break;
-          fontSize -= 0.2;
-        }
-
+        const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
         page.drawText(textVal, {
           x: leftCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
@@ -2243,15 +2223,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
       const font = cfg.font === 'bold' ? fontBold : fontRegular;
       const baselineY = CARD_HEIGHT - cfg.yTop;
-
-      let fontSize = cfg.size * S;
       const textVal = String(val).trim();
-      for (let attempts = 0; attempts < 10; attempts++) {
-        if (fontSize <= 3.8 * S) break;
-        const textWidth = font.widthOfTextAtSize(textVal, fontSize);
-        if (textWidth <= (cfg.maxW || 100) * S) break;
-        fontSize -= 0.2;
-      }
+      const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
 
       if (cfg.rightAnchor) {
         const textWidth = font.widthOfTextAtSize(textVal, fontSize);
@@ -2295,15 +2268,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawText(text, x, y, size, maxWidth = 170) {
       if (!text) return;
-      let fontSize = size * S;
-      let displayText = String(text).trim();
-
-      for (let attempts = 0; attempts < 10; attempts++) {
-        if (fontSize <= 3.8 * S) break;
-        const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
-        if (textWidth <= maxWidth * S) break;
-        fontSize -= 0.2;
-      }
+      const displayText = String(text).trim();
+      const fontSize = getFittedSize(displayText, fontBold, size * S, 3.8 * S, maxWidth * S);
 
       page.drawText(displayText, {
         x: rightCardX + (x * S),
@@ -2316,8 +2282,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawTextRightAnchor(text, rightAnchorX, y, size) {
       if (!text) return;
-      const fontSize = size * S;
       const displayText = String(text).trim();
+      const fontSize = size * S;
       const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
       const calculatedX = (rightAnchorX * S) - textWidth;
 
@@ -2332,8 +2298,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     function drawTextCenter(text, y, size) {
       if (!text) return;
-      const fontSize = size * S;
       const displayText = String(text).trim();
+      const fontSize = size * S;
       const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
       const calculatedX = (cardW - textWidth) / 2;
 
@@ -2382,7 +2348,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       drawText(':', field.colonX, field.y, field.fontSize, 5);
 
       if (field.multiLine && value) {
-        const lines = splitAddress(value, 40);
+        const lines = splitAddress(value, 38);
         lines.slice(0, field.maxLines).forEach((line, idx) => {
           const lineY = field.y - (idx * field.lineHeight);
           drawText(line, field.valueX, lineY, 5.8, 175);
