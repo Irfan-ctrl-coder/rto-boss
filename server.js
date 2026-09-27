@@ -1976,77 +1976,89 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    if (report.covList && Array.isArray(report.covList)) {
-      for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-        const cov = report.covList[idx];
-        const rowPitch = 11.0;
-        const rowY = 83.6 + (idx * rowPitch);
+   if (report.covList && Array.isArray(report.covList)) {
 
-        // try {
-        //   const codeUpper = String(cov.code || '').trim().toUpperCase();
-        //   const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
-        //   const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
-        //   const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
+  // Embed each icon only once per PDF.
+  let embeddedCarIcon = null;
+  let embeddedBikeIcon = null;
 
-        //   page.drawImage(embeddedIcon, {
-        //     x: rightCardX + (18.0 * S),
-        //     y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
-        //     width: 11.5 * S,
-        //     height: 5.8 * S
-        //   });
-        // } catch (e) {
-        //   console.warn('[Icon Warning]:', e.message);
-        // }
+  try {
+    embeddedCarIcon = await pdfDoc.embedPng(SVG_ICONS.CAR);
+    embeddedBikeIcon = await pdfDoc.embedPng(SVG_ICONS.BIKE);
+  } catch (iconEmbedErr) {
+    console.warn('[Icon Embed Error]:', iconEmbedErr.message);
+  }
 
+  for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
+    const cov = report.covList[idx];
+    const rowPitch = 11.0;
+    const rowY = 83.6 + (idx * rowPitch);
 
-        console.log('[DL DEBUG] Icon rendering disabled.');
+    const codeUpper = String(cov.code || '').trim().toUpperCase();
+    const isCar =
+      cov.covType === 'CAR' ||
+      codeUpper.includes('LMV') ||
+      codeUpper.includes('MOTOR CAR');
 
-        const codeVal = String(cov.code || '').trim();
-        const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
-        const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
+    const embeddedIcon = isCar
+      ? embeddedCarIcon
+      : embeddedBikeIcon;
 
-        page.drawText(codeVal, {
-          x: rightCardX + (47.5 * S) - (codeW / 2),
-          y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: codeFontSize,
-          font: fontRegular,
-          color: softTextColor
-        });
-
-        const issuedVal = String(cov.issuedBy || '').trim();
-        const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
-
-        page.drawText(issuedVal, {
-          x: rightCardX + (73.0 * S) - (issuedW / 2),
-          y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 5.8 * S,
-          font: fontRegular,
-          color: softTextColor
-        });
-
-        const doiVal = String(cov.doi || '').trim();
-        const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
-
-        page.drawText(doiVal, {
-          x: rightCardX + (107.5 * S) - (doiW / 2),
-          y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 4.8 * S,
-          font: fontRegular,
-          color: softTextColor
-        });
-
-        const catVal = String(cov.category || 'NT').trim();
-        const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
-
-        page.drawText(catVal, {
-          x: rightCardX + (137.0 * S) - (catW / 2),
-          y: cardY + ((CARD_HEIGHT - rowY) * S),
-          size: 5.8 * S,
-          font: fontRegular,
-          color: softTextColor
-        });
-      }
+    if (embeddedIcon) {
+      page.drawImage(embeddedIcon, {
+        x: rightCardX + (18.0 * S),
+        y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
+        width: 11.5 * S,
+        height: 5.8 * S
+      });
     }
+
+    const codeVal = String(cov.code || '').trim();
+    const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
+    const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
+
+    page.drawText(codeVal, {
+      x: rightCardX + (47.5 * S) - (codeW / 2),
+      y: cardY + ((CARD_HEIGHT - rowY) * S),
+      size: codeFontSize,
+      font: fontRegular,
+      color: softTextColor
+    });
+
+    const issuedVal = String(cov.issuedBy || '').trim();
+    const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+
+    page.drawText(issuedVal, {
+      x: rightCardX + (73.0 * S) - (issuedW / 2),
+      y: cardY + ((CARD_HEIGHT - rowY) * S),
+      size: 5.8 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+
+    const doiVal = String(cov.doi || '').trim();
+    const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+
+    page.drawText(doiVal, {
+      x: rightCardX + (107.5 * S) - (doiW / 2),
+      y: cardY + ((CARD_HEIGHT - rowY) * S),
+      size: 4.8 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+
+    const catVal = String(cov.category || 'NT').trim();
+    const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+
+    page.drawText(catVal, {
+      x: rightCardX + (137.0 * S) - (catW / 2),
+      y: cardY + ((CARD_HEIGHT - rowY) * S),
+      size: 5.8 * S,
+      font: fontRegular,
+      color: softTextColor
+    });
+  }
+}
 
     if (report.mobileNo) {
       page.drawText(String(report.mobileNo).trim(), {
