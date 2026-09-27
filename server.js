@@ -1832,31 +1832,31 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0, 0, 0)
     });
 
-    // if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
-    //   try {
-    //     const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
-    //     const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-    //     if (rawPhotoBuffer.length > 200) {
-    //       const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
-    //         .resize(150, 180, { fit: 'cover' })
-    //         .png()
-    //         .toBuffer();
+    if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
+      try {
+        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
+        const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
+        if (rawPhotoBuffer.length > 200) {
+          const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
+            .resize(150, 180, { fit: 'cover' })
+            .png()
+            .toBuffer();
 
-    //       const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-    //       page.drawImage(embeddedPhoto, {
-    //         x: leftCardX + (193.5 * S),
-    //         y: cardY + ((CARD_HEIGHT - 72.0) * S),
-    //         width: 33.0 * S,
-    //         height: 39.0 * S
-    //       });
-    //     }
-    //   } catch (photoErr) {
-    //     console.warn('[Driver Photo Warning]:', photoErr.message);
-    //   }
-    // }
+          const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+          page.drawImage(embeddedPhoto, {
+            x: leftCardX + (193.5 * S),
+            y: cardY + ((CARD_HEIGHT - 72.0) * S),
+            width: 33.0 * S,
+            height: 39.0 * S
+          });
+        }
+      } catch (photoErr) {
+        console.warn('[Driver Photo Warning]:', photoErr.message);
+      }
+    }
 
 
-    console.log('[DL DEBUG] Profile photo processing disabled.');
+    // console.log('[DL DEBUG] Profile photo processing disabled.');
 
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
@@ -1982,21 +1982,24 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         const rowPitch = 11.0;
         const rowY = 83.6 + (idx * rowPitch);
 
-        try {
-          const codeUpper = String(cov.code || '').trim().toUpperCase();
-          const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
-          const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
-          const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
+        // try {
+        //   const codeUpper = String(cov.code || '').trim().toUpperCase();
+        //   const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
+        //   const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
+        //   const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
 
-          page.drawImage(embeddedIcon, {
-            x: rightCardX + (18.0 * S),
-            y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
-            width: 11.5 * S,
-            height: 5.8 * S
-          });
-        } catch (e) {
-          console.warn('[Icon Warning]:', e.message);
-        }
+        //   page.drawImage(embeddedIcon, {
+        //     x: rightCardX + (18.0 * S),
+        //     y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
+        //     width: 11.5 * S,
+        //     height: 5.8 * S
+        //   });
+        // } catch (e) {
+        //   console.warn('[Icon Warning]:', e.message);
+        // }
+
+
+        console.log('[DL DEBUG] Icon rendering disabled.');
 
         const codeVal = String(cov.code || '').trim();
         const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
