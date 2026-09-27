@@ -2026,8 +2026,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const badgeY = cardY + ((CARD_HEIGHT - 12.3) * S);
 
       // Front card badges (right side of title banner)
-      const frontBlueX = 222.0;
-      const frontOrangeX = 238.0;
+      const frontBlueX = 221.0;
+      const frontOrangeX = 236.0;
 
       const blueW1 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
@@ -2048,8 +2048,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
 
       // Back card badges (top-left side of back template)
-      const backBlueX = 17.0;
-      const backOrangeX = 32.0;
+      const backBlueX = 15.0;
+      const backOrangeX = 30.0;
 
       const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
