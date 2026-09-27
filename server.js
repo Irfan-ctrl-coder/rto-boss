@@ -2048,8 +2048,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
 
       // Back card badges (top-left side of back template)
-      const backBlueX = 14.0;
-      const backOrangeX = 28.0;
+      const backBlueX = 13.0;
+      const backOrangeX = 26.0;
 
       const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
