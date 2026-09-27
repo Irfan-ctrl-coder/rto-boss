@@ -1728,11 +1728,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0.05, 0.15, 0.3)
     });
 
-    // Draw DL State Badge right-aligned to match template circle (~230 pt)
     const dlBadgeText = dlStateCode;
     const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.0 * S);
     page.drawText(dlBadgeText, {
-      x: leftCardX + (229.0 * S) - (dlBadgeW / 2),
+      x: leftCardX + (230.0 * S) - (dlBadgeW / 2),
       y: cardY + ((CARD_HEIGHT - 12.3) * S),
       size: 5.0 * S,
       font: fontBold,
@@ -1888,8 +1887,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
           const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
 
-          const iconPng = await sharp(iconBuffer).png().toBuffer();
-          const embeddedIcon = await pdfDoc.embedPng(iconPng);
+          const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
 
           page.drawImage(embeddedIcon, {
             x: rightCardX + (18.0 * S),
@@ -2018,48 +2016,55 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     }
 
-    // Draw RC Badges (Blue = NT/TR, Orange = State Code) inside the matching circles on both cards.
+    // Draw RC Badges on BOTH front (left card) and back (right card) with proper spacing ratio for NT vs State Code.
     if (!isKA) {
       const isCommercial = isCommercialClass(report.vehicleClassFull);
       const blueBadgeText = isCommercial ? 'TR' : 'NT';
       const orangeBadgeText = stateCode;
 
-      const blueBadgeW = fontBold.widthOfTextAtSize(blueBadgeText, 5.0 * S);
-      const orangeBadgeW = fontBold.widthOfTextAtSize(orangeBadgeText, 5.0 * S);
-
-      // Small visual-centering corrections for the actual template circles.
-      const blueBadgeCenterX = 212.0 * S;
-      const orangeBadgeCenterX = 229.8 * S;
+      const badgeSize = 5.0 * S;
       const badgeY = cardY + ((CARD_HEIGHT - 12.3) * S);
 
+      // Front card badges (right side of title banner)
+      const frontBlueX = 224.0;
+      const frontOrangeX = 241.0;
+
+      const blueW1 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
-        x: leftCardX + blueBadgeCenterX - (blueBadgeW / 2),
+        x: leftCardX + (frontBlueX * S) - (blueW1 / 2),
         y: badgeY,
-        size: 5.0 * S,
+        size: badgeSize,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
 
+      const orangeW1 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
       page.drawText(orangeBadgeText, {
-        x: leftCardX + orangeBadgeCenterX - (orangeBadgeW / 2),
+        x: leftCardX + (frontOrangeX * S) - (orangeW1 / 2),
         y: badgeY,
-        size: 5.0 * S,
+        size: badgeSize,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
 
+      // Back card badges (top-left side of back template)
+      const backBlueX = 20.0;
+      const backOrangeX = 38.0;
+
+      const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
       page.drawText(blueBadgeText, {
-        x: rightCardX + blueBadgeCenterX - (blueBadgeW / 2),
+        x: rightCardX + (backBlueX * S) - (blueW2 / 2),
         y: badgeY,
-        size: 5.0 * S,
+        size: badgeSize,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
 
+      const orangeW2 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
       page.drawText(orangeBadgeText, {
-        x: rightCardX + orangeBadgeCenterX - (orangeBadgeW / 2),
+        x: rightCardX + (backOrangeX * S) - (orangeW2 / 2),
         y: badgeY,
-        size: 5.0 * S,
+        size: badgeSize,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
