@@ -180,8 +180,7 @@ const STATE_NAMES = {
 // =====================================================================
 const SVG_ICONS = {
   CAR: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE4UlEQVR4nN1WfSz9VRi/12so7y95f5kmc41oslgoRWuN0RLuJPI214ShxdBkZMLSuFJiPy4m08yEqKwsRhgWY5WoXC8hrnfubZ+ts53f173ce3+/1Prjs3vPc57zfD/nc855noclkUhY/2Ww/vcExWIxm2nb3d3VFwqFZsD6+vrDR0dHWv+6gouLi07Nzc0xRUVFhYmJifWxsbGfREVFtYaHh3+akZFRWVZWltvT0/Pi1taW8a0rKBAIIv39/b8KDAz8Ii4u7uOwsLAudXX1My8vr/Hk5OQ6Lpd7Jzg4+HNTU9MNEIayt0awoaHhdTMzM2FxcXH+xsaGKWxLS0uPmJiYbHZ2dr6E8fn5uRqUw9je3v6n+Pj4j6RdjftOUCAQRNra2q5UVFRkXVxcqBL7xMTE40ZGRtsjIyNPMdcMDQ094+Dg8GNtbW3KP0qwq6srzNzc/HeQY8719fU9r6ur++fk5KSntLWNjY2v2dnZ/Tw9Pe0uN0FILq/sCMzhcOZw+aWtaW1tjdLT09tbWFh4VNp6qB0ZGSmIjo5u2d/ff0ghgteRPD4+fmB0dPRJXH5c9oODgwcPDw+18UtwenqqAVWNjY235ufnXZBi6Hng5OREE+paWVmtxcTENHd0dLwMDA8PP315eaki84hlEVxbW7Nqa2t7BYo5Ojous1gsCV5qTk7Ou6mpqR8APB6vBsjKyqrw8/P7WkdHR4RUk56eXk3miG9aWtr7sFtYWPyGWAQYY1Ny3UEo09/fH5SXl/dOUFBQv4GBwQ4dTE1N7ZzNZotvgoqKyqUsO4lBx21paYm+liAyf2FhYVFAQMCXzB0CCAyQMZvxAQJVVdULaXamD9kAseEBySR4dnamDvk1NDROZREjQcl/9t+K0L5EIXoj0sBUFLbq6up0mQRxcbW1tQ/pIKgI0gLSQVlSwDxa5jyJS/yI4tnZ2eUyCeL10cfm5uY2AxtUpYnLOlbWDWrhV1NT8wTlD3E9PT0nmfM+Pj7f7u3t6ZFHe1duCg0N7SYLkO1R/FHK8IKxM7JLRQmyKbVTUlJq29vbI+rr6xObmppedXZ2/oGOqaWldTQwMPDcFYLb29tGHh4e3xPnzMzM95KSkvgYI6fV1NTw3N3dp8mxKKMeh8OZ4/P5SahAGKOJKCgoeJv2hcK9vb0vXCGIjO7r6/sNnJBSysvLsw0NDf8gC5H3CGFlweVy76B6kLG+vv5uaWnpm+hyiA01fHZ21vUKQSAkJOQzOCEZ5+bmltHBXV1dZ5ET74Ugj8eroe8dgIRNjhlAyyYSiXSkPpKSkpK3rK2tV5GY0RLRgWBHS4VjBlkcF4fDmcN/JyenRZQt+EgD5tAcoMrY2Nj8QsdNSEj4EMK4uLjMR0REtA8ODj5LV7a7CII5Sg36OfKiCSwtLX9dXl523NzcNCHtvFAoNMN4ZWXFdmxs7Inx8XEvWZiamnoMPugH6bj5+fnFq6ur1igQeL10Lb5CkAYKN50DUV/ReMrT7UhkAOtxhPTj6e7uDpWrm2FiZ2fHgAQD0bq6umR6Z8qS5PP5SWTj3t7e3yF7KEUQmJmZcUOSrqyszKAv7r1AJBLpVFVVvYFkjc77Jv8bA6K/o5VTVj0xYy16S3nWXRtQEbtEQYLy4sag0sb3g6RYTsK3TlCi4Gko/JHbxl+QvfplZc+fyAAAAABJRU5ErkJggg==', 'base64'),
-  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCj0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64'),
-  CRANE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE9klEQVR4nO1WeUh8VRid0Smp3HKHXNJATcPcCBFDxaVwSXHfHXHJLXHFrQSXNDQT7VeaSmObqSmmFW6hooRIZopLCm6poGlpuaGOzosD3R/P55txqh9NQX98cOfde7977nfOd+5wKIri/JuDI2sA1P8AKelCJBJx2b4LhULe5OTkcxMTE3YyASgSAwyxuLj4dGxsbLO6uvrPfD5f8I8DFIlEXDaABwcHj1dXV2eamZktcDgcChEaGtoqU4qpP6K/v/8FLy+vLwgwVM/a2vq7yMjID2UGUCgU8qampmxAp5aW1k8EnKWl5fcDAwPudXV1r4SEhHwqNcDr62u54+NjRcTJycljiLOzs0f+CrjNzU29vLy8Ch0dnR0CTF5e/ioqKuqD5eVlY6xpaGh4OTAwsINNIrcS9vT0vITbgAZvb+9eHx+fz7EZCRcWFszomykJwE5PTx9tbW0NdXBwGCfAEEpKSkdFRUXFFxcXD5O1jY2N8RERER8xtXsLIGiAHszNzedtbGymrKyspiFkOTm5aySvrKzMuasBhEIhb3p62iosLOwTRUXFYzo4CwuL2c7OTv+rqyt5+npUOCAg4DMCmp77Bq3R0dEtuMnR0ZHS/Py8+e7urvbe3p6mvb39NzjA1dV1CAnFVW12dtYiPj6+UUNDY58OTEFB4Ry5V1ZWnmLuWV1dNYIuUVnCEP3i9xcCjK6u7lZmZmb1+fm5gp+fX1d9fX0i5pycnEZwkL6+/o/r6+tPMg/Z39/XqKmpSafbBgltbe1dUHh5efkQ26WWlpZMUGkejyecmZl5VmyTwM1BZUFBweuoEmhOS0urxZyzs/MwEffg4KAbvvX19b0IjeIi0BnmCCgulytCYKympvYL6IOucQazQmjAoKCgdhTh8PBFeyRy9zQYEtLSzQS4lAc7uLi8nVycvI7vb293qampj+Qw8vLy/Oxvra2No1ZLQKOCZIE9MdWxbKyskJIAOPh4WFnyOoWwIqKijx6MlSTeQDCw8PjK6wH/RwWYJK+dXd3+7IBbGpqirO1tf12fHzcAaxBMrcozsrKepOtIszDDA0N17a2tnTHxsaeDw4OboPZigOIUFFR+dXX17cbFMMl2ACiecASXpWMjIy3SJffqGBSUtK7dGrYKCLzbW1twUQ/xcXFRZIuZmRktLqxsWEAbdEdgGlRAoGA7+/v34muZm2SlJSUe0yA+K2pqbnn5uY2aGJiskQOxVqyb2RkxAkix2MP76MHDB5NJ+2rA/cQazNMgOT2sB3QAwm4u7sP4DueLfgln88XwPdSU1Pfxn5m4DuYIevQxah4enp6zdzc3DOFhYVl4eHhH+Ny7e3tQczq3qA4JibmfSY9AOHo6DiKsYGBwUZubu4bqqqqh5Io5YgJY2Pj5cTExHpyeYyhYTIPx2Cr6v0BqsQGUFlZ+Tfy29PT80u65XD+RCAX8VMEfDYnJ6dSaoDQUklJyWulpaWv5ufnl6ObsrOzq+gGjAOqqqqy4+LimhISEt4DbZICa8i6rq4uPzs7uwmSS09Pb7O5uTkWdEMCHR0dgRIBsgU0Q3/wYajSCp5iCTQOyQXpoLPZOlpqgPAjvBx4Y2EB29vbT/wdgKOjo44ZHjn0NCQK3OeDeidSbFpbW3NEH9eJSWi7shBxjs7Ozr4EysNOKkASpOEegD7HghAWQRH1gCo/zrA3wHR0IxayjoasgAAAABJRU5ErkJggg==', 'base64')
+  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCj0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64')
 };
 
 // Static Mock Vehicle & DL Database
@@ -309,7 +308,6 @@ function normalizeDob(dobStr) {
 // Deterministic Address Generator
 function enrichAddress(rawAddress, rtoAuthority, regNo) {
   let addrStr = String(rawAddress || '').trim();
-  // Strip leading punctuation and whitespace (handles raw ', 560027')
   addrStr = addrStr.replace(/^[\s,./-]+/, '').trim();
 
   const pinMatch = addrStr.match(/\b\d{6}\b/);
@@ -580,7 +578,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         .replace(/METALLIC\s+/i, 'MET. ')
         .replace(/ELECTRONIC\s+/i, 'E. ');
 
-      // Fallback extraction chain for addresses
       let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim();
       rawSurepassAddr = rawSurepassAddr.replace(/^[\s,./-]+/, '').trim();
 
@@ -1751,8 +1748,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
     let dlSubTitleSize = 5.6 * S;
-    while (dlSubTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize) > 170.0 * S) {
+    let attempts = 0;
+    while (attempts < 15 && dlSubTitleSize > 3.8 * S && fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize) > 170.0 * S) {
       dlSubTitleSize -= 0.2;
+      attempts++;
     }
     const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
     page.drawText(dlSubTitleText, {
@@ -1918,9 +1917,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
         try {
           const codeUpper = String(cov.code || '').trim().toUpperCase();
-          const isCrane = codeUpper.includes('CRANE');
-          const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
-          const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
+          const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
+          const iconBuffer = isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE;
 
           const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
 
@@ -2036,9 +2034,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     if (!isKA) {
       const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
       let subTitleSize = 5.6 * S;
-
-      while (subTitleSize > 4.0 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+      let attempts = 0;
+      while (attempts < 15 && subTitleSize > 3.8 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
         subTitleSize -= 0.2;
+        attempts++;
       }
 
       const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
@@ -2137,11 +2136,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         });
       } else {
         let fontSize = cfg.size * S;
-        while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
+        let attempts = 0;
+        const textVal = String(val).trim();
+        while (attempts < 15 && fontSize > 3.8 * S && font.widthOfTextAtSize(textVal, fontSize) > (cfg.maxW || 100) * S) {
           fontSize -= 0.2;
+          attempts++;
         }
 
-        page.drawText(String(val).trim(), {
+        page.drawText(textVal, {
           x: leftCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
           size: fontSize,
@@ -2180,13 +2182,16 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       let fontSize = cfg.size * S;
-      while (fontSize > 4.0 * S && font.widthOfTextAtSize(String(val), fontSize) > (cfg.maxW || 100) * S) {
+      let attempts = 0;
+      const textVal = String(val).trim();
+      while (attempts < 15 && fontSize > 3.8 * S && font.widthOfTextAtSize(textVal, fontSize) > (cfg.maxW || 100) * S) {
         fontSize -= 0.2;
+        attempts++;
       }
 
       if (cfg.rightAnchor) {
-        const textWidth = font.widthOfTextAtSize(String(val), fontSize);
-        page.drawText(String(val).trim(), {
+        const textWidth = font.widthOfTextAtSize(textVal, fontSize);
+        page.drawText(textVal, {
           x: rightCardX + ((cfg.x * S) - textWidth),
           y: cardY + (baselineY * S),
           size: fontSize,
@@ -2194,7 +2199,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           color: softTextColor
         });
       } else {
-        page.drawText(String(val).trim(), {
+        page.drawText(textVal, {
           x: rightCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
           size: fontSize,
@@ -2228,9 +2233,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       if (!text) return;
       let fontSize = size * S;
       let displayText = String(text).trim();
+      let attempts = 0;
 
-      while (fontSize > 4.0 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
+      while (attempts < 15 && fontSize > 3.8 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
         fontSize -= 0.2;
+        attempts++;
       }
 
       page.drawText(displayText, {
