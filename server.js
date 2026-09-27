@@ -130,7 +130,7 @@ app.get('/', (req, res) => {
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
-  return res.status(404).send('Not Found');
+  return res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Admin Route
