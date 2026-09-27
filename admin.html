@@ -30,7 +30,9 @@
   </script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; user-select: none; -webkit-user-select: none; }
+    /* Ensure cursor focus and text selection remain active inside all form controls */
+    input, textarea, select { user-select: text !important; -webkit-user-select: text !important; }
     .mono { font-family: 'JetBrains Mono', monospace; }
   </style>
 </head>
@@ -53,8 +55,9 @@
           <input 
             type="password" 
             id="secretKeyInput" 
-            placeholder="ADMIN_MASTER_SECRET" 
+            placeholder="••••••••••••••••" 
             required 
+            autocomplete="off"
             class="w-full bg-slate-900 border border-brand-border rounded-xl px-4 py-3 text-sm mono font-bold text-white outline-none focus:border-brand-primary" 
           />
         </div>
@@ -236,6 +239,39 @@
   </div>
 
   <script>
+    // 1. Production Console Muter
+    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      console.log = console.warn = console.error = console.info = console.debug = () => {};
+    }
+
+    // 2. Context Menu Guard: Blocks inspect globally, but permits right-click inside text inputs for mouse pasting
+    document.addEventListener('contextmenu', (e) => {
+      const tag = e.target.tagName ? e.target.tagName.toLowerCase() : '';
+      if (tag === 'input' || tag === 'textarea') {
+        return true;
+      }
+      e.preventDefault();
+      return false;
+    });
+
+    // 3. DevTools Interceptor: Blocks F12 and inspect combos, but safely bypasses Ctrl+V, Ctrl+C, Ctrl+A, Ctrl+X
+    document.addEventListener('keydown', (e) => {
+      const k = e.key.toLowerCase();
+      // Unconditionally allow clipboard operations
+      if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(k)) {
+        return true;
+      }
+      // Block standard DevTools key combinations
+      if (
+        e.key === 'F12' ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(k)) ||
+        ((e.ctrlKey || e.metaKey) && ['u', 's'].includes(k))
+      ) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
     let adminToken = sessionStorage.getItem('ADMIN_TOKEN') || null;
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -262,11 +298,11 @@
           sessionStorage.setItem('ADMIN_TOKEN', adminToken);
           initDashboard();
         } else {
-          alert(d.error || 'Invalid Admin Secret');
+          alert('Access denied. Invalid master key.');
           btn.innerText = 'Unlock Console';
         }
       } catch (err) {
-        alert('Connection error: ' + err.message);
+        alert('Network request error.');
         btn.innerText = 'Unlock Console';
       }
     }
@@ -307,9 +343,7 @@
           document.getElementById('statAgents').innerText = d.agents.active_agents || 0;
           document.getElementById('statPendingAgents').innerText = d.agents.pending_agents || 0;
         }
-      } catch (e) {
-        console.error('Stats load failed', e);
-      }
+      } catch (e) {}
     }
 
     function handleDocTypeChange() {
@@ -338,7 +372,7 @@
 
       const btn = document.getElementById('genBtn');
       const origText = btn.innerHTML;
-      btn.innerHTML = '<span>⏳</span> Fetching Enriched Data & Generating Vector PDF...';
+      btn.innerHTML = '<span>⏳</span> Processing Vector PDF...';
       btn.disabled = true;
 
       try {
@@ -352,8 +386,7 @@
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'Generation failed');
+          throw new Error('Generation failed');
         }
 
         const blob = await res.blob();
@@ -369,7 +402,7 @@
         loadStats();
         fetchOrders();
       } catch (err) {
-        alert(err.message);
+        alert('Document generation failed.');
       } finally {
         btn.innerHTML = origText;
         btn.disabled = false;
@@ -401,9 +434,7 @@
         } else {
           tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-500">No orders recorded in database yet.</td></tr>';
         }
-      } catch (e) {
-        console.error('Fetch orders error', e);
-      }
+      } catch (e) {}
     }
 
     async function reDownloadOrder(orderId, docType, targetNumber) {
@@ -424,7 +455,7 @@
         a.remove();
         window.URL.revokeObjectURL(url);
       } catch (err) {
-        alert('Could not re-download PDF: ' + err.message);
+        alert('Could not retrieve PDF.');
       }
     }
 
@@ -454,9 +485,7 @@
         } else {
           tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">No partner agents applied yet.</td></tr>';
         }
-      } catch (e) {
-        console.error('Fetch agents error', e);
-      }
+      } catch (e) {}
     }
 
     async function setAgentStatus(agentId, status) {
@@ -474,10 +503,10 @@
           fetchAgents();
           loadStats();
         } else {
-          alert(d.error || 'Status update failed');
+          alert('Status update failed.');
         }
       } catch (e) {
-        alert('Request error: ' + e.message);
+        alert('Network request error.');
       }
     }
   </script>
