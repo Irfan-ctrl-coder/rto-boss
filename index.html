@@ -31,7 +31,7 @@
   </script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; user-select: none; -webkit-user-select: none; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
   </style>
 </head>
@@ -154,6 +154,16 @@
                 </div>
               </div>
 
+              <!-- TEST DATA -->
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div class="font-bold text-slate-800">🧪 Test RC Reference Numbers:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA40EF5093</span> (TVS 2-Wheeler — NT)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA09HJ1161</span> (Old Format Reference)</div>
+                <div class="mt-2 pt-2 border-t border-slate-300">
+                  <div class="font-bold text-orange-700">🔐 OTP Test Code:</div>
+                  <div>Enter <span class="mono font-bold">1234</span> with mobile: <span class="mono font-bold text-blue-700">9999999999</span> or <span class="mono font-bold text-blue-700">1234567890</span></div>
+                </div>
+              </div>
             </div>
 
             <!-- DL FORM -->
@@ -177,6 +187,13 @@
                   value="1993-04-24"
                   class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary"
                 />
+              </div>
+
+              <!-- DL TEST DATA -->
+              <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                <div class="font-bold text-slate-800">🧪 Test DL Reference Numbers:</div>
+                <div>• <span class="mono font-bold text-purple-700">KA13 20170004921</span> DOB: <span class="mono">1993-04-24</span> (LMV)</div>
+                <div>• <span class="mono font-bold text-emerald-700">KA11 20140002551</span> DOB: <span class="mono">1995-06-09</span> (LMV, MCWG)</div>
               </div>
             </div>
 
@@ -238,7 +255,7 @@
 
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
           <div class="flex justify-between text-slate-600">
-            <span>Document Reference:</span>
+            <span>Document Number:</span>
             <span class="font-bold text-slate-900 mono" id="receiptDocNo">---</span>
           </div>
           <div class="flex justify-between text-slate-600">
@@ -300,7 +317,7 @@
               <div class="text-2xl">💳</div>
               <h4 class="font-extrabold text-sm text-brand-navy mt-2">New RC Card</h4>
             </div>
-            <span class="text-xs font-bold text-brand-primary">STANDARD</span>
+            <span class="text-xs font-bold text-brand-primary">VAHAN 2.0</span>
           </button>
         </div>
 
@@ -317,7 +334,7 @@
 
         <div>
           <h3 class="text-lg font-black text-brand-navy">Mobile Verification Required</h3>
-          <p class="text-xs text-slate-500 mt-1">Verify your mobile to access document downloads.</p>
+          <p class="text-xs text-slate-500 mt-1">Verify your mobile to access premium document downloads.</p>
         </div>
 
         <div id="authMobileStage" class="space-y-3 text-left">
@@ -327,6 +344,7 @@
               <span class="bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-500 flex items-center border-r border-slate-300">+91</span>
               <input type="text" id="custAuthMobile" placeholder="Enter 10-digit mobile" maxlength="10" class="w-full p-2.5 text-sm font-bold text-slate-800 outline-none" />
             </div>
+            <p class="text-[10px] text-slate-400 mt-1">💡 Test: Use <span class="mono font-bold text-blue-600">9999999999</span> for demo OTP</p>
           </div>
 
           <button type="button" onclick="sendCustomerOtp()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
@@ -337,10 +355,11 @@
         <div id="authOtpStage" class="hidden space-y-3 text-left">
           <div>
             <div class="flex justify-between items-center mb-1">
-              <label class="text-[11px] font-bold text-slate-500 uppercase">Enter Verification Code</label>
+              <label class="text-[11px] font-bold text-slate-500 uppercase">Enter 4-Digit Code</label>
               <button onclick="resendCustomerOtp()" class="text-[10px] text-brand-primary font-bold hover:underline">Change Number</button>
             </div>
-            <input type="text" id="custAuthOtp" placeholder="••••" maxlength="6" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
+            <input type="text" id="custAuthOtp" placeholder="••••" maxlength="4" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
+            <p class="text-[10px] text-slate-400 mt-1">🔐 Demo code: <span class="mono font-bold">1234</span></p>
           </div>
 
           <button type="button" onclick="verifyCustomerOtp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
@@ -369,7 +388,7 @@
             <input type="text" id="agentLogIdentifier" placeholder="9876543210 / agent@shop.com" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password (Min 8 chars)</label>
             <input type="password" id="agentLogPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
 
@@ -387,8 +406,8 @@
 
         <div id="agentRegisterView" class="hidden space-y-3">
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Enterprise Name</label>
-            <input type="text" id="agentRegName" placeholder="Fleet Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Shop Name</label>
+            <input type="text" id="agentRegName" placeholder="Rajesh Xerox &amp; Fleet Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -397,21 +416,21 @@
             </div>
             <div>
               <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Email</label>
-              <input type="email" id="agentRegEmail" placeholder="partner@domain.com" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
+              <input type="email" id="agentRegEmail" placeholder="rajesh@gmail.com" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
             </div>
           </div>
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password (Min 8 chars)</label>
             <input type="password" id="agentRegPassword" placeholder="Create secure password" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Operating Address</label>
-            <textarea id="agentRegAddress" rows="2" placeholder="Suite #12, Commercial Area" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Shop / Work Address</label>
+            <textarea id="agentRegAddress" rows="2" placeholder="Suite #12, Commercial Road, Hassan" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
           </div>
 
           <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight space-y-1">
             <div>ℹ️ <strong>One-time ₹500 Verification Fee</strong></div>
-            <div>After payment, your account will be under review. Verification typically takes 24–48 hours.</div>
+            <div>After payment, your account will be under review. Admin approval typically takes 24-48 hours.</div>
           </div>
 
           <button onclick="handleAgentRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
@@ -431,9 +450,56 @@
           </div>
           <h4 class="font-extrabold text-base text-brand-navy">Application Under Review</h4>
           <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-            Your verification fee has been confirmed. Your profile is currently under review by our operations team.
+            ✓ Your ₹500 verification fee has been received and confirmed. Your profile is currently being reviewed by our admin team. Login will be enabled once approved (24-48 hours typically).
           </p>
           <button onclick="closeAgentModal()" class="text-xs font-bold text-brand-primary hover:underline">Close Window</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MASTER ADMIN MODAL -->
+    <div id="adminModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-2xl w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col overflow-y-auto">
+        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-red-600 uppercase tracking-wider">🔐 MASTER ADMIN CONTROL</span>
+            <h3 class="text-xl font-black text-brand-navy">Admin Dashboard</h3>
+          </div>
+          <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+        </div>
+
+        <div id="adminLoginView" class="space-y-3">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">ADMIN_MASTER_SECRET</label>
+            <input type="password" id="adminSecretKey" placeholder="••••••••••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-mono font-bold outline-none focus:border-brand-primary" />
+          </div>
+          <button onclick="handleAdminLogin()" class="w-full bg-slate-900 hover:bg-black text-white font-extrabold py-3 rounded-xl text-sm transition-all">
+            Access Master Control
+          </button>
+        </div>
+
+        <div id="adminDashboardView" class="hidden space-y-4 overflow-y-auto flex-1">
+          <div class="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div>
+              <span class="text-xs font-bold text-slate-800">✓ Master Admin Mode Active</span>
+              <p class="text-[10px] text-slate-500">All lookups set to ₹0 instant bypass</p>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="clearTestData()" class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg hover:bg-amber-100">
+                Clear Memory
+              </button>
+              <button onclick="logoutSession()" class="text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100">
+                Logout
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-extrabold text-sm text-brand-navy mb-2">Registered Partner Agents</h4>
+            <div id="adminAgentsList" class="space-y-2 text-xs max-h-96 overflow-y-auto">
+              <p class="text-slate-400 text-center py-4">Loading agents...</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -473,24 +539,6 @@
   </footer>
 
   <script>
-    // Console Muting in Non-Localhost Environments
-    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      console.log = console.warn = console.error = console.info = console.debug = () => {};
-    }
-
-    // DevTools & Inspection Defenses
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
-    document.addEventListener('keydown', (e) => {
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
-        (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))
-      ) {
-        e.preventDefault();
-        return false;
-      }
-    });
-
     const STATE_NAMES_CLIENT = {
       AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
       BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
@@ -506,7 +554,7 @@
     let detectedState = 'KA';
     let chosenFormat = 'NEW';
     let activeOrderId = null;
-    let activeDocNum = null;
+    let activeReportData = null;
     let isCompleted = false;
     let isDownloading = false;
 
@@ -522,6 +570,7 @@
       closeFormatModal();
       closeCustomerModal();
       closeAgentModal();
+      closeAdminModal();
       closePolicyModal();
 
       if (viewName === 'complete') {
@@ -531,8 +580,13 @@
         document.getElementById('view-input-state').classList.remove('hidden');
         isCompleted = false;
         activeOrderId = null;
-        activeDocNum = null;
         if (addToHistory) history.pushState({ view: 'search' }, '', '#search');
+      }
+    }
+
+    function checkAdminRoute() {
+      if (window.location.hash === '#admin' || window.location.pathname === '/admin') {
+        openAdminModal();
       }
     }
 
@@ -546,6 +600,7 @@
     });
 
     window.addEventListener('DOMContentLoaded', async () => {
+      checkAdminRoute();
       if (!window.location.hash) {
         history.replaceState({ view: 'search' }, '', '#search');
       }
@@ -580,7 +635,7 @@
       document.getElementById('summaryBasePrice').innerText = '₹' + activePrice + '.00';
       document.getElementById('summaryTotalPrice').innerText = '₹' + activePrice;
       
-      const roleText = currentRole === 'ADMIN' ? 'Admin Bypass' : (currentRole === 'AGENT' ? 'Agent Wholesale Rate' : 'Standard Rate');
+      const roleText = currentRole === 'ADMIN' ? 'Admin Free Bypass (₹0)' : (currentRole === 'AGENT' ? 'Agent Wholesale Rate' : 'Public Standard Rate');
       document.getElementById('summaryRoleLabel').innerText = roleText;
 
       document.getElementById('btnText').innerText = currentRole === 'ADMIN' 
@@ -590,7 +645,7 @@
       const badgeCont = document.getElementById('roleBadgeContainer');
       if (currentRole === 'ADMIN') {
         badgeCont.className = "flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full text-xs font-bold text-purple-700";
-        badgeCont.innerHTML = '<span>👑</span> Operator Mode';
+        badgeCont.innerHTML = '<span>👑</span> Master Admin Mode';
       } else if (currentRole === 'AGENT' && sessionAgentData) {
         badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
         badgeCont.innerHTML = `<span>🤝</span> Partner: ${sessionAgentData.name}`;
@@ -744,7 +799,7 @@
           alert(d.error || 'Failed to send verification code');
         }
       } catch (err) {
-        alert('Network error. Please try again.');
+        alert('Error: ' + err.message);
       }
     }
 
@@ -752,8 +807,8 @@
       const mobile = document.getElementById('custAuthMobile').value.trim();
       const otp = document.getElementById('custAuthOtp').value.trim();
 
-      if (!otp || otp.length < 4) {
-        alert('Please enter the verification code');
+      if (!otp || otp.length !== 4) {
+        alert('Please enter the 4-digit verification code');
         return;
       }
 
@@ -780,7 +835,7 @@
           alert(d.error || 'Invalid verification code');
         }
       } catch (err) {
-        alert('Verification failed. Please try again.');
+        alert('Verification failed: ' + err.message);
       }
     }
 
@@ -814,7 +869,7 @@
             dob,
             rcFormat: chosenFormat,
             customerMobile: verifiedCustomerMobile,
-            customerName: 'Customer'
+            customerName: 'Customer ' + (verifiedCustomerMobile || '')
           })
         });
         const data = await res.json();
@@ -824,14 +879,15 @@
 
         if (data.success) {
           activeOrderId = data.orderId;
-          activeDocNum = targetNumber;
           isCompleted = false;
 
+          // Free Admin Mode Bypass
           if (data.role === 'ADMIN' || data.amount === 0) {
             await completeOrderWithoutPayment();
             return;
           }
 
+          // Launch Razorpay Live Checkout
           const options = {
             key: data.keyId,
             amount: data.amountPaise,
@@ -847,6 +903,11 @@
             },
             handler: async function (response) {
               await verifyAndCompleteRazorpayPayment(response);
+            },
+            modal: {
+              ondismiss: function () {
+                console.log('Payment dismissed');
+              }
             }
           };
 
@@ -857,7 +918,7 @@
           alert(data.error || 'Failed to initialize payment');
         }
       } catch (e) {
-        alert('Connection error. Please try again.');
+        alert('Error: ' + e.message);
         document.getElementById('btnText').innerText = originalText;
         payBtn.disabled = false;
       }
@@ -880,13 +941,20 @@
         });
         const data = await res.json();
 
+        // Automatic Instant Refund handling
+        if (data.status === 'REFUNDED') {
+          alert('Server is slow. Your amount has been refunded.');
+          navigateTo('search');
+          return;
+        }
+
         if (data.status === 'SUCCESS' && !isCompleted) {
           handleOrderSuccess(data);
         } else {
-          alert(data.error || data.message || 'Payment verification failed.');
+          alert(data.error || 'Payment verification failed.');
         }
       } catch (err) {
-        alert('Verification error. Please contact support with your payment ID.');
+        alert('Payment error: ' + err.message);
       }
     }
 
@@ -914,8 +982,10 @@
     async function handleOrderSuccess(data) {
       if (isCompleted) return;
       isCompleted = true;
+
+      activeReportData = data.report;
       
-      document.getElementById('receiptDocNo').innerText = activeDocNum || 'Document';
+      document.getElementById('receiptDocNo').innerText = activeReportData?.dlNo || activeReportData?.regNo || '---';
       document.getElementById('receiptOrderId').innerText = data.orderId;
       document.getElementById('receiptAmount').innerText = '₹' + data.amount;
 
@@ -954,7 +1024,8 @@
         const a = document.createElement('a');
         a.href = url;
         const prefix = currentService === 'DL' ? 'DL' : 'RC';
-        a.download = `${prefix}_${activeDocNum || 'Document'}.pdf`;
+        const docNum = activeReportData?.dlNo || activeReportData?.regNo || 'Document';
+        a.download = `${prefix}_${docNum}.pdf`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -1038,7 +1109,7 @@
             amount: orderData.amountPaise,
             currency: 'INR',
             name: 'RTO BOSS PARTNERS',
-            description: 'Agent Verification Fee (₹500)',
+            description: 'Agent Verification & Onboarding Fee (₹500)',
             order_id: orderData.orderId,
             prefill: { name, email, contact: mobile },
             theme: { color: '#059669' },
@@ -1064,7 +1135,7 @@
           alert(d.error || 'Registration failed');
         }
       } catch (e) {
-        alert('Registration error. Please try again.');
+        alert('Error: ' + e.message);
       }
     }
 
@@ -1105,8 +1176,137 @@
           }
         }
       } catch (e) {
-        alert('Login error. Please try again.');
+        alert('Login error: ' + e.message);
       }
+    }
+
+    function openAdminModal() {
+      document.getElementById('adminModal').classList.remove('hidden');
+      if (currentRole === 'ADMIN') {
+        document.getElementById('adminLoginView').classList.add('hidden');
+        document.getElementById('adminDashboardView').classList.remove('hidden');
+        fetchAdminAgents();
+      } else {
+        document.getElementById('adminLoginView').classList.remove('hidden');
+        document.getElementById('adminDashboardView').classList.add('hidden');
+      }
+    }
+
+    function closeAdminModal() {
+      document.getElementById('adminModal').classList.add('hidden');
+      if (window.location.hash === '#admin') {
+        history.replaceState({ view: 'search' }, '', '#search');
+      }
+    }
+
+    async function handleAdminLogin() {
+      const secretKey = document.getElementById('adminSecretKey').value.trim();
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secretKey })
+        });
+        const d = await res.json();
+        if (d.success) {
+          currentRole = 'ADMIN';
+          sessionToken = d.token;
+          
+          sessionStorage.setItem('rto_session_token', d.token);
+          sessionStorage.setItem('rto_role', 'ADMIN');
+
+          document.getElementById('adminLoginView').classList.add('hidden');
+          document.getElementById('adminDashboardView').classList.remove('hidden');
+          fetchAdminAgents();
+          updatePriceUI();
+        } else {
+          alert(d.error || 'Invalid Admin Key');
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function fetchAdminAgents() {
+      try {
+        const res = await fetch('/api/admin/agents', {
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          const list = document.getElementById('adminAgentsList');
+          if (!d.agents || d.agents.length === 0) {
+            list.innerHTML = '<p class="text-slate-400 text-center py-4">No partner applications yet.</p>';
+            return;
+          }
+          list.innerHTML = d.agents.map(a => `
+            <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between">
+              <div>
+                <div class="font-bold text-slate-800">${a.name} (${a.mobile})</div>
+                <div class="text-[11px] text-slate-500">${a.email} • ${a.address}</div>
+                <div class="mt-1">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-extrabold ${a.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700' : (a.status === 'PENDING_APPROVAL' ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-600')}">${a.status}</span>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                ${a.status !== 'ACTIVE' ? `<button onclick="updateAgentStatus('${a.agent_id}', 'ACTIVE')" class="px-2.5 py-1 bg-emerald-600 text-white rounded-lg font-bold text-[11px] hover:bg-emerald-700">✓ Approve</button>` : ''}
+                ${a.status !== 'REJECTED' ? `<button onclick="updateAgentStatus('${a.agent_id}', 'REJECTED')" class="px-2.5 py-1 bg-red-600 text-white rounded-lg font-bold text-[11px] hover:bg-red-700">✕ Reject</button>` : ''}
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.error('Failed to load agents', e);
+      }
+    }
+
+    async function updateAgentStatus(agentId, status) {
+      try {
+        const res = await fetch('/api/admin/update-agent-status', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ agentId, status })
+        });
+        const d = await res.json();
+        if (d.success) {
+          fetchAdminAgents();
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    async function clearTestData() {
+      if (!confirm('Clear all in-memory test data?')) return;
+      try {
+        const res = await fetch('/api/admin/clear-data', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${sessionToken}` }
+        });
+        const d = await res.json();
+        if (d.success) {
+          alert(d.message);
+          fetchAdminAgents();
+        }
+      } catch (e) {
+        alert('Error: ' + e.message);
+      }
+    }
+
+    function logoutSession() {
+      currentRole = 'PUBLIC';
+      sessionToken = null;
+      sessionAgentData = null;
+      verifiedCustomerMobile = null;
+      customerSessionToken = null;
+      sessionStorage.clear();
+      closeAdminModal();
+      closeAgentModal();
+      updatePriceUI();
+      alert('Logged out to public mode.');
     }
 
     function closeFormatModal() {

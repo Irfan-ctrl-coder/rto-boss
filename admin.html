@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RTO Boss — Console Access</title>
+  <title>RTO Boss — Executive Admin Console</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
   <script>
@@ -30,7 +30,7 @@
   </script>
   <style>
     * { box-sizing: border-box; }
-    body { font-family: 'Plus Jakarta Sans', sans-serif; user-select: none; -webkit-user-select: none; }
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
     .mono { font-family: 'JetBrains Mono', monospace; }
   </style>
 </head>
@@ -43,17 +43,17 @@
         <div class="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-brand-primary text-2xl mx-auto flex items-center justify-center font-black">
           🛡️
         </div>
-        <h2 class="text-2xl font-black text-white mt-3">Console Authorization</h2>
-        <p class="text-xs text-slate-400">Enter access key to open operations console.</p>
+        <h2 class="text-2xl font-black text-white mt-3">Admin Master Access</h2>
+        <p class="text-xs text-slate-400">Enter your master secret key to access the control desk.</p>
       </div>
 
       <form onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1.5">Master Key</label>
+          <label class="text-[11px] font-bold tracking-wider text-slate-400 uppercase block mb-1.5">Master Secret</label>
           <input 
             type="password" 
             id="secretKeyInput" 
-            placeholder="••••••••••••••••" 
+            placeholder="ADMIN_MASTER_SECRET" 
             required 
             class="w-full bg-slate-900 border border-brand-border rounded-xl px-4 py-3 text-sm mono font-bold text-white outline-none focus:border-brand-primary" 
           />
@@ -62,7 +62,7 @@
           type="submit" 
           id="loginBtn" 
           class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-blue-500/20">
-          Authorize Session
+          Unlock Console
         </button>
       </form>
     </div>
@@ -91,7 +91,7 @@
       <!-- LIVE ANALYTICS COUNTERS -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="bg-brand-card border border-brand-border p-5 rounded-2xl">
-          <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Total Formatted</div>
+          <div class="text-[11px] font-bold tracking-wider text-slate-400 uppercase">Total Downloads</div>
           <div class="text-2xl md:text-3xl font-black text-white mt-1" id="statDownloads">0</div>
           <div class="text-[11px] text-emerald-400 font-bold mt-1">Live Database Log</div>
         </div>
@@ -117,7 +117,7 @@
 
       <!-- TABS -->
       <div class="flex border-b border-brand-border gap-6 text-sm font-bold">
-        <button onclick="switchTab('downloadTab')" id="tabBtn-downloadTab" class="pb-3 border-b-2 border-brand-primary text-white">⚡ Direct Generator</button>
+        <button onclick="switchTab('downloadTab')" id="tabBtn-downloadTab" class="pb-3 border-b-2 border-brand-primary text-white">⚡ ₹0 Direct Generator</button>
         <button onclick="switchTab('ordersTab')" id="tabBtn-ordersTab" class="pb-3 border-b-2 border-transparent text-slate-400 hover:text-white">📄 Order History &amp; Re-Download</button>
         <button onclick="switchTab('agentsTab')" id="tabBtn-agentsTab" class="pb-3 border-b-2 border-transparent text-slate-400 hover:text-white">🤝 Partner Agents Management</button>
       </div>
@@ -126,8 +126,8 @@
       <div id="downloadTab" class="space-y-6">
         <div class="bg-brand-card border border-brand-border p-6 rounded-3xl max-w-2xl space-y-5">
           <div>
-            <h3 class="text-lg font-black text-white">Direct Document Generator</h3>
-            <p class="text-xs text-slate-400 mt-0.5">Enriches and streams the vector PDF immediately.</p>
+            <h3 class="text-lg font-black text-white">Direct ₹0 Document Generator</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Bypasses OTP, fees, and gateways. Enriches directly and streams the vector PDF immediately.</p>
           </div>
 
           <form onsubmit="handleDirectDownload(event)" class="space-y-4">
@@ -173,7 +173,7 @@
               type="submit" 
               id="genBtn" 
               class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl text-sm transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2">
-              <span>📥</span> Generate &amp; Download PDF
+              <span>📥</span> Generate &amp; Download PDF (₹0 Cost)
             </button>
           </form>
         </div>
@@ -182,8 +182,8 @@
       <!-- TAB 2: ORDER HISTORY & 1-CLICK RE-DOWNLOAD -->
       <div id="ordersTab" class="hidden space-y-4">
         <div class="flex justify-between items-center">
-          <h3 class="text-base font-black text-white">Recent System Downloads</h3>
-          <button onclick="fetchOrders()" class="text-xs font-bold text-brand-primary hover:underline">Refresh ↻</button>
+          <h3 class="text-base font-black text-white">Recent 100 System Downloads</h3>
+          <button onclick="fetchOrders()" class="text-xs font-bold text-brand-primary hover:underline">Refresh Orders ↻</button>
         </div>
 
         <div class="bg-brand-card border border-brand-border rounded-2xl overflow-x-auto">
@@ -193,15 +193,15 @@
                 <th class="p-3.5">Order ID</th>
                 <th class="p-3.5">Doc Type</th>
                 <th class="p-3.5">Target Key</th>
-                <th class="p-3.5">User</th>
+                <th class="p-3.5">Phone</th>
                 <th class="p-3.5">Amount</th>
                 <th class="p-3.5">Status</th>
-                <th class="p-3.5">Timestamp</th>
+                <th class="p-3.5">Paid At</th>
                 <th class="p-3.5 text-right">Action</th>
               </tr>
             </thead>
             <tbody id="ordersTableBody" class="divide-y divide-brand-border">
-              <tr><td colspan="8" class="p-6 text-center text-slate-500">Loading records...</td></tr>
+              <tr><td colspan="8" class="p-6 text-center text-slate-500">Loading orders...</td></tr>
             </tbody>
           </table>
         </div>
@@ -210,8 +210,8 @@
       <!-- TAB 3: AGENTS MANAGEMENT (POSTGRESQL PERMANENT) -->
       <div id="agentsTab" class="hidden space-y-4">
         <div class="flex justify-between items-center">
-          <h3 class="text-base font-black text-white">Partner Agent Applications</h3>
-          <button onclick="fetchAgents()" class="text-xs font-bold text-brand-primary hover:underline">Refresh ↻</button>
+          <h3 class="text-base font-black text-white">Partner Agent Applications (Database Persistent)</h3>
+          <button onclick="fetchAgents()" class="text-xs font-bold text-brand-primary hover:underline">Refresh Agents ↻</button>
         </div>
 
         <div class="bg-brand-card border border-brand-border rounded-2xl overflow-x-auto">
@@ -221,13 +221,13 @@
                 <th class="p-3.5">Agent Details</th>
                 <th class="p-3.5">Contact</th>
                 <th class="p-3.5">Address</th>
-                <th class="p-3.5">Status</th>
+                <th class="p-3.5">Current Status</th>
                 <th class="p-3.5">Applied Date</th>
-                <th class="p-3.5 text-right">Action</th>
+                <th class="p-3.5 text-right">Review Action</th>
               </tr>
             </thead>
             <tbody id="agentsTableBody" class="divide-y divide-brand-border">
-              <tr><td colspan="6" class="p-6 text-center text-slate-500">Loading partner accounts...</td></tr>
+              <tr><td colspan="6" class="p-6 text-center text-slate-500">Loading agents...</td></tr>
             </tbody>
           </table>
         </div>
@@ -236,24 +236,6 @@
   </div>
 
   <script>
-    // Console Muting in Production
-    if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-      console.log = console.warn = console.error = console.info = console.debug = () => {};
-    }
-
-    // DevTools & Key Interceptors
-    document.addEventListener('contextmenu', (e) => e.preventDefault());
-    document.addEventListener('keydown', (e) => {
-      if (
-        e.key === 'F12' ||
-        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
-        (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.key === 'S' || e.key === 's'))
-      ) {
-        e.preventDefault();
-        return false;
-      }
-    });
-
     let adminToken = sessionStorage.getItem('ADMIN_TOKEN') || null;
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -266,7 +248,7 @@
       e.preventDefault();
       const secretKey = document.getElementById('secretKeyInput').value.trim();
       const btn = document.getElementById('loginBtn');
-      btn.innerText = 'Authorizing...';
+      btn.innerText = 'Verifying...';
 
       try {
         const res = await fetch('/api/admin/login', {
@@ -280,12 +262,12 @@
           sessionStorage.setItem('ADMIN_TOKEN', adminToken);
           initDashboard();
         } else {
-          alert('Authorization failed. Invalid credentials.');
-          btn.innerText = 'Authorize Session';
+          alert(d.error || 'Invalid Admin Secret');
+          btn.innerText = 'Unlock Console';
         }
       } catch (err) {
-        alert('Network connection error.');
-        btn.innerText = 'Authorize Session';
+        alert('Connection error: ' + err.message);
+        btn.innerText = 'Unlock Console';
       }
     }
 
@@ -325,7 +307,9 @@
           document.getElementById('statAgents').innerText = d.agents.active_agents || 0;
           document.getElementById('statPendingAgents').innerText = d.agents.pending_agents || 0;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Stats load failed', e);
+      }
     }
 
     function handleDocTypeChange() {
@@ -354,7 +338,7 @@
 
       const btn = document.getElementById('genBtn');
       const origText = btn.innerHTML;
-      btn.innerHTML = '<span>⏳</span> Processing Document...';
+      btn.innerHTML = '<span>⏳</span> Fetching Enriched Data & Generating Vector PDF...';
       btn.disabled = true;
 
       try {
@@ -368,7 +352,8 @@
         });
 
         if (!res.ok) {
-          throw new Error('Document generation failed.');
+          const err = await res.json();
+          throw new Error(err.error || 'Generation failed');
         }
 
         const blob = await res.blob();
@@ -414,16 +399,18 @@
             </tr>
           `).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-500">No records found.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-500">No orders recorded in database yet.</td></tr>';
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Fetch orders error', e);
+      }
     }
 
     async function reDownloadOrder(orderId, docType, targetNumber) {
       try {
         const res = await fetch('/api/download-rc-pdf', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId })
         });
         if (!res.ok) throw new Error('Download failed');
@@ -437,7 +424,7 @@
         a.remove();
         window.URL.revokeObjectURL(url);
       } catch (err) {
-        alert('Could not download PDF. Please try again.');
+        alert('Could not re-download PDF: ' + err.message);
       }
     }
 
@@ -465,9 +452,11 @@
             </tr>
           `).join('');
         } else {
-          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">No partner accounts registered.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">No partner agents applied yet.</td></tr>';
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Fetch agents error', e);
+      }
     }
 
     async function setAgentStatus(agentId, status) {
@@ -485,10 +474,10 @@
           fetchAgents();
           loadStats();
         } else {
-          alert('Action failed.');
+          alert(d.error || 'Status update failed');
         }
       } catch (e) {
-        alert('Network request error.');
+        alert('Request error: ' + e.message);
       }
     }
   </script>
