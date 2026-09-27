@@ -1832,28 +1832,31 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0, 0, 0)
     });
 
-    if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
-      try {
-        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
-        const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-        if (rawPhotoBuffer.length > 200) {
-          const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
-            .resize(150, 180, { fit: 'cover' })
-            .png()
-            .toBuffer();
+    // if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
+    //   try {
+    //     const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
+    //     const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
+    //     if (rawPhotoBuffer.length > 200) {
+    //       const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
+    //         .resize(150, 180, { fit: 'cover' })
+    //         .png()
+    //         .toBuffer();
 
-          const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-          page.drawImage(embeddedPhoto, {
-            x: leftCardX + (193.5 * S),
-            y: cardY + ((CARD_HEIGHT - 72.0) * S),
-            width: 33.0 * S,
-            height: 39.0 * S
-          });
-        }
-      } catch (photoErr) {
-        console.warn('[Driver Photo Warning]:', photoErr.message);
-      }
-    }
+    //       const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+    //       page.drawImage(embeddedPhoto, {
+    //         x: leftCardX + (193.5 * S),
+    //         y: cardY + ((CARD_HEIGHT - 72.0) * S),
+    //         width: 33.0 * S,
+    //         height: 39.0 * S
+    //       });
+    //     }
+    //   } catch (photoErr) {
+    //     console.warn('[Driver Photo Warning]:', photoErr.message);
+    //   }
+    // }
+
+
+    console.log('[DL DEBUG] Profile photo processing disabled.');
 
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
