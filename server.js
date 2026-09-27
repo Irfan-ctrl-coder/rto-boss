@@ -4,13 +4,17 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
-const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const { PDFDocument, rgb, StandardFonts, degrees } = require('pdf-lib');
 const crypto = require('crypto');
 const { promisify } = require('util');
 const { Pool } = require('pg');
 const Razorpay = require('razorpay');
 const { rateLimit } = require('express-rate-limit');
 const pincodeLookup = require('india-pincode-lookup');
+
+// Mitigate libvips threadpool starvation and memory bloat on VPS
+sharp.concurrency(1);
+sharp.cache(false);
 
 const scryptAsync = promisify(crypto.scrypt);
 
@@ -58,6 +62,24 @@ const razorpay = new Razorpay({
 // =====================================================================
 const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
+
+// Resilient upstream fetch with hard timeout to prevent socket deadlocks
+async function fetchWithTimeout(resource, options = {}) {
+  const { timeout = 12000, ...rest } = options;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(resource, {
+      ...rest,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
 
 // =====================================================================
 // MSG91 HEADLESS OTP WIDGET CONFIG
@@ -539,13 +561,14 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
   try {
     if (docType === 'RC') {
-      let resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
+      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
         },
-        body: JSON.stringify({ id_number: lookupKey, enrich: true })
+        body: JSON.stringify({ id_number: lookupKey, enrich: true }),
+        timeout: 12000
       });
 
       let json = await resp.json();
@@ -553,13 +576,14 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
         console.warn(`[Upstream Timeout] Retrying RC ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
-        resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
+        resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
           },
-          body: JSON.stringify({ id_number: lookupKey, enrich: false })
+          body: JSON.stringify({ id_number: lookupKey, enrich: false }),
+          timeout: 12000
         });
         json = await resp.json();
       }
@@ -637,85 +661,112 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
     } else if (docType === 'DL') {
       const cleanDob = normalizeDob(dob);
 
-      let resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
-        },
-        body: JSON.stringify({ id_number: lookupKey, dob: cleanDob })
-      });
+      let resp;
+      let json;
 
-      let json = await resp.json();
-
-      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        console.warn(`[Upstream Timeout] Retrying DL ${lookupKey} in 1.2 seconds...`);
-        await new Promise(res => setTimeout(res, 1200));
-        resp = await fetch(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+      try {
+        resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
           },
-          body: JSON.stringify({ id_number: lookupKey, dob: cleanDob })
+          body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
+          timeout: 12000
         });
         json = await resp.json();
+      } catch (fetchErr) {
+        console.warn(`[Upstream Timeout/Error DL] ${lookupKey}:`, fetchErr.message);
+        return null;
       }
 
-      if (!resp.ok || !json.success || !json.data) {
-        console.error('[Surepass DL Failed]:', json);
+      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
+        console.warn(`[Upstream Timeout] Retrying DL ${lookupKey} in 1.2 seconds...`);
+        await new Promise(res => setTimeout(res, 1200));
+        try {
+          resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+            },
+            body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
+            timeout: 12000
+          });
+          json = await resp.json();
+        } catch (retryErr) {
+          console.error(`[Upstream Retry Error DL] ${lookupKey}:`, retryErr.message);
+          return null;
+        }
+      }
+
+      if (!resp || !resp.ok || !json || !json.success || !json.data) {
+        console.error('[Surepass DL Failed or Empty Data]:', json);
         return null;
       }
 
       const d = json.data;
-      let rawClasses = [];
-      if (Array.isArray(d.vehicle_classes) && d.vehicle_classes.length > 0) {
-        rawClasses = d.vehicle_classes;
-      } else if (Array.isArray(d.cov_details) && d.cov_details.length > 0) {
-        rawClasses = d.cov_details.map(c => c.class_of_vehicle || c.code || 'LMV');
-      }
+
+      // Extract Vehicle Classes Safely (handling array of strings or array of objects)
+      let parsedCovList = [];
+      const rawCov = d.vehicle_classes || d.cov_details || [];
 
       const issueDateClean = formatDateDisplay(d.doi || d.issue_date || d.initial_doi);
       const issuingOfficeCode = d.ola_code || (lookupKey.length >= 4 ? lookupKey.substring(0, 4) : 'RTO');
 
-      const parsedCovList = rawClasses.map(clsStr => {
-        const str = String(clsStr).toUpperCase();
-        const isCar = str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR');
-        return {
-          covType: isCar ? 'CAR' : 'BIKE',
-          code: str,
-          issuedBy: issuingOfficeCode,
-          doi: issueDateClean,
-          category: d.transport_doe && d.transport_doe !== '1800-01-01' ? 'TR' : 'NT',
-          badgeNo: '',
-          badgeDoi: '',
-          badgeBy: ''
-        };
-      });
+      if (Array.isArray(rawCov)) {
+        parsedCovList = rawCov.map(item => {
+          let codeName = '';
+          if (typeof item === 'string') {
+            codeName = item;
+          } else if (typeof item === 'object' && item !== null) {
+            codeName = item.class_of_vehicle || item.code || item.cov || 'LMV';
+          }
+          const str = String(codeName || '').trim().toUpperCase();
+          const isCar = str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR');
 
-      const fullAddress = [d.permanent_address || d.temporary_address || '', d.permanent_zip || '']
-        .filter(Boolean)
-        .join(', ');
+          return {
+            covType: isCar ? 'CAR' : 'BIKE',
+            code: str || 'MCWG',
+            issuedBy: issuingOfficeCode,
+            doi: issueDateClean,
+            category: d.transport_doe && d.transport_doe !== '1800-01-01' ? 'TR' : 'NT',
+            badgeNo: '',
+            badgeDoi: '',
+            badgeBy: ''
+          };
+        });
+      }
+
+      const fullAddress = [
+        d.permanent_address || d.temporary_address || (typeof d.address === 'string' ? d.address : ''),
+        d.permanent_zip || ''
+      ].filter(Boolean).join(', ');
+
+      // Strictly validate profile_image: ignore truncated dummy strings (< 200 chars)
+      const validPhoto = (d.has_image && typeof d.profile_image === 'string' && d.profile_image.length > 200)
+        ? d.profile_image
+        : '';
 
       const formattedDl = {
         dlNo: d.license_number || lookupKey,
         doi: issueDateClean,
         validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to || (d.validity && d.validity.non_transport)),
         validUptoTR: d.transport_doe && d.transport_doe !== '1800-01-01' ? formatDateDisplay(d.transport_doe) : '',
-        name: d.name || '',
+        name: String(d.name || '').replace(/[\r\n]+/g, ' ').trim(),
         dob: formatDateDisplay(d.dob || cleanDob),
-        bloodGroup: d.blood_group || '',
+        bloodGroup: String(d.blood_group || '').trim(),
         organDonor: 'N',
-        swd: d.father_or_husband_name || 'NA',
+        swd: String(d.father_or_husband_name || 'NA').replace(/[\r\n]+/g, ' ').trim(),
         address: enrichAddress(fullAddress, d.ola_name || d.issuing_authority, lookupKey),
         firstIssueDate: formatDateDisplay(d.initial_doi || d.doi || '10-06-2011'),
-        profileImage: d.has_image && d.profile_image ? d.profile_image : '',
+        profileImage: validPhoto,
         adpVehNo: '',
         hazardousValidity: '',
         hillValidity: '',
         covList: parsedCovList,
         mobileNo: '',
-        rtoAuthority: d.ola_name || d.issuing_authority || 'RTO OFFICE'
+        rtoAuthority: String(d.ola_name || d.issuing_authority || 'RTO OFFICE').trim()
       };
 
       pool.query(
@@ -863,7 +914,7 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
       return res.status(503).json({ error: 'SMS verification service is not configured.' });
     }
 
-    const response = await fetch('https://api.msg91.com/api/v5/widget/sendOtp', {
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
       method: 'POST',
       headers: {
         'authkey': MSG91_AUTH_KEY,
@@ -873,7 +924,8 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
         widgetId: MSG91_WIDGET_ID,
         tokenAuth: MSG91_TOKEN_AUTH,
         identifier: `91${cleanMobile}`
-      })
+      }),
+      timeout: 10000
     });
 
     const data = await response.json();
@@ -945,7 +997,7 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
       return res.status(503).json({ error: 'SMS verification service is not configured.' });
     }
 
-    const response = await fetch('https://api.msg91.com/api/v5/widget/verifyOtp', {
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
       method: 'POST',
       headers: {
         'authkey': MSG91_AUTH_KEY,
@@ -956,7 +1008,8 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
         tokenAuth: MSG91_TOKEN_AUTH,
         reqId: record.reqId,
         otp: enteredOtp
-      })
+      }),
+      timeout: 10000
     });
 
     const data = await response.json();
@@ -1743,19 +1796,23 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase();
+    const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
     const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
 
     const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
     let dlSubTitleSize = 5.6 * S;
-    let attempts = 0;
-    while (attempts < 15 && dlSubTitleSize > 3.8 * S && fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize) > 170.0 * S) {
+
+    // Hardened bounded loop prevents infinite CPU hang
+    for (let attempts = 0; attempts < 10; attempts++) {
+      if (dlSubTitleSize <= 3.8 * S) break;
+      const textWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
+      if (textWidth <= 170.0 * S) break;
       dlSubTitleSize -= 0.2;
-      attempts++;
     }
+
     const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
     page.drawText(dlSubTitleText, {
-      x: leftCardX + ((cardW - dlSubTitleWidth) / 2),
+      x: leftCardX + Math.max(0, (cardW - dlSubTitleWidth) / 2),
       y: cardY + ((CARD_HEIGHT - 21.0) * S),
       size: dlSubTitleSize,
       font: fontBold,
@@ -1772,24 +1829,27 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: rgb(0, 0, 0)
     });
 
-    if (report.profileImage) {
+    // Safe base64 driver photo decoding with strict failOnError: false
+    if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
       try {
-        const cleanBase64 = String(report.profileImage).replace(/^data:image\/\w+;base64,/, '').trim();
+        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
         const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-        const photoPng = await sharp(rawPhotoBuffer)
-          .resize(150, 180, { fit: 'cover' })
-          .png()
-          .toBuffer();
+        if (rawPhotoBuffer.length > 200) {
+          const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
+            .resize(150, 180, { fit: 'cover' })
+            .png()
+            .toBuffer();
 
-        const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-        page.drawImage(embeddedPhoto, {
-          x: leftCardX + (193.5 * S),
-          y: cardY + ((CARD_HEIGHT - 72.0) * S),
-          width: 33.0 * S,
-          height: 39.0 * S
-        });
+          const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+          page.drawImage(embeddedPhoto, {
+            x: leftCardX + (193.5 * S),
+            y: cardY + ((CARD_HEIGHT - 72.0) * S),
+            width: 33.0 * S,
+            height: 39.0 * S
+          });
+        }
       } catch (photoErr) {
-        console.warn('Driver photo embed warning:', photoErr.message);
+        console.warn('[Driver Photo Warning]: Skipped unparseable photo:', photoErr.message);
       }
     }
 
@@ -1892,13 +1952,14 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     });
 
+    // Valid pdf-lib rotation syntax using degrees(90)
     page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
       x: leftCardX + (238.5 * S),
       y: cardY + (72.0 * S),
       size: 5.0 * S,
       font: fontRegular,
       color: softTextColor,
-      rotate: { type: 'degrees', angle: 90 }
+      rotate: degrees(90)
     });
 
     page.drawText(cleanDlNo, {
@@ -2034,15 +2095,16 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     if (!isKA) {
       const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
       let subTitleSize = 5.6 * S;
-      let attempts = 0;
-      while (attempts < 15 && subTitleSize > 3.8 * S && fontBold.widthOfTextAtSize(subTitleText, subTitleSize) > 170.0 * S) {
+      for (let attempts = 0; attempts < 10; attempts++) {
+        if (subTitleSize <= 3.8 * S) break;
+        const textWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+        if (textWidth <= 170.0 * S) break;
         subTitleSize -= 0.2;
-        attempts++;
       }
 
       const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
       page.drawText(subTitleText, {
-        x: leftCardX + ((cardW - subTitleWidth) / 2),
+        x: leftCardX + Math.max(0, (cardW - subTitleWidth) / 2),
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
         size: subTitleSize,
         font: fontBold,
@@ -2136,11 +2198,12 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         });
       } else {
         let fontSize = cfg.size * S;
-        let attempts = 0;
         const textVal = String(val).trim();
-        while (attempts < 15 && fontSize > 3.8 * S && font.widthOfTextAtSize(textVal, fontSize) > (cfg.maxW || 100) * S) {
+        for (let attempts = 0; attempts < 10; attempts++) {
+          if (fontSize <= 3.8 * S) break;
+          const textWidth = font.widthOfTextAtSize(textVal, fontSize);
+          if (textWidth <= (cfg.maxW || 100) * S) break;
           fontSize -= 0.2;
-          attempts++;
         }
 
         page.drawText(textVal, {
@@ -2182,11 +2245,12 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       let fontSize = cfg.size * S;
-      let attempts = 0;
       const textVal = String(val).trim();
-      while (attempts < 15 && fontSize > 3.8 * S && font.widthOfTextAtSize(textVal, fontSize) > (cfg.maxW || 100) * S) {
+      for (let attempts = 0; attempts < 10; attempts++) {
+        if (fontSize <= 3.8 * S) break;
+        const textWidth = font.widthOfTextAtSize(textVal, fontSize);
+        if (textWidth <= (cfg.maxW || 100) * S) break;
         fontSize -= 0.2;
-        attempts++;
       }
 
       if (cfg.rightAnchor) {
@@ -2233,11 +2297,12 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       if (!text) return;
       let fontSize = size * S;
       let displayText = String(text).trim();
-      let attempts = 0;
 
-      while (attempts < 15 && fontSize > 3.8 * S && fontBold.widthOfTextAtSize(displayText, fontSize) > maxWidth * S) {
+      for (let attempts = 0; attempts < 10; attempts++) {
+        if (fontSize <= 3.8 * S) break;
+        const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+        if (textWidth <= maxWidth * S) break;
         fontSize -= 0.2;
-        attempts++;
       }
 
       page.drawText(displayText, {
