@@ -166,9 +166,8 @@ const STATE_NAMES = {
 // CLEAN VECTOR SILHOUETTE SVGs
 // =====================================================================
 const SVG_ICONS = {
-  CAR: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAD9ElEQVR4nNVWWyilURT+57iFcr/kctxSkiOipCiU4o14kEsSuTUjITwQSiIJpVxSotwmSUlCPHhQJkJSxIt4cA057pcz8/WvsfvPf/5zHIaZ5ns4rb33Wvtba5211/q5n/8I3H9DrFKphMvz8/NDHgcHBzc3N59ITNja2urr66upqcnJycnIyEhJSUlMTCwqKmpoaBgfHz85Ofl4YkQ8ODgYGRkZHR2dmZmZkJBgZGQUEhKSl5eXlpYWGxvr4OAAJ5CDDybu7u52dHSsra09OjrCcnt7297efmRkBPLj4yNihezp6ZmVlSX6U/6IGLG6u7s3NTU9PT3RztLSkq2t7fz8vFBtdnbWy8urvb39Y4hHR0ednJzAKtycnJy0sLBYXl4WKff09Hh4eKyurr5CrOKhgxVXKBQKlI9IbWBgwNLScnNzU6SPlCQnJ6empl5eXr5OLMl9e3u7sLCA8kHJKJXK6+tr5Qvu7++RADs7u42NDbwlpQB3d3dIg6ura3p6+ncec3Nzz8/PYmLJoPf394eGhhClt7c3x3Eo4LKysq88vvEoKSmJiIgwNzfHiyosLKRNUigoKMCOs7Mz9wLI8E+CmAExTU1NVVRUxMTEWFtbM0tDQ8Mv2iGTyTR3yITd0N/fL02M7lNdXR0VFSX0FJDxIFl4EcHAwIDTAhyRQ7RExUkQPzw8ID/GxsaalGRPAkXDFCgy5pYIwuixbG1tlSBGLZiZmTEb9CORMbMXQZhk4T7dQKeUldLSUgli1CfLZEBAAJZIAHNFM8PaQsSviYkJOihuCA4OFu6HhYVdXFxQIf8mxrOLj48nJTQdDAC0RpQ0fCRn9SFmKcnPzx8eHu7q6urt7fX19WXmpqam09PTasSnp6dBQUGkUVxcnJubCxkPtK2tLTAwkDKmZ7joM52dnehxkDE2qqqqmAIyMTExoUaM/hIeHo4zvJ/GxkYbGxtSxdslJ/QHyNCwSLaysqqvr8e8oiW6+vr6uhoxEBcXhzP0ivLycnaLv78/HvSbiNFD2F8LoI1QtgFM0qurK3Fx1dXVyeVyNA1MNGaGHUxAZBseKHhA8PHxQS+UawCbGAxoZ25ubuyG7OxshOTn55eUlDQzM0NcahHDF7Q0zFcqb4KLi8vOzs7x8fHhCyDv7u4uLi7+kMLKygqOMI/ZDZWVlXt7e2hNqGfWq9WIGdDN2SNGK8Z419TRAegjpWSOchsbG5NUkyA+OzsjS9B3dHQwH/XnRlWT66GhoXgv+hIDa2tr6B7Nzc2sFt4EWLW0tKCH4PtEm47WLxDMWhJe/UYQQqiMQa5DU4JYk+Z9xLohHbHQmOR3cOt24lOIJWW9iP8CfgH6d3ZFyivgqgAAAABJRU5ErkJggg==','base64'),
-  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAEQUlEQVR4nO1WWShtURg+ZJ7HDNccmRJlVmRWMkvhwVA8yFjGkhAeTGV6oCiKTEXkRRwpGR94MCdDhzJGIuEY7tde3d3p2M7Zbof7cv+H3d5r7fV/a33//3/r57z/I+P8B2Zhb29veD4/P09PTxcUFGRkZDQ1NV1dXf0Q8M7Ojp2dHYcyKSmp/Pz8h4eH7wUmdnl56efnx/ljVlZWGxsbPwH89PSUlpYGSBkZGQsLC29v77W1tXeKD0KJ5IFp1+vr67m5uWFhYVVVVQsLC9gK/cO3AAvaysqKr6+viooKaEfU2S/8MvDLy8vd3R15n5qasrW1pcPc2Nj4LcCPj489PT2JiYmhoaE5OTllZWWGhoZycnLy8vIEOCAggN6TBIBnZma6u7uB2tfXp6+vHx0d7e/vb2pqqqGh4erqOjw8HBcXR4B1dHSWlpYkBlxZWampqTk0NIQo4rg3Nze3t7eHh4eLi4v7+/v4YWxsTEFBAcDS0tI1NTUSA25oaABwc3MzzorTC82imuvr65WVlcmhQ0JCWMqIGOCzs7Pa2lpnZ+egoCBra2sULi2N8/Pz+HRzc1NTUyOoioqKpaWlWIKpurq6lJSUkZGR19dXtsCowpOTk8nJyfLy8sDAQEROSUmJuKbJBNuCsmVpaenj44OCxiyIQfjBgba2NkZ2d3fZAsNpVlaWnp6eqqqqrKws7R2oeMIpaB8fHzc3N8eIu7t7UlJSeHg4gJFxWBIVFdXf34/6Pjg4QBKcn5+zAsZxIUCbm5urq6vQXi6XW1hYaGJiQm4Cgg1ZjoyMVFdXd3FxiYiIQAgI23jp6OgAvQBG4Y2OjoL2T2LIBExe9vb2BgcH4QIvs7Oz9vb2BBtPVJGnpydeYmNjQSbhw9jYuLOzE7ckHXIYRG15eZkt1SiYvLw8AwMDMzMzuAOlra2tqFfQSNyBVTCM08fExCC5SBRKSkqys7MJJTCIzMDAAMh3cHAA7eKBkYQVFRXAyMzM3KYMF62RkVFRURHwiFOg2tjYIAlwXJIEiAXyGawkJydjB1paWqgxeMMgZrEWQisGGPns6OgIDuky4PP5yB3Er7i4GDc/xBmlVV1djZwHMEawCeQX+hAo6NzcHDQO8JAzPHFcACckJHyUUmFgJBRcw6/gIJgHaVtbW9gWj8c7OjriU4a85VGG4kY4wEF6ejpIBje4LmkNx7awGzHAp6enCBvU+OLigowgM728vEDvx8WChqA4OTkRpODg4Pv7+5aWFggAoo6O7OP/DMnV1dWFzESdcClDBqF2UR5klqQ9Y5vR1tZGTgmlQ12lpqbiMz4+nrGoGIARXVxEHh4evygDAb29vULKx9hjoO9sb29HD6Srq4sqR+xxdV5fXzMy9KlWI5yQAogAIvrZP4x2fHw8MTGB8oMKieiBvtaBiGjk2PRZXwAWdCe6faRnhZb8JTCja/azIv7/DXMoO1rcA0dRAAAAAElFTkSuQmCC','base64'),
-  CRANE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAECUlEQVR4nO1WWSisYRieg3Jjy35hiQtEyXYhKWS5sER2Y4+ZMJI1WylLFEncEIorIRI3tkJcSElkibKFIopyDllnztN8zjff/PPPOEvTuTjnufrmnfd7n/d73mVGIPtLEPwn/jNIpVKO5fX1dW1tbXV1VVvEqpTA3t5eTk6OmZlZVlaWVoilcrCW29vb9vZ2V1dXgRwpKSlaIeZgZmYmMjKSUOK5Xl5e6enpWiRGOdfX16GtpaUlYfXw8Jidne3q6kpOTv6E+P39/asc3+R4fHz8Sdazs7Oqqipra2tCqaurm5GRcXBwgK96enoSEhJYZ9RFiXhychKpQaWoqKjo6Gh44/Lu7i715qV8eHgYGhry9/cX/IChoWFdXd3z8zNx6O3tTUtLo0EIFMRQCcVwc3Pz9vb29PREX+jo6CBKa2sre4elhLYbGxtCodDAwICyuru7j42Nvb29UR8oER8fT/KgQQRU4czMTOR1f3+/s7NzdXV1fX3t5+eHQCEhIbis+tCtrS2RSGRubk4p9fX1EeTw8JB1Ozo6QsmhAVGOpv5BDCYbG5vS0tKnp6fY2Nju7m4YAwMDEc7Ozu7k5ISNdXNz09HRQUeFwMrKCpK+vLxw8tvf34ceenp6m5ubrP2DGMsFwtbU1OBxULuoqAjGoKAg0iZzc3P4OD09jdojLZQTRsL3RQ4cTE1NoSdaBKHYl6FDExMT8Ya7uzvISTJT1HhwcBCXERfRg4ODCwoKpqamXFxcSPTm5mb4dHZ2CpRBKCk3AQrMeXRTUxNKgMPCwgIqqETc0tJCb+LpbCAgPDwcPtCfQ8n7cWJigkPc19fn4+OzsrICIVEmJanLysoEfCARHRwczs/Pl5eXk5KSsBNUiQFjY+OYmBhIjengEKPdIB5WWElJCel2xYvz8/OpaBzpiH14eJgUrL6+njdFR0fH09NTVJGOADt7AwMDcXFx6HBuc0kkEpYYZwsLi9DQUGdnZxIXDsRzcXERzYKlL2SAVYPGlGkE5kWmOk4sMUkfowXdUIKwsDBYsAsx5fh1w+wWFhZKlAELNCPfoquhSnFx8fb2dm1tbWpqKrIcGRlhZVBInZ2dzeoGjoCAABzs7e0rKytNTEx45VWFk5NTXl4eyR4H9ASxY0w4AnwQ43EcYiMjI3KOiIigc/UpcJFMP4B9UFFR8QkxKtfQ0NDY2FhdXY3eKy8vpysCgdra2nJzc8VisUgNxHLgMD4+7uvrSy7a2tr29/dDc5RgdHSUn5gD1InufYy/5q7hAL1GLqJYaHKZmp81fmJMG7YVtjFm4OLi4peIl5aWsC4w7vPz86ydQ6/2Hwj8jo+P8Y+A95q6K+RweXmJ/wUaWDURa7jzG56/Q6wl/HvE3wEY0VEtk/CcVwAAAABJRU5ErkJggg==','base64')
+  CAR: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE4UlEQVR4nN1WfSz9VRi/12so7y95f5kmc41oslgoRWuN0RLuJPI214ShxdBkZMLSuFJiPy4m08yEqKwsRhgWY5WoXC8hrnfubZ+ts53f173ce3+/1Prjs3vPc57zfD/nc855noclkUhY/2Ww/vcExWIxm2nb3d3VFwqFZsD6+vrDR0dHWv+6gouLi07Nzc0xRUVFhYmJifWxsbGfREVFtYaHh3+akZFRWVZWltvT0/Pi1taW8a0rKBAIIv39/b8KDAz8Ii4u7uOwsLAudXX1My8vr/Hk5OQ6Lpd7Jzg4+HNTU9MNEIayt0awoaHhdTMzM2FxcXH+xsaGKWxLS0uPmJiYbHZ2dr6E8fn5uRqUw9je3v6n+Pj4j6RdjftOUCAQRNra2q5UVFRkXVxcqBL7xMTE40ZGRtsjIyNPMdcMDQ094+Dg8GNtbW3KP0qwq6srzNzc/HeQY8719fU9r6ur++fk5KSntLWNjY2v2dnZ/Tw9Pe0uN0FILq/sCMzhcOZw+aWtaW1tjdLT09tbWFh4VNp6qB0ZGSmIjo5u2d/ff0ghgteRPD4+fmB0dPRJXH5c9oODgwcPDw+18UtwenqqAVWNjY235ufnXZBi6Hng5OREE+paWVmtxcTENHd0dLwMDA8PP315eaki84hlEVxbW7Nqa2t7BYo5Ojous1gsCV5qTk7Ou6mpqR8APB6vBsjKyqrw8/P7WkdHR4RUk56eXk3miG9aWtr7sFtYWPyGWAQYY1Ny3UEo09/fH5SXl/dOUFBQv4GBwQ4dTE1N7ZzNZotvgoqKyqUsO4lBx21paYm+liAyf2FhYVFAQMCXzB0CCAyQMZvxAQJVVdULaXamD9kAseEBySR4dnamDvk1NDROZREjQcl/9t+K0L5EIXoj0sBUFLbq6up0mQRxcbW1tQ/pIKgI0gLSQVlSwDxa5jyJS/yI4tnZ2eUyCeL10cfm5uY2AxtUpYnLOlbWDWrhV1NT8wTlD3E9PT0nmfM+Pj7f7u3t6ZFHe1duCg0N7SYLkO1R/FHK8IKxM7JLRQmyKbVTUlJq29vbI+rr6xObmppedXZ2/oGOqaWldTQwMPDcFYLb29tGHh4e3xPnzMzM95KSkvgYI6fV1NTw3N3dp8mxKKMeh8OZ4/P5SahAGKOJKCgoeJv2hcK9vb0vXCGIjO7r6/sNnJBSysvLsw0NDf8gC5H3CGFlweVy76B6kLG+vv5uaWnpm+hyiA01fHZ21vUKQSAkJOQzOCEZ5+bmltHBXV1dZ5ET74Ugj8eroe8dgIRNjhlAyyYSiXSkPpKSkpK3rK2tV5GY0RLRgWBHS4VjBlkcF4fDmcN/JyenRZQt+EgD5tAcoMrY2Nj8QsdNSEj4EMK4uLjMR0REtA8ODj5LV7a7CII5Sg36OfKiCSwtLX9dXl523NzcNCHtvFAoNMN4ZWXFdmxs7Inx8XEvWZiamnoMPugH6bj5+fnFq6ur1igQeL10Lb5CkAYKN50DUV/ReMrT7UhkAOtxhPTj6e7uDpWrm2FiZ2fHgAQD0bq6umR6Z8qS5PP5SWTj3t7e3yF7KEUQmJmZcUOSrqyszKAv7r1AJBLpVFVVvYFkjc77Jv8bA6K/o5VTVj0xYy16S3nWXRtQEbtEQYLy4sag0sb3g6RYTsK3TlCi4Gko/JHbxl+QvfplZc+fyAAAAABJRU5ErkJggg==', 'base64'),
+  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCj0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64')
 };
 
 // Static Mock Vehicle & DL Database
@@ -1889,9 +1888,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV');
           const iconBuffer = isCrane ? SVG_ICONS.CRANE : (isCar ? SVG_ICONS.CAR : SVG_ICONS.BIKE);
 
-          // Reference icons are already valid PNGs; embed them directly.
-          // Do not pass them through Sharp, which was causing intermittent libpng/vips decode errors.
-          const embeddedIcon = await pdfDoc.embedPng(iconBuffer);
+          const iconPng = await sharp(iconBuffer).png().toBuffer();
+          const embeddedIcon = await pdfDoc.embedPng(iconPng);
 
           page.drawImage(embeddedIcon, {
             x: rightCardX + (18.0 * S),
@@ -2020,30 +2018,48 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
     }
 
-    // Draw RC Badges (Blue = NT/TR, Orange = State Code) right-aligned to match circles (~210 and ~229 pt)
+    // Draw RC Badges (Blue = NT/TR, Orange = State Code) inside the matching circles on both cards.
     if (!isKA) {
       const isCommercial = isCommercialClass(report.vehicleClassFull);
       const blueBadgeText = isCommercial ? 'TR' : 'NT';
       const orangeBadgeText = stateCode;
 
-      const badgeSize = 5.0 * S;
-      const badgeCenterY = CARD_HEIGHT - 12.3;
-      const badgeBaselineY = badgeCenterY - (badgeSize * 0.35);
+      const blueBadgeW = fontBold.widthOfTextAtSize(blueBadgeText, 5.0 * S);
+      const orangeBadgeW = fontBold.widthOfTextAtSize(orangeBadgeText, 5.0 * S);
 
-      const blueW = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
+      // Small visual-centering corrections for the actual template circles.
+      const blueBadgeCenterX = 212.0 * S;
+      const orangeBadgeCenterX = 229.8 * S;
+      const badgeY = cardY + ((CARD_HEIGHT - 12.3) * S);
+
       page.drawText(blueBadgeText, {
-        x: leftCardX + (210.0 * S) - (blueW / 2),
-        y: cardY + (badgeBaselineY * S),
-        size: badgeSize,
+        x: leftCardX + blueBadgeCenterX - (blueBadgeW / 2),
+        y: badgeY,
+        size: 5.0 * S,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
 
-      const orangeW = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
       page.drawText(orangeBadgeText, {
-        x: leftCardX + (229.0 * S) - (orangeW / 2),
-        y: cardY + (badgeBaselineY * S),
-        size: badgeSize,
+        x: leftCardX + orangeBadgeCenterX - (orangeBadgeW / 2),
+        y: badgeY,
+        size: 5.0 * S,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+
+      page.drawText(blueBadgeText, {
+        x: rightCardX + blueBadgeCenterX - (blueBadgeW / 2),
+        y: badgeY,
+        size: 5.0 * S,
+        font: fontBold,
+        color: rgb(0, 0, 0)
+      });
+
+      page.drawText(orangeBadgeText, {
+        x: rightCardX + orangeBadgeCenterX - (orangeBadgeW / 2),
+        y: badgeY,
+        size: 5.0 * S,
         font: fontBold,
         color: rgb(0, 0, 0)
       });
