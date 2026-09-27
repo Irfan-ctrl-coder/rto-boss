@@ -198,10 +198,21 @@ const STATE_NAMES = {
 };
 
 // =====================================================================
-// NATIVE VECTOR PATHS FOR VEHICLE SILHOUETTES (ZERO DEPENDENCY / ZERO CRASH)
+// DISK-LOADED CLEAN PNG ICONS (CAR, BIKE, 3-WHEELER)
 // =====================================================================
-const VECTOR_CAR_PATH = 'M1 7 L3.5 2.5 C4.5 1 6 1 8 1 L16 1 C18 1 19.5 1 20.5 2.5 L23 7 C24.5 7.5 25 8.5 25 10 L25 12.5 C25 13.5 24 14 23.5 14 L23.5 15.5 C23.5 16.5 22.5 17 21.5 17 L20 17 C19 17 18.5 16.5 18.5 15.5 L18.5 14 L5.5 14 L5.5 15.5 C5.5 16.5 5 17 4 17 L2.5 17 C1.5 17 0.5 16.5 0.5 15.5 L0.5 14 C0 14 0 13.5 0 12.5 L0 10 C0 8.5 0.5 7.5 1 7 Z M4.5 7 L19.5 7 L17.5 3 L6.5 3 Z';
-const VECTOR_BIKE_PATH = 'M4 10 C1.8 10 0 11.8 0 14 C0 16.2 1.8 18 4 18 C6.2 18 8 16.2 8 14 C8 11.8 6.2 10 4 10 Z M4 16 C2.9 16 2 15.1 2 14 C2 12.9 2.9 12 4 12 C5.1 12 6 12.9 6 14 C6 15.1 5.1 16 4 16 Z M20 10 C17.8 10 16 11.8 16 14 C16 16.2 17.8 18 20 18 C22.2 18 24 16.2 24 14 C24 11.8 22.2 10 20 10 Z M20 16 C18.9 16 18 15.1 18 14 C18 12.9 18.9 12 20 12 C21.1 12 22 12.9 22 14 C22 15.1 21.1 16 20 16 Z M4 14 L10 14 L14 8 L18 8 M12 10 L20 14 M12 6 L16 6';
+function loadIconBuffer(fileName) {
+  const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
+  if (fs.existsSync(p)) {
+    return fs.readFileSync(p);
+  }
+  return null;
+}
+
+const PNG_ICONS = {
+  CAR: loadIconBuffer('I5_transparent.png'),
+  BIKE: loadIconBuffer('I6_transparent.png'),
+  THREE_WHEELER: loadIconBuffer('I7_transparent.png')
+};
 
 // Static Mock Vehicle & DL Database
 const mockDatabase = {
@@ -719,10 +730,17 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
             codeName = item.class_of_vehicle || item.code || item.cov || 'LMV';
           }
           const str = String(codeName || '').trim().toUpperCase();
-          const isCar = str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR');
+
+          // Precise icon category determination
+          let assignedType = 'BIKE';
+          if (str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR')) {
+            assignedType = 'CAR';
+          } else if (str.includes('3W') || str.includes('3 W') || str.includes('AUTO') || str.includes('RICKSHAW') || str.includes('CAB')) {
+            assignedType = 'THREE_WHEELER';
+          }
 
           return {
-            covType: isCar ? 'CAR' : 'BIKE',
+            covType: assignedType,
             code: str || 'MCWG',
             issuedBy: issuingOfficeCode,
             doi: issueDateClean,
@@ -1971,34 +1989,43 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    // Native Vector Silhouette Icon Rendering (0% CPU, No PNG chunks needed)
+    // Embed all three icons once cleanly outside the loop
     if (report.covList && Array.isArray(report.covList)) {
+      let carIconImg = null;
+      let bikeIconImg = null;
+      let threeWheelerIconImg = null;
+
+      try {
+        if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
+        if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
+        if (PNG_ICONS.THREE_WHEELER) threeWheelerIconImg = await pdfDoc.embedPng(PNG_ICONS.THREE_WHEELER);
+      } catch (iconEmbedErr) {
+        console.warn('[Icon Embed Error]:', iconEmbedErr.message);
+      }
+
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
         const rowPitch = 11.0;
         const rowY = 83.6 + (idx * rowPitch);
 
-        const codeUpper = String(cov.code || '').trim().toUpperCase();
-        const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
+        let activeIcon = bikeIconImg;
+        if (cov.covType === 'CAR') {
+          activeIcon = carIconImg;
+        } else if (cov.covType === 'THREE_WHEELER') {
+          activeIcon = threeWheelerIconImg || carIconImg;
+        }
 
-        try {
-          if (isCar) {
-            page.drawSvgPath(VECTOR_CAR_PATH, {
+        if (activeIcon) {
+          try {
+            page.drawImage(activeIcon, {
               x: rightCardX + (17.5 * S),
-              y: cardY + ((CARD_HEIGHT - (rowY - 4.5)) * S),
-              scale: 0.48 * S,
-              color: rgb(0.12, 0.15, 0.22)
+              y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
+              width: 11.5 * S,
+              height: 5.8 * S
             });
-          } else {
-            page.drawSvgPath(VECTOR_BIKE_PATH, {
-              x: rightCardX + (18.0 * S),
-              y: cardY + ((CARD_HEIGHT - (rowY - 4.5)) * S),
-              scale: 0.48 * S,
-              color: rgb(0.12, 0.15, 0.22)
-            });
+          } catch (drawErr) {
+            console.warn('[Icon Draw Warning]:', drawErr.message);
           }
-        } catch (e) {
-          console.warn('[Vector Icon Warning]:', e.message);
         }
 
         const codeVal = String(cov.code || '').trim();
