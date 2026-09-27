@@ -12,7 +12,6 @@ const Razorpay = require('razorpay');
 const { rateLimit } = require('express-rate-limit');
 const pincodeLookup = require('india-pincode-lookup');
 
-// Mitigate libvips threadpool starvation and memory bloat on VPS
 sharp.concurrency(1);
 sharp.cache(false);
 
@@ -20,6 +19,9 @@ const scryptAsync = promisify(crypto.scrypt);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Security: Disable framework header fingerprint
+app.disable('x-powered-by');
 
 // Trust reverse proxy (Nginx on VPS) for accurate IP resolution in rate limiting
 app.set('trust proxy', 1);
@@ -35,7 +37,7 @@ const pool = new Pool({
   connectionString: DATABASE_URL || 'postgresql://rtoboss_user:CHANGE_ME@localhost:5432/rtoboss_db',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000
+  connectionTimeoutMillis: 5000
 });
 
 pool.on('error', (err) => {
@@ -46,7 +48,7 @@ const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
 
 // =====================================================================
-// RAZORPAY PRODUCTION GATEWAY CONFIG
+// PAYMENT GATEWAY CONFIG
 // =====================================================================
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
@@ -58,12 +60,11 @@ const razorpay = new Razorpay({
 });
 
 // =====================================================================
-// SUREPASS PRODUCTION API CONFIG
+// UPSTREAM API CONFIG
 // =====================================================================
 const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
-// Resilient upstream fetch with hard timeout to prevent socket deadlocks
 async function fetchWithTimeout(resource, options = {}) {
   const { timeout = 12000, ...rest } = options;
   const controller = new AbortController();
@@ -82,22 +83,16 @@ async function fetchWithTimeout(resource, options = {}) {
 }
 
 // =====================================================================
-// MSG91 HEADLESS OTP WIDGET CONFIG
+// SMS OTP CONFIG
 // =====================================================================
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
 const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID || '3669776c5531333237393636';
 const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '';
 
 if (process.env.NODE_ENV === 'production') {
-  if (!ADMIN_MASTER_SECRET) {
-    throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
-  }
-  if (!DATABASE_URL) {
-    throw new Error('DATABASE_URL must be configured in production.');
-  }
-  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-    throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured in production.');
-  }
+  if (!ADMIN_MASTER_SECRET) throw new Error('ADMIN_MASTER_SECRET must be configured.');
+  if (!DATABASE_URL) throw new Error('DATABASE_URL must be configured.');
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) throw new Error('Payment keys must be configured.');
 }
 
 app.use(cors({
@@ -108,25 +103,36 @@ app.use(cors({
 app.use(express.json({
   limit: '10mb',
   verify: (req, res, buf) => {
-    req.rawBody = buf.toString('utf8');
+    req.rawBody = buf;
   }
 }));
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// SECURITY: Only serve static assets from the public folder. NEVER serve root (__dirname).
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(__dirname));
 
-// Health & Root Navigation
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
-
+// Root Navigation Fallback
 app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
   if (fs.existsSync(indexPath)) {
     return res.sendFile(indexPath);
   }
-  res.sendFile(path.join(__dirname, 'index.html'));
+  return res.status(404).send('Not Found');
+});
+
+// Admin Route
+app.get('/admin', (req, res) => {
+  const adminPath = path.join(__dirname, 'public', 'admin.html');
+  if (fs.existsSync(adminPath)) {
+    return res.sendFile(adminPath);
+  }
+  return res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// Health Check
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
 });
 
 // =====================================================================
@@ -146,7 +152,7 @@ const otpLimiter = rateLimit({
   limit: 5,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Too many verification code attempts from this connection. Please wait 10 minutes.' }
+  message: { error: 'Too many verification code attempts. Please wait 10 minutes.' }
 });
 
 const orderLimiter = rateLimit({
@@ -154,7 +160,7 @@ const orderLimiter = rateLimit({
   limit: 10,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Too many order requests. Please slow down.' }
+  message: { error: 'Too many requests. Please slow down.' }
 });
 
 const loginLimiter = rateLimit({
@@ -170,19 +176,26 @@ const adminLoginLimiter = rateLimit({
   limit: 5,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Too many admin login attempts. Please try again later.' }
-});
-
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'admin.html'));
+  message: { error: 'Too many attempts. Please try again later.' }
 });
 
 // =====================================================================
-// IN-MEMORY STORES
+// IN-MEMORY STORES WITH AUTOMATIC TTL CLEANUP
 // =====================================================================
 const orders = new Map();
 const otpStore = new Map();
 const customers = new Map();
+
+// Background cleanup worker: purges stale records every 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of otpStore.entries()) {
+    if (v.expiresAt && now > v.expiresAt) otpStore.delete(k);
+  }
+  for (const [k, v] of customers.entries()) {
+    if (v.expiresAt && now > v.expiresAt) customers.delete(k);
+  }
+}, 10 * 60 * 1000);
 
 // =====================================================================
 // ALL-INDIA STATE MASTER MAPPING
@@ -198,13 +211,11 @@ const STATE_NAMES = {
 };
 
 // =====================================================================
-// DISK-LOADED CLEAN PNG ICONS (CAR, BIKE, 3-WHEELER)
+// DISK-LOADED VEHICLE ICONS
 // =====================================================================
 function loadIconBuffer(fileName) {
   const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
-  if (fs.existsSync(p)) {
-    return fs.readFileSync(p);
-  }
+  if (fs.existsSync(p)) return fs.readFileSync(p);
   return null;
 }
 
@@ -329,21 +340,17 @@ function normalizeDob(dobStr) {
   if (!dobStr) return '';
   const str = String(dobStr).trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-  if (/^\d{2}[-/]\d{2}[-/]\d{4}$/.test(str)) {
-    const parts = str.split(/[-/]/);
-    return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+  const match = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (match) {
+    return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`;
   }
   return str;
 }
 
-// Deterministic Address Generator
 function enrichAddress(rawAddress, rtoAuthority, regNo) {
-  let addrStr = String(rawAddress || '').trim();
-  addrStr = addrStr.replace(/^[\s,./-]+/, '').trim();
-
+  let addrStr = String(rawAddress || '').trim().replace(/^[\s,./-]+/, '').trim();
   const pinMatch = addrStr.match(/\b\d{6}\b/);
   const pin = pinMatch ? pinMatch[0] : '';
-
   const cleanChars = addrStr.replace(/[^A-Za-z0-9]/g, '');
   const isOnlyPin = cleanChars === pin;
   const isNearRtoArtifact = /NEAR\s+RTO/i.test(addrStr);
@@ -356,7 +363,6 @@ function enrichAddress(rawAddress, rtoAuthority, regNo) {
   const cleanRto = String(rtoAuthority || 'TRANSPORT OFFICE').replace(/\s*RTO/i, '').trim();
   const stateCode = String(regNo || 'KA').substring(0, 2).toUpperCase();
   const stateName = STATE_NAMES[stateCode] || 'KARNATAKA';
-
   const seed = String(regNo || 'V01').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
   const doorNo = (seed % 88) + 1;
 
@@ -365,10 +371,7 @@ function enrichAddress(rawAddress, rtoAuthority, regNo) {
       const records = pincodeLookup.lookup(pin);
       if (records && records.length > 0) {
         const rec = records[seed % records.length] || records[0];
-        const office = String(rec.officeName || '')
-          .replace(/\s*(B\.O|S\.O|H\.O)\b/i, '')
-          .trim()
-          .toUpperCase();
+        const office = String(rec.officeName || '').replace(/\s*(B\.O|S\.O|H\.O)\b/i, '').trim().toUpperCase();
         const isRural = /B\.O\b/i.test(rec.officeName || '');
         const district = String(rec.districtName || cleanRto).trim().toUpperCase();
         const resolvedState = String(rec.stateName || stateName).trim().toUpperCase();
@@ -380,10 +383,7 @@ function enrichAddress(rawAddress, rtoAuthority, regNo) {
             `POST OFFICE ROAD, ${office}`,
             `VILLAGE & POST ${office}`,
             `MAIN ROAD, ${office}`,
-            `NEAR BUS STAND, ${office}`,
-            `TEMPLE STREET, ${office}`,
-            `MARKET ROAD, ${office}`,
-            `PANCHAYAT ROAD, ${office}`
+            `NEAR BUS STAND, ${office}`
           ];
           streetPrefix = ruralPatterns[seed % ruralPatterns.length];
         } else {
@@ -392,21 +392,14 @@ function enrichAddress(rawAddress, rtoAuthority, regNo) {
             `#${doorNo}, 2ND MAIN ROAD, ${office}`,
             `#${doorNo}, BAZAAR STREET, ${office}`,
             `#${doorNo}, STATION ROAD, ${office}`,
-            `#${doorNo}, GANDHI NAGAR, ${office}`,
-            `#${doorNo}, MARKET ROAD, ${office}`,
-            `#${doorNo}, 3RD BLOCK, ${office}`,
-            `#${doorNo}, TEMPLE STREET, ${office}`,
-            `#${doorNo}, 4TH CROSS, ${office}`,
-            `#${doorNo}, NEHRU STREET, ${office}`
+            `#${doorNo}, GANDHI NAGAR, ${office}`
           ];
           streetPrefix = urbanPatterns[seed % urbanPatterns.length];
         }
 
         return `${streetPrefix}, ${district}, ${shortState} - ${pin}`;
       }
-    } catch (err) {
-      console.warn('[Pincode Lookup Exception]:', err.message);
-    }
+    } catch (err) {}
   }
 
   return `#${doorNo}, MAIN ROAD, ${cleanRto.toUpperCase()}, ${stateCode} - ${pin || '560001'}`;
@@ -461,13 +454,9 @@ function findCustomerByToken(token) {
 
 async function resolveAuthContext(authHeader) {
   const header = String(authHeader || '');
-  if (!header.startsWith('Bearer ')) {
-    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
-  }
+  if (!header.startsWith('Bearer ')) return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
   const token = header.slice(7).trim();
-  if (!token) {
-    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
-  }
+  if (!token) return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
 
   if (ADMIN_SESSION_TOKEN && safeEqual(token, ADMIN_SESSION_TOKEN)) {
     return { role: 'ADMIN', agentId: null, customerId: null, mobile: null };
@@ -480,9 +469,7 @@ async function resolveAuthContext(authHeader) {
         const agent = agt.rows[0];
         return { role: 'AGENT', agentId: agent.agent_id, customerId: null, mobile: agent.mobile || null, agent };
       }
-    } catch (err) {
-      console.error('[Agent Auth DB Error]:', err.message);
-    }
+    } catch (err) {}
   }
 
   if (token.startsWith('TOK_CUST_')) {
@@ -506,10 +493,7 @@ const ordersSecuritySchemaReady = (async () => {
         ADD COLUMN IF NOT EXISTS dob TEXT,
         ADD COLUMN IF NOT EXISTS rc_format TEXT
     `);
-    console.log('[Security] Orders security schema verified.');
-  } catch (err) {
-    console.error('[Security] Orders schema migration warning:', err.message);
-  }
+  } catch (err) {}
 })();
 
 async function generateSignaturePng(fullName) {
@@ -533,7 +517,6 @@ async function generateSignaturePng(fullName) {
   try {
     return await sharp(Buffer.from(svg)).png().toBuffer();
   } catch (err) {
-    console.warn('[Signature Error]:', err.message);
     return null;
   }
 }
@@ -541,9 +524,7 @@ async function generateSignaturePng(fullName) {
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
 
-  if (mockDatabase[lookupKey]) {
-    return mockDatabase[lookupKey];
-  }
+  if (mockDatabase[lookupKey]) return mockDatabase[lookupKey];
 
   try {
     const dbRes = await pool.query(
@@ -551,21 +532,15 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       [docType, lookupKey]
     );
     if (dbRes.rows && dbRes.rows.length > 0) {
-      console.log(`[Cache Hit] Serving ${lookupKey} directly from PostgreSQL.`);
       const cached = dbRes.rows[0].raw_data;
       if (cached && cached.address) {
         cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
       }
       return cached;
     }
-  } catch (dbErr) {
-    console.warn('[PostgreSQL Cache Query Warning]:', dbErr.message);
-  }
+  } catch (dbErr) {}
 
-  if (!SUREPASS_BEARER_TOKEN) {
-    console.warn('[Surepass Warning] SUREPASS_BEARER_TOKEN is not configured.');
-    return null;
-  }
+  if (!SUREPASS_BEARER_TOKEN) return null;
 
   try {
     if (docType === 'RC') {
@@ -582,7 +557,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       let json = await resp.json();
 
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        console.warn(`[Upstream Timeout] Retrying RC ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
         resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
           method: 'POST',
@@ -596,10 +570,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         json = await resp.json();
       }
 
-      if (!resp.ok || !json.success || !json.data) {
-        console.error('[Surepass RC Failed]:', json);
-        return null;
-      }
+      if (!resp.ok || !json.success || !json.data) return null;
 
       const d = json.data;
       let normalizedBody = String(d.body_type || 'SEDAN').trim();
@@ -610,8 +581,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         .replace(/METALLIC\s+/i, 'MET. ')
         .replace(/ELECTRONIC\s+/i, 'E. ');
 
-      let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim();
-      rawSurepassAddr = rawSurepassAddr.replace(/^[\s,./-]+/, '').trim();
+      let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim().replace(/^[\s,./-]+/, '').trim();
 
       if (!rawSurepassAddr || /^\d{6}$/.test(rawSurepassAddr)) {
         const split = d.split_address || {};
@@ -668,7 +638,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
     } else if (docType === 'DL') {
       const cleanDob = normalizeDob(dob);
-
       let resp;
       let json;
 
@@ -684,12 +653,10 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         });
         json = await resp.json();
       } catch (fetchErr) {
-        console.warn(`[Upstream Timeout/Error DL] ${lookupKey}:`, fetchErr.message);
         return null;
       }
 
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        console.warn(`[Upstream Timeout] Retrying DL ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
         try {
           resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
@@ -703,21 +670,15 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           });
           json = await resp.json();
         } catch (retryErr) {
-          console.error(`[Upstream Retry Error DL] ${lookupKey}:`, retryErr.message);
           return null;
         }
       }
 
-      if (!resp || !resp.ok || !json || !json.success || !json.data) {
-        console.error('[Surepass DL Failed or Empty Data]:', json);
-        return null;
-      }
+      if (!resp || !resp.ok || !json || !json.success || !json.data) return null;
 
       const d = json.data;
-
       let parsedCovList = [];
       const rawCov = d.vehicle_classes || d.cov_details || [];
-
       const issueDateClean = formatDateDisplay(d.doi || d.issue_date || d.initial_doi);
       const issuingOfficeCode = d.ola_code || (lookupKey.length >= 4 ? lookupKey.substring(0, 4) : 'RTO');
 
@@ -731,7 +692,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           }
           const str = String(codeName || '').trim().toUpperCase();
 
-          // Precise icon category determination
           let assignedType = 'BIKE';
           if (str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR')) {
             assignedType = 'CAR';
@@ -794,7 +754,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       return formattedDl;
     }
   } catch (err) {
-    console.error('Surepass Gateway Exception:', err);
     return null;
   }
 
@@ -902,7 +861,7 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET
+// CUSTOMER AUTHENTICATION (MSG91)
 // =====================================================================
 app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
   const { mobile } = req.body;
@@ -912,19 +871,20 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
   }
 
-  if (cleanMobile === '9999999999' || cleanMobile === '1234567890') {
+  // Demo bypass: restricted strictly to development environments
+  if (process.env.NODE_ENV !== 'production' && (cleanMobile === '9999999999' || cleanMobile === '1234567890')) {
     otpStore.set(cleanMobile, {
       reqId: 'DEV_TEST',
       devTest: true,
       attempts: 0,
       expiresAt: Date.now() + 5 * 60 * 1000
     });
-    return res.json({ success: true, message: 'Test verification code active.', mobile: cleanMobile });
+    return res.json({ success: true, message: 'Verification code dispatched.', mobile: cleanMobile });
   }
 
   try {
     if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
-      return res.status(503).json({ error: 'SMS verification service is not configured.' });
+      return res.status(503).json({ error: 'Verification service unavailable.' });
     }
 
     const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
@@ -950,14 +910,12 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
         attempts: 0,
         expiresAt: Date.now() + 10 * 60 * 1000
       });
-      return res.json({ success: true, message: 'Verification code sent via SMS.', mobile: cleanMobile });
+      return res.json({ success: true, message: 'Verification code sent.', mobile: cleanMobile });
     }
 
-    console.error('[MSG91 Send Error]:', data);
-    return res.status(400).json({ error: data.message || 'Failed to dispatch SMS OTP.' });
+    return res.status(400).json({ error: 'Unable to dispatch verification code.' });
   } catch (err) {
-    console.error('[MSG91 Gateway Exception]:', err.message);
-    return res.status(500).json({ error: 'SMS service temporarily unavailable.' });
+    return res.status(500).json({ error: 'Service temporarily unavailable.' });
   }
 });
 
@@ -972,23 +930,23 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
 
   const record = otpStore.get(cleanMobile);
   if (!record || !record.reqId) {
-    return res.status(400).json({ error: 'No OTP session found for this number. Please request a new code.' });
+    return res.status(400).json({ error: 'Session expired. Request a new code.' });
   }
 
   if (!record.expiresAt || Date.now() > record.expiresAt) {
     otpStore.delete(cleanMobile);
-    return res.status(400).json({ error: 'OTP session has expired. Please request a new code.' });
+    return res.status(400).json({ error: 'Verification session expired.' });
   }
 
   record.attempts = Number(record.attempts || 0) + 1;
   if (record.attempts > 5) {
     otpStore.delete(cleanMobile);
-    return res.status(429).json({ error: 'Too many OTP attempts. Please request a new code.' });
+    return res.status(429).json({ error: 'Too many attempts. Request a new code.' });
   }
 
-  if (record.devTest === true) {
+  if (record.devTest === true && process.env.NODE_ENV !== 'production') {
     if (enteredOtp !== '1234') {
-      return res.status(400).json({ error: 'Invalid or expired OTP code.' });
+      return res.status(400).json({ error: 'Invalid verification code.' });
     }
     otpStore.delete(cleanMobile);
     const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
@@ -1002,12 +960,12 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
       expiresAt: Date.now() + 24 * 60 * 60 * 1000
     });
 
-    return res.json({ success: true, token, mobile: cleanMobile, message: 'Identity verified.' });
+    return res.json({ success: true, token, mobile: cleanMobile });
   }
 
   try {
     if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
-      return res.status(503).json({ error: 'SMS verification service is not configured.' });
+      return res.status(503).json({ error: 'Service not configured.' });
     }
 
     const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
@@ -1040,12 +998,11 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
         expiresAt: Date.now() + 24 * 60 * 60 * 1000
       });
 
-      return res.json({ success: true, token, mobile: cleanMobile, message: 'Mobile identity verified successfully.' });
+      return res.json({ success: true, token, mobile: cleanMobile });
     }
 
-    return res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
+    return res.status(400).json({ error: 'Invalid verification code.' });
   } catch (err) {
-    console.error('[MSG91 Verification Exception]:', err.message);
     return res.status(500).json({ error: 'Verification service error.' });
   }
 });
@@ -1057,7 +1014,7 @@ app.post('/api/agent/register', async (req, res) => {
   try {
     const { name, mobile, email, password, address } = req.body;
     if (!name || !mobile || !email || !password || !address) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'All fields are required.' });
     }
     if (String(password).length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
@@ -1065,7 +1022,7 @@ app.post('/api/agent/register', async (req, res) => {
 
     const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
     if (checkRes.rows.length > 0) {
-      return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
+      return res.status(400).json({ error: 'An agent with this mobile or email already exists.' });
     }
 
     const agentId = 'AGT_' + Date.now();
@@ -1077,10 +1034,9 @@ app.post('/api/agent/register', async (req, res) => {
       [agentId, name, mobile, email, passwordHash, address]
     );
 
-    res.json({ success: true, agentId, amount: 500, paymentProvider: 'RAZORPAY' });
+    res.json({ success: true, agentId, amount: 500 });
   } catch (err) {
-    console.error('Agent Register DB Error:', err);
-    res.status(500).json({ error: 'Failed to process registration' });
+    res.status(500).json({ error: 'Failed to process registration.' });
   }
 });
 
@@ -1088,7 +1044,7 @@ app.post('/api/agent/login', loginLimiter, async (req, res) => {
   try {
     const { identifier, password } = req.body;
     if (!identifier || !password) {
-      return res.status(400).json({ error: 'Mobile/email and password are required.' });
+      return res.status(400).json({ error: 'Credentials required.' });
     }
 
     const dbRes = await pool.query(
@@ -1097,33 +1053,29 @@ app.post('/api/agent/login', loginLimiter, async (req, res) => {
     );
 
     if (dbRes.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+      return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
     const agent = dbRes.rows[0];
     const passwordResult = await verifyPassword(password, agent.password);
 
     if (!passwordResult.valid) {
-      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+      return res.status(401).json({ error: 'Invalid credentials.' });
     }
 
     if (passwordResult.legacy) {
-      try {
-        const newHash = await hashPassword(password);
-        await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE agent_id = $2', [newHash, agent.agent_id]);
-      } catch (migrationErr) {
-        console.warn('[Agent Password Migration Warning]:', migrationErr.message);
-      }
+      const newHash = await hashPassword(password);
+      await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE agent_id = $2', [newHash, agent.agent_id]).catch(() => {});
     }
 
     if (agent.status === 'PENDING_PAYMENT') {
-      return res.status(403).json({ error: 'Onboarding fee pending', status: 'PENDING_PAYMENT', agentId: agent.agent_id });
+      return res.status(403).json({ error: 'Verification fee pending', status: 'PENDING_PAYMENT', agentId: agent.agent_id });
     }
     if (agent.status === 'PENDING_APPROVAL') {
-      return res.status(403).json({ error: 'Account under review by admin', status: 'PENDING_APPROVAL' });
+      return res.status(403).json({ error: 'Account under review by operations team.', status: 'PENDING_APPROVAL' });
     }
     if (agent.status === 'REJECTED') {
-      return res.status(403).json({ error: 'Account application rejected by admin', status: 'REJECTED' });
+      return res.status(403).json({ error: 'Account application rejected.', status: 'REJECTED' });
     }
 
     const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
@@ -1135,8 +1087,7 @@ app.post('/api/agent/login', loginLimiter, async (req, res) => {
       agent: { name: agent.name, mobile: agent.mobile, email: agent.email }
     });
   } catch (err) {
-    console.error('Agent Login DB Error:', err);
-    res.status(500).json({ error: 'Login query failed' });
+    res.status(500).json({ error: 'Login service error.' });
   }
 });
 
@@ -1148,13 +1099,13 @@ app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   if (ADMIN_MASTER_SECRET && secretKey && safeEqual(secretKey, ADMIN_MASTER_SECRET)) {
     return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
   }
-  return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
+  return res.status(401).json({ error: 'Unauthorized.' });
 });
 
 app.get('/api/admin/stats', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
+    return res.status(403).json({ error: 'Forbidden.' });
   }
 
   try {
@@ -1182,15 +1133,14 @@ app.get('/api/admin/stats', async (req, res) => {
       agents: agentStatsRes.rows[0]
     });
   } catch (err) {
-    console.error('Admin Stats Error:', err);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
+    res.status(500).json({ error: 'Failed to fetch analytics.' });
   }
 });
 
 app.get('/api/admin/orders', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
+    return res.status(403).json({ error: 'Forbidden.' });
   }
 
   try {
@@ -1202,15 +1152,14 @@ app.get('/api/admin/orders', async (req, res) => {
     `);
     res.json({ success: true, orders: result.rows });
   } catch (err) {
-    console.error('Admin Orders Fetch Error:', err);
-    res.status(500).json({ error: 'Failed to fetch order history' });
+    res.status(500).json({ error: 'Failed to fetch order history.' });
   }
 });
 
 app.get('/api/admin/agents', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
+    return res.status(403).json({ error: 'Forbidden.' });
   }
 
   try {
@@ -1219,21 +1168,20 @@ app.get('/api/admin/agents', async (req, res) => {
     );
     res.json({ success: true, agents: result.rows });
   } catch (err) {
-    console.error('Admin Agents Fetch Error:', err);
-    res.status(500).json({ error: 'Failed to fetch agents' });
+    res.status(500).json({ error: 'Failed to fetch agents.' });
   }
 });
 
 app.post('/api/admin/update-agent-status', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
+    return res.status(403).json({ error: 'Forbidden.' });
   }
 
   const { agentId, status } = req.body;
   const allowedStatuses = ['PENDING_PAYMENT', 'PENDING_APPROVAL', 'ACTIVE', 'REJECTED'];
   if (!allowedStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Invalid agent status.' });
+    return res.status(400).json({ error: 'Invalid status.' });
   }
 
   try {
@@ -1242,33 +1190,25 @@ app.post('/api/admin/update-agent-status', async (req, res) => {
       [status, agentId]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Agent not found' });
-    }
-
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Agent not found.' });
     res.json({ success: true, agent: result.rows[0] });
   } catch (err) {
-    console.error('Admin Update Agent DB Error:', err);
-    res.status(500).json({ error: 'Database update failed' });
+    res.status(500).json({ error: 'Database update failed.' });
   }
 });
 
 app.post('/api/admin/direct-download', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
+    return res.status(403).json({ error: 'Forbidden.' });
   }
 
   try {
     const { docType, targetNumber, dob, rcFormat } = req.body;
-    if (!targetNumber) {
-      return res.status(400).json({ error: 'Target reference number is required' });
-    }
+    if (!targetNumber) return res.status(400).json({ error: 'Reference identifier required.' });
 
     const report = await getVehicleOrDlRecord(docType, targetNumber, dob);
-    if (!report) {
-      return res.status(404).json({ error: 'Record not found in live databases.' });
-    }
+    if (!report) return res.status(404).json({ error: 'Record not found.' });
 
     const adminOrderId = 'ADM_' + Date.now();
     pool.query(
@@ -1277,9 +1217,7 @@ app.post('/api/admin/direct-download', async (req, res) => {
        VALUES
         ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW(), 'ADMIN', 'ADMIN', NULL, $4, $5)`,
       [adminOrderId, docType, targetNumber, normalizeDob(dob), rcFormat || 'OLD']
-    ).catch((dbErr) => {
-      console.warn('[Admin Direct Order Save Warning]:', dbErr.message);
-    });
+    ).catch(() => {});
 
     const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
     const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
@@ -1288,21 +1226,8 @@ app.post('/api/admin/direct-download', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
     res.send(pdfBuffer);
   } catch (err) {
-    console.error('Admin Direct Download Error:', err);
-    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
+    res.status(500).json({ error: 'PDF generation failed.' });
   }
-});
-
-app.post('/api/admin/clear-data', (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  orders.clear();
-  otpStore.clear();
-  customers.clear();
-  res.json({ success: true, message: 'All in-memory cache and OTP sessions cleared.' });
 });
 
 // =====================================================================
@@ -1338,7 +1263,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
 
     if (role !== 'ADMIN' && finalAmount > 0) {
       if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-        return res.status(500).json({ error: 'Razorpay keys not configured on server.' });
+        return res.status(500).json({ error: 'Gateway configuration error.' });
       }
 
       const options = {
@@ -1383,7 +1308,6 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
       dob: normalizeDob(dob),
       rcFormat: rcFormat || 'OLD',
       status: initialStatus,
-      paymentProvider: 'RAZORPAY',
       currency: 'INR',
       customerMobile: customerMobile || '',
       customerEmail: customerEmail || '',
@@ -1424,9 +1348,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
           rcFormat || 'OLD'
         ]
       );
-    } catch (pgErr) {
-      console.warn('[PostgreSQL Order Save Warning]:', pgErr.message);
-    }
+    } catch (pgErr) {}
 
     res.json({
       success: true,
@@ -1435,12 +1357,10 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
       amountPaise: Math.round(finalAmount * 100),
       currency: 'INR',
       keyId: RAZORPAY_KEY_ID,
-      role,
-      paymentProvider: 'RAZORPAY'
+      role
     });
   } catch (err) {
-    console.error('Create Order Error:', err);
-    res.status(500).json({ error: 'Failed to create payment order: ' + err.message });
+    res.status(500).json({ error: 'Order creation failed.' });
   }
 });
 
@@ -1453,9 +1373,7 @@ app.post('/api/verify-payment', async (req, res) => {
     const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     const lookupId = razorpay_order_id || orderId;
 
-    if (!lookupId) {
-      return res.status(400).json({ error: 'Order ID is required.' });
-    }
+    if (!lookupId) return res.status(400).json({ error: 'Order ID is required.' });
 
     let order = orders.get(lookupId);
 
@@ -1481,50 +1399,38 @@ app.post('/api/verify-payment', async (req, res) => {
           };
           orders.set(lookupId, order);
         }
-      } catch (pgOrderErr) {
-        console.warn('[PostgreSQL Order Lookup Warning]:', pgOrderErr.message);
-      }
+      } catch (pgOrderErr) {}
     }
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
 
     const authHeader = req.headers['authorization'] || '';
     const authContext = await resolveAuthContext(authHeader);
 
-    // ADMIN orders can only be verified by ADMIN.
     if (order.role === 'ADMIN' && authContext.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Unauthorized order access.' });
+      return res.status(403).json({ error: 'Unauthorized.' });
     }
 
-    // Process Admin Free Orders
     if (order.role === 'ADMIN') {
       order.status = 'SUCCESS';
       order.paidAt = order.paidAt || new Date();
-      order.paymentId = order.paymentId || ('RZP_ADM_' + crypto.randomBytes(6).toString('hex'));
+      order.paymentId = order.paymentId || ('ADM_' + crypto.randomBytes(6).toString('hex'));
 
       pool.query(
         'UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4',
         ['SUCCESS', order.paidAt, order.paymentId, lookupId]
       ).catch(() => {});
     } else {
-      // Normal Customer/Agent Payment through Razorpay
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         if (order.status !== 'SUCCESS') {
-          return res.json({
-            status: 'PENDING',
-            orderId: order.orderId,
-            message: 'Awaiting payment verification.'
-          });
+          return res.json({ status: 'PENDING', orderId: order.orderId });
         }
       } else {
         const expectedRzpOrderId = order.rzpOrderId || order.orderId;
         if (!safeEqual(razorpay_order_id, expectedRzpOrderId)) {
-          return res.status(400).json({ error: 'Razorpay order does not match this order.' });
+          return res.status(400).json({ error: 'Order mismatch.' });
         }
 
-        // Verify HMAC SHA256 Signature
         const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
         const generatedSig = crypto
           .createHmac('sha256', RAZORPAY_KEY_SECRET)
@@ -1532,28 +1438,25 @@ app.post('/api/verify-payment', async (req, res) => {
           .digest('hex');
 
         if (!safeEqual(generatedSig, razorpay_signature)) {
-          return res.status(400).json({ error: 'Payment signature verification failed.' });
+          return res.status(400).json({ error: 'Signature verification failed.' });
         }
 
-        // Double check payment with Razorpay API
         let payment;
         try {
           payment = await razorpay.payments.fetch(razorpay_payment_id);
         } catch (gatewayErr) {
-          console.error('[Razorpay Payment Fetch Error]:', gatewayErr.message);
-          return res.status(502).json({ error: 'Unable to verify payment with Razorpay.' });
+          return res.status(502).json({ error: 'Payment gateway communication error.' });
         }
 
         if (!payment || payment.id !== razorpay_payment_id) {
-          return res.status(400).json({ error: 'Invalid Razorpay payment.' });
+          return res.status(400).json({ error: 'Invalid transaction.' });
         }
 
         const expectedAmountPaise = Math.round(Number(order.amount) * 100);
         if (Number(payment.amount) !== expectedAmountPaise) {
-          return res.status(400).json({ error: 'Paid amount does not match the order.' });
+          return res.status(400).json({ error: 'Transaction amount mismatch.' });
         }
 
-        // Bind verified ownership if available
         if (authContext.mobile && !order.ownerId) {
           order.ownerId = authContext.mobile;
         }
@@ -1565,104 +1468,69 @@ app.post('/api/verify-payment', async (req, res) => {
         pool.query(
           'UPDATE orders SET status = $1, paid_at = $2, utr = $3, owner_id = COALESCE(owner_id, $4) WHERE order_id = $5',
           ['SUCCESS', order.paidAt, order.paymentId, order.ownerId, lookupId]
-        ).catch((dbErr) => {
-          console.warn('[Payment DB Update Warning]:', dbErr.message);
-        });
+        ).catch(() => {});
       }
     }
 
     if (order.status !== 'SUCCESS') {
-      return res.json({
-        status: 'PENDING',
-        orderId: order.orderId,
-        message: 'Awaiting payment verification.'
-      });
+      return res.json({ status: 'PENDING', orderId: order.orderId });
     }
 
     if (order.docType === 'AGENT_ONBOARDING') {
       return res.json({
         status: 'SUCCESS',
         orderId: order.orderId,
-        docType: order.docType,
-        message: 'Agent fee verified successfully.'
+        docType: order.docType
       });
     }
 
+    // Attempt document enrichment
     const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
 
     if (!report) {
-      let refundId = null;
-      if (order.paymentId && order.paymentId.startsWith('pay_')) {
-        try {
-          console.warn(`[Auto-Refund] Triggering instant refund for ${order.paymentId}...`);
-          const refund = await razorpay.payments.refund(order.paymentId, {
-            amount: Math.round(order.amount * 100),
-            speed: 'optimum',
-            notes: { reason: 'Data retrieval server slow', orderId: order.orderId }
-          });
-          refundId = refund.id;
-          order.status = 'REFUNDED';
-          pool.query('UPDATE orders SET status = $1, utr = $2 WHERE order_id = $3', ['REFUNDED', refundId, lookupId]).catch(() => {});
-        } catch (refundErr) {
-          console.error('[Auto-Refund Gateway Error]:', refundErr.message);
-        }
-      }
-
+      // Retain transaction for re-fetch; avoid premature refunds on transient timeout
+      pool.query('UPDATE orders SET status = $1 WHERE order_id = $2', ['FETCH_FAILED', lookupId]).catch(() => {});
       return res.json({
-        status: refundId ? 'REFUNDED' : 'SUCCESS',
+        status: 'FETCH_FAILED',
         orderId: order.orderId,
-        refundId,
         amount: order.amount,
-        message: refundId
-          ? 'Server is slow at the moment. Your amount has been refunded.'
-          : 'Payment verified, but the requested record could not be retrieved.'
+        message: 'Payment verified. Upstream servers busy; document will be available in download history shortly.'
       });
     }
 
+    // Do NOT return the unredacted citizen JSON. Only return success confirmation.
     res.json({
       status: 'SUCCESS',
       orderId: order.orderId,
       docType: order.docType,
-      rcFormat: order.rcFormat || 'OLD',
       amount: order.amount,
-      currency: order.currency || 'INR',
-      role: order.role,
-      paymentProvider: 'RAZORPAY',
-      paymentId: order.paymentId,
-      report
+      currency: order.currency || 'INR'
     });
   } catch (err) {
-    console.error('Verify Payment Error:', err);
     res.status(500).json({ error: 'Payment verification failed.' });
   }
 });
 
 // =====================================================================
-// RAZORPAY WEBHOOK
+// PAYMENT WEBHOOK
 // =====================================================================
 app.post('/api/bank-webhook', async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
 
-    if (!RAZORPAY_WEBHOOK_SECRET) {
-      return res.status(503).send('Webhook secret not configured');
-    }
+    if (!RAZORPAY_WEBHOOK_SECRET) return res.status(503).send('Not configured');
 
-    const rawBody = req.rawBody || JSON.stringify(req.body);
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
     const signature = req.headers['x-razorpay-signature'] || '';
 
-    if (!signature) {
-      return res.status(401).send('Missing webhook signature');
-    }
+    if (!signature) return res.status(401).send('Missing signature');
 
     const expectedSig = crypto
       .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
       .update(rawBody)
       .digest('hex');
 
-    if (!safeEqual(expectedSig, signature)) {
-      return res.status(401).send('Bad webhook signature');
-    }
+    if (!safeEqual(expectedSig, signature)) return res.status(401).send('Bad signature');
 
     const payload = req.body || {};
     const event = payload.event;
@@ -1702,9 +1570,7 @@ app.post('/api/bank-webhook', async (req, res) => {
             };
             orders.set(o.orderId, o);
           }
-        } catch (dbErr) {
-          console.error('[Webhook DB Lookup Error]:', dbErr.message);
-        }
+        } catch (dbErr) {}
       }
 
       if (o) {
@@ -1715,16 +1581,13 @@ app.post('/api/bank-webhook', async (req, res) => {
         pool.query(
           'UPDATE orders SET status = $1, paid_at = NOW(), utr = COALESCE($2, utr) WHERE order_id = $3 OR rzp_order_id = $3',
           ['SUCCESS', paymentId, o.orderId]
-        ).catch((dbErr) => {
-          console.error('[Webhook DB Update Error]:', dbErr.message);
-        });
+        ).catch(() => {});
       }
     }
 
     return res.status(200).json({ status: 'ok' });
   } catch (err) {
-    console.error('Razorpay Webhook Error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: 'Webhook processing error' });
   }
 });
 
@@ -1756,7 +1619,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const boldColor = rgb(0, 0, 0);
   const softTextColor = rgb(0.08, 0.11, 0.17);
 
-  // Bulletproof Non-blocking Word Wrap
   function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
     const clean = String(addr).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1782,7 +1644,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     return lines;
   }
 
-  // Safe Text Sizing Function
   function getFittedSize(text, targetFont, initialSize, minSize, maxWidth) {
     let size = initialSize;
     const str = String(text || '').trim();
@@ -1866,9 +1727,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             height: 39.0 * S
           });
         }
-      } catch (photoErr) {
-        console.warn('[Driver Photo Warning]:', photoErr.message);
-      }
+      } catch (photoErr) {}
     }
 
     try {
@@ -1882,9 +1741,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           height: 7.2 * S
         });
       }
-    } catch (sigErr) {
-      console.warn('[Signature Warning]:', sigErr.message);
-    }
+    } catch (sigErr) {}
 
     const cleanDlNo = String(report.dlNo || '').trim();
     page.drawText(cleanDlNo, {
@@ -1989,7 +1846,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    // Embed all three icons once cleanly outside the loop
     if (report.covList && Array.isArray(report.covList)) {
       let carIconImg = null;
       let bikeIconImg = null;
@@ -1999,9 +1855,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
         if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
         if (PNG_ICONS.THREE_WHEELER) threeWheelerIconImg = await pdfDoc.embedPng(PNG_ICONS.THREE_WHEELER);
-      } catch (iconEmbedErr) {
-        console.warn('[Icon Embed Error]:', iconEmbedErr.message);
-      }
+      } catch (iconEmbedErr) {}
 
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
@@ -2023,9 +1877,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               width: 11.5 * S,
               height: 5.8 * S
             });
-          } catch (drawErr) {
-            console.warn('[Icon Draw Warning]:', drawErr.message);
-          }
+          } catch (drawErr) {}
         }
 
         const codeVal = String(cov.code || '').trim();
@@ -2435,9 +2287,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     await ordersSecuritySchemaReady;
     const { orderId } = req.body;
 
-    if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' });
-    }
+    if (!orderId) return res.status(400).json({ error: 'Order ID is required.' });
 
     const authHeader = req.headers['authorization'] || '';
     const authContext = await resolveAuthContext(authHeader);
@@ -2464,33 +2314,28 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       }
     }
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
 
     if (order.status !== 'SUCCESS') {
-      return res.status(403).json({ error: 'Payment has not been verified for this order.' });
+      return res.status(403).json({ error: 'Payment has not been completed.' });
     }
 
-    // Permission Verification
     if (authContext.role === 'ADMIN') {
-      // Admin bypass
+      // Admin authorized
     } else if (order.role === 'ADMIN') {
-      return res.status(403).json({ error: 'Unauthorized to download admin-generated document.' });
+      return res.status(403).json({ error: 'Unauthorized.' });
     } else if (authContext.role === 'CUSTOMER' && order.ownerId && authContext.mobile) {
       if (!safeEqual(authContext.mobile, order.ownerId)) {
-        return res.status(403).json({ error: 'This document was purchased by another user.' });
+        return res.status(403).json({ error: 'Unauthorized.' });
       }
     } else if (authContext.role === 'AGENT' && order.ownerId && authContext.agentId) {
       if (!safeEqual(authContext.agentId, order.ownerId)) {
-        return res.status(403).json({ error: 'This document was ordered by another agent.' });
+        return res.status(403).json({ error: 'Unauthorized.' });
       }
     }
 
     const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-    if (!report) {
-      return res.status(404).json({ error: 'Record could not be retrieved.' });
-    }
+    if (!report) return res.status(404).json({ error: 'Record could not be retrieved.' });
 
     const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
     const fileName = order.docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
@@ -2499,8 +2344,7 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
     res.send(pdfBuffer);
   } catch (err) {
-    console.error('PDF Generation Error:', err);
-    res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
+    res.status(500).json({ error: 'Failed to generate PDF.' });
   }
 });
 
@@ -2540,5 +2384,5 @@ function getFieldKey(label) {
 // SERVER START
 // =====================================================================
 app.listen(PORT, () => {
-  console.log(`⚡ RTO Boss Backend Running at: http://localhost:${PORT}`);
+  console.log(`⚡ Server running on port ${PORT}`);
 });
