@@ -198,12 +198,10 @@ const STATE_NAMES = {
 };
 
 // =====================================================================
-// CLEAN VECTOR SILHOUETTE SVGs
+// NATIVE VECTOR PATHS FOR VEHICLE SILHOUETTES (ZERO DEPENDENCY / ZERO CRASH)
 // =====================================================================
-const SVG_ICONS = {
-  CAR: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAE4UlEQVR4nN1WfSz9VRi/12so7y95f5kmc41oslgoRWuN0RLuJPI214ShxdBkZMLSuFJiPy4m08yEqKwsRhgWY5WoXC8hrnfubZ+ts53f173ce3+/1Prjs3vPc57zfD/nc855noclkUhY/2Ww/vcExWIxm2nb3d3VFwqFZsD6+vrDR0dHWv+6gouLi07Nzc0xRUVFhYmJifWxsbGfREVFtYaHh3+akZFRWVZWltvT0/Pi1taW8a0rKBAIIv39/b8KDAz8Ii4u7uOwsLAudXX1My8vr/Hk5OQ6Lpd7Jzg4+HNTU9MNEIayt0awoaHhdTMzM2FxcXH+xsaGKWxLS0uPmJiYbHZ2dr6E8fn5uRqUw9je3v6n+Pj4j6RdjftOUCAQRNra2q5UVFRkXVxcqBL7xMTE40ZGRtsjIyNPMdcMDQ094+Dg8GNtbW3KP0qwq6srzNzc/HeQY8719fU9r6ur++fk5KSntLWNjY2v2dnZ/Tw9Pe0uN0FILq/sCMzhcOZw+aWtaW1tjdLT09tbWFh4VNp6qB0ZGSmIjo5u2d/ff0ghgteRPD4+fmB0dPRJXH5c9oODgwcPDw+18UtwenqqAVWNjY235ufnXZBi6Hng5OREE+paWVmtxcTENHd0dLwMDA8PP315eaki84hlEVxbW7Nqa2t7BYo5Ojous1gsCV5qTk7Ou6mpqR8APB6vBsjKyqrw8/P7WkdHR4RUk56eXk3miG9aWtr7sFtYWPyGWAQYY1Ny3UEo09/fH5SXl/dOUFBQv4GBwQ4dTE1N7ZzNZotvgoqKyqUsO4lBx21paYm+liAyf2FhYVFAQMCXzB0CCAyQMZvxAQJVVdULaXamD9kAseEBySR4dnamDvk1NDROZREjQcl/9t+K0L5EIXoj0sBUFLbq6up0mQRxcbW1tQ/pIKgI0gLSQVlSwDxa5jyJS/yI4tnZ2eUyCeL10cfm5uY2AxtUpYnLOlbWDWrhV1NT8wTlD3E9PT0nmfM+Pj7f7u3t6ZFHe1duCg0N7SYLkO1R/FHK8IKxM7JLRQmyKbVTUlJq29vbI+rr6xObmppedXZ2/oGOqaWldTQwMPDcFYLb29tGHh4e3xPnzMzM95KSkvgYI6fV1NTw3N3dp8mxKKMeh8OZ4/P5SahAGKOJKCgoeJv2hcK9vb0vXCGIjO7r6/sNnJBSysvLsw0NDf8gC5H3CGFlweVy76B6kLG+vv5uaWnpm+hyiA01fHZ21vUKQSAkJOQzOCEZ5+bmltHBXV1dZ5ET74Ugj8eroe8dgIRNjhlAyyYSiXSkPpKSkpK3rK2tV5GY0RLRgWBHS4VjBlkcF4fDmcN/JyenRZQt+EgD5tAcoMrY2Nj8QsdNSEj4EMK4uLjMR0REtA8ODj5LV7a7CII5Sg36OfKiCSwtLX9dXl523NzcNCHtvFAoNMN4ZWXFdmxs7Inx8XEvWZiamnoMPugH6bj5+fnFq6ur1igQeL10Lb5CkAYKN50DUV/ReMrT7UhkAOtxhPTj6e7uDpWrm2FiZ2fHgAQD0bq6umR6Z8qS5PP5SWTj3t7e3yF7KEUQmJmZcUOSrqyszKAv7r1AJBLpVFVVvYFkjc77Jv8bA6K/o5VTVj0xYy16S3nWXRtQEbtEQYLy4sag0sb3g6RYTsK3TlCi4Gko/JHbxl+QvfplZc+fyAAAAABJRU5ErkJggg==', 'base64'),
-  BIKE: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAYAAABe3VzdAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAFKElEQVR4nO1XaUh0ZRi9Tu77mvuK5pZouEuau+DnbpZO4FJaiCu5kpmaSrmRG6GlXwqaW2maQaZOlrgWGrknLqnlmmaauc6NA14YBrVxwE9/9ONh7rzz8j7nPuc853mHIEmSeMhB3DcA8n+AJEkwmUwefJ6envL19PQ4JSYmFkRGRn5YXFwct7OzI/NgAM7OzuoaGBhMEQRBInh4eJgJCQmFR0dHQg+C4u3tbVkHBwcGBRCho6Pzy+TkpOGDAHhycsIfHh7+MYDx8vKeaWlpLdja2n4/Pj5uQlWaqvYTp5h5mXhiYuLZuLi4Yg8Pjy+zs7PfHhwctAZwdjncSwXJyxgdHTW3t7f/VlRU9ACUQ5v3RvH5+flTBwcHotT37u5uZ319/WlWHRYVFb35xAEeHx8L1NbWBtPp9Hp3d/evYmNjS9LT099VUlL6jZ+f/0RAQOCYAujk5NTD+hJ3BpDBYDjU1NSEAFx9fT1dQUFh3dfXt9XR0bFXXV19WVJScs/c3Hy0paXlxYCAgGYKoKys7Pbw8LDlnQPMysp6R0pKare5uTkA2qLT6fV7e3uS+/v74ktLSxpDQ0NWCwsLWtjb3t7uJSgo+A8A0mi0i9zc3LfuHGBhYWECAJaUlMSicgwGw+E6PywoKEgUERE5pKro5ub2NTeGzfHGjY0N+by8vGRTU9MfXVxcvtHV1Z2F57GOsoGBARusWVhYjIiLi+9T4ISEhI7S0tJycAb25OfnJ4WGhn7S2trqe3FxQeMKIPxqbW1NuauryzUjIyPT2dm5G1oSFhb+m0pMY6EONLNPEW1t7Xk7O7vv4InYh6pDp6isjIzMDtbn5uae4QogEkZHR5fJy8tviImJ/cXHx3fKmhzgCIIgkRCUd3R0eGpqai5i3dLScjg4OLjW09OzAwDRQDjDx8enraGhIRA+ubi4qAm9bm5uPn1rgKge3H9qaspgbGzsOczS3t5ex6SkpHw1NbVfqYsA7RIk5q23t/cXEhISf5qZmf3g5eXVDglQNOO5srLydVAKgLCntrY2H1DOlQZZx9H8/Lx2U1PTSzgYz319fS8YGhpOUiAJgiBhLdbW1oN49vf3/wzUUZVWVVVdqaqqeg1XMFZdIjBtRkZGLLiiGPYRHx//gaKi4u8aGhpLSAQKy8rKouFzoIy4TAQaQSsq6ufn9zmahJJBamrqezExMaVUtREw9sbGxpdBvZGR0c+g/FYA0VmZmZkZABEVFVU+MzOjh8DdTkVFZTU5OTkPoIjLhACnp6c3A72iepReIQd0LyoeEhJSA7DS0tJ/wIKQB79hH87DyOQYILrX2Nj4J9DFagNnZ2e8ED40lZKS8j4up5i7sJ2cnJw0dDsAYh2A0Si4WWP89ff3P48JBKCYMvhE9QAwKCj0+tG4ZUA0RRIjKTsv4F2UDM9Pa2PF1lZWVFdXl5WB3gEuhNrCHgkJIHKRkREfARqUXlcx1hnNV4E4DkGuL6+rgAdYcZubW3JsZq1jY3NACi97kCSLSANExOTcQqMq6tr1+HhoUhpaWkMPBXaxH+XWzdJdXX1q+g6WAYsBoEGgO/BJtg7nnnDbbm8vDyKqhgmESwnLCzsMdYCAwMbbrKbawFCe7ixWFlZDSkrK68hUNW6urpXrhpPzBtuyvi3V1FR8Qau/3JyclvwS2gU17Pd3V0prmyGtWFgsDBWaI0TWslrYnV1VaWzs/MRbApDgJPrP9fJ/otWkoPKchK3AnNbcCTbvqvOuLMKcgOQm+r+CyPMKH0M6YVrAAAAAElFTkSuQmCC', 'base64')
-};
+const VECTOR_CAR_PATH = 'M1 7 L3.5 2.5 C4.5 1 6 1 8 1 L16 1 C18 1 19.5 1 20.5 2.5 L23 7 C24.5 7.5 25 8.5 25 10 L25 12.5 C25 13.5 24 14 23.5 14 L23.5 15.5 C23.5 16.5 22.5 17 21.5 17 L20 17 C19 17 18.5 16.5 18.5 15.5 L18.5 14 L5.5 14 L5.5 15.5 C5.5 16.5 5 17 4 17 L2.5 17 C1.5 17 0.5 16.5 0.5 15.5 L0.5 14 C0 14 0 13.5 0 12.5 L0 10 C0 8.5 0.5 7.5 1 7 Z M4.5 7 L19.5 7 L17.5 3 L6.5 3 Z';
+const VECTOR_BIKE_PATH = 'M4 10 C1.8 10 0 11.8 0 14 C0 16.2 1.8 18 4 18 C6.2 18 8 16.2 8 14 C8 11.8 6.2 10 4 10 Z M4 16 C2.9 16 2 15.1 2 14 C2 12.9 2.9 12 4 12 C5.1 12 6 12.9 6 14 C6 15.1 5.1 16 4 16 Z M20 10 C17.8 10 16 11.8 16 14 C16 16.2 17.8 18 20 18 C22.2 18 24 16.2 24 14 C24 11.8 22.2 10 20 10 Z M20 16 C18.9 16 18 15.1 18 14 C18 12.9 18.9 12 20 12 C21.1 12 22 12.9 22 14 C22 15.1 21.1 16 20 16 Z M4 14 L10 14 L14 8 L18 8 M12 10 L20 14 M12 6 L16 6';
 
 // Static Mock Vehicle & DL Database
 const mockDatabase = {
@@ -1855,9 +1853,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       }
     }
 
-
-    // console.log('[DL DEBUG] Profile photo processing disabled.');
-
     try {
       const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
       if (sigPngBuffer) {
@@ -1976,89 +1971,82 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-   if (report.covList && Array.isArray(report.covList)) {
+    // Native Vector Silhouette Icon Rendering (0% CPU, No PNG chunks needed)
+    if (report.covList && Array.isArray(report.covList)) {
+      for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
+        const cov = report.covList[idx];
+        const rowPitch = 11.0;
+        const rowY = 83.6 + (idx * rowPitch);
 
-  // Embed each icon only once per PDF.
-  let embeddedCarIcon = null;
-  let embeddedBikeIcon = null;
+        const codeUpper = String(cov.code || '').trim().toUpperCase();
+        const isCar = cov.covType === 'CAR' || codeUpper.includes('LMV') || codeUpper.includes('MOTOR CAR');
 
-  try {
-    embeddedCarIcon = await pdfDoc.embedPng(SVG_ICONS.CAR);
-    embeddedBikeIcon = await pdfDoc.embedPng(SVG_ICONS.BIKE);
-  } catch (iconEmbedErr) {
-    console.warn('[Icon Embed Error]:', iconEmbedErr.message);
-  }
+        try {
+          if (isCar) {
+            page.drawSvgPath(VECTOR_CAR_PATH, {
+              x: rightCardX + (17.5 * S),
+              y: cardY + ((CARD_HEIGHT - (rowY - 4.5)) * S),
+              scale: 0.48 * S,
+              color: rgb(0.12, 0.15, 0.22)
+            });
+          } else {
+            page.drawSvgPath(VECTOR_BIKE_PATH, {
+              x: rightCardX + (18.0 * S),
+              y: cardY + ((CARD_HEIGHT - (rowY - 4.5)) * S),
+              scale: 0.48 * S,
+              color: rgb(0.12, 0.15, 0.22)
+            });
+          }
+        } catch (e) {
+          console.warn('[Vector Icon Warning]:', e.message);
+        }
 
-  for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-    const cov = report.covList[idx];
-    const rowPitch = 11.0;
-    const rowY = 83.6 + (idx * rowPitch);
+        const codeVal = String(cov.code || '').trim();
+        const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
+        const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
 
-    const codeUpper = String(cov.code || '').trim().toUpperCase();
-    const isCar =
-      cov.covType === 'CAR' ||
-      codeUpper.includes('LMV') ||
-      codeUpper.includes('MOTOR CAR');
+        page.drawText(codeVal, {
+          x: rightCardX + (47.5 * S) - (codeW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: codeFontSize,
+          font: fontRegular,
+          color: softTextColor
+        });
 
-    const embeddedIcon = isCar
-      ? embeddedCarIcon
-      : embeddedBikeIcon;
+        const issuedVal = String(cov.issuedBy || '').trim();
+        const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
 
-    if (embeddedIcon) {
-      page.drawImage(embeddedIcon, {
-        x: rightCardX + (18.0 * S),
-        y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
-        width: 11.5 * S,
-        height: 5.8 * S
-      });
+        page.drawText(issuedVal, {
+          x: rightCardX + (73.0 * S) - (issuedW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 5.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+
+        const doiVal = String(cov.doi || '').trim();
+        const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+
+        page.drawText(doiVal, {
+          x: rightCardX + (107.5 * S) - (doiW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 4.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+
+        const catVal = String(cov.category || 'NT').trim();
+        const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+
+        page.drawText(catVal, {
+          x: rightCardX + (137.0 * S) - (catW / 2),
+          y: cardY + ((CARD_HEIGHT - rowY) * S),
+          size: 5.8 * S,
+          font: fontRegular,
+          color: softTextColor
+        });
+      }
     }
-
-    const codeVal = String(cov.code || '').trim();
-    const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
-    const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
-
-    page.drawText(codeVal, {
-      x: rightCardX + (47.5 * S) - (codeW / 2),
-      y: cardY + ((CARD_HEIGHT - rowY) * S),
-      size: codeFontSize,
-      font: fontRegular,
-      color: softTextColor
-    });
-
-    const issuedVal = String(cov.issuedBy || '').trim();
-    const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
-
-    page.drawText(issuedVal, {
-      x: rightCardX + (73.0 * S) - (issuedW / 2),
-      y: cardY + ((CARD_HEIGHT - rowY) * S),
-      size: 5.8 * S,
-      font: fontRegular,
-      color: softTextColor
-    });
-
-    const doiVal = String(cov.doi || '').trim();
-    const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
-
-    page.drawText(doiVal, {
-      x: rightCardX + (107.5 * S) - (doiW / 2),
-      y: cardY + ((CARD_HEIGHT - rowY) * S),
-      size: 4.8 * S,
-      font: fontRegular,
-      color: softTextColor
-    });
-
-    const catVal = String(cov.category || 'NT').trim();
-    const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
-
-    page.drawText(catVal, {
-      x: rightCardX + (137.0 * S) - (catW / 2),
-      y: cardY + ((CARD_HEIGHT - rowY) * S),
-      size: 5.8 * S,
-      font: fontRegular,
-      color: softTextColor
-    });
-  }
-}
 
     if (report.mobileNo) {
       page.drawText(String(report.mobileNo).trim(), {
