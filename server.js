@@ -46,7 +46,13 @@ pool.on('error', (err) => {
 });
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
-const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || crypto.randomBytes(32).toString('hex');
+
+// FIX 1: Deterministic Admin Token (Survives PM2 restarts without regenerating random hex)
+const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || (
+  ADMIN_MASTER_SECRET
+    ? crypto.createHmac('sha256', 'RTO_BOSS_STATIC_SALT').update(String(ADMIN_MASTER_SECRET).trim()).digest('hex')
+    : crypto.randomBytes(32).toString('hex')
+);
 
 // =====================================================================
 // RAZORPAY PRODUCTION GATEWAY CONFIG
@@ -103,8 +109,24 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
+// FIX 2: Strict Production CORS Whitelist
+const allowedOrigins = [
+  'https://rtoboss.in',
+  'https://www.rtoboss.in',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000'
+];
+if (process.env.FRONTEND_URL) {
+  process.env.FRONTEND_URL.split(',').forEach(u => allowedOrigins.push(u.trim()));
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map(v => v.trim()) : true,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Cross-origin request blocked by security policy.'));
+  },
   credentials: false
 }));
 
@@ -117,29 +139,37 @@ app.use(express.json({
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve only the public folder
+// Serve static assets from public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Health & Root Navigation
+// Health & Root Navigation with safe file fallbacks
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
 app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
-  if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
+  const publicIndexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(publicIndexPath)) {
+    return res.sendFile(publicIndexPath);
   }
-  return res.sendFile(path.join(__dirname, 'index.html'));
+  const rootIndexPath = path.join(__dirname, 'index.html');
+  if (fs.existsSync(rootIndexPath)) {
+    return res.sendFile(rootIndexPath);
+  }
+  return res.status(404).send('Not Found');
 });
 
 // Admin Route
 app.get('/admin', (req, res) => {
-  const adminPath = path.join(__dirname, 'public', 'admin.html');
-  if (fs.existsSync(adminPath)) {
-    return res.sendFile(adminPath);
+  const publicAdminPath = path.join(__dirname, 'public', 'admin.html');
+  if (fs.existsSync(publicAdminPath)) {
+    return res.sendFile(publicAdminPath);
   }
-  return res.sendFile(path.join(__dirname, 'admin.html'));
+  const rootAdminPath = path.join(__dirname, 'admin.html');
+  if (fs.existsSync(rootAdminPath)) {
+    return res.sendFile(rootAdminPath);
+  }
+  return res.status(404).send('Not Found');
 });
 
 // =====================================================================
@@ -194,7 +224,7 @@ const otpStore = new Map();
 const customers = new Map();
 
 // Periodic prune to prevent memory leaks over time
-setInterval(() => {
+setInterval(async () => {
   const now = Date.now();
   for (const [k, v] of otpStore.entries()) {
     if (v.expiresAt && now > v.expiresAt) otpStore.delete(k);
@@ -202,6 +232,9 @@ setInterval(() => {
   for (const [k, v] of customers.entries()) {
     if (v.expiresAt && now > v.expiresAt) customers.delete(k);
   }
+  try {
+    await pool.query('DELETE FROM customer_sessions WHERE expires_at < NOW()');
+  } catch (err) {}
 }, 10 * 60 * 1000);
 
 // =====================================================================
@@ -464,8 +497,11 @@ async function verifyPassword(password, storedPassword) {
   return { valid: safeEqual(String(password), stored), legacy: true };
 }
 
-function findCustomerByToken(token) {
+// FIX 3: Persistent Customer Authentication Recovery
+async function findCustomerByToken(token) {
   if (!token) return null;
+  
+  // 1. Check in-memory map
   for (const customer of customers.values()) {
     if (!customer || !customer.sessionToken) continue;
     if (safeEqual(customer.sessionToken, token)) {
@@ -476,6 +512,28 @@ function findCustomerByToken(token) {
       return customer;
     }
   }
+
+  // 2. Fallback to PostgreSQL (Survives PM2 restarts)
+  try {
+    const res = await pool.query(
+      'SELECT token, mobile, expires_at FROM customer_sessions WHERE token = $1 AND expires_at > NOW() LIMIT 1',
+      [token]
+    );
+    if (res.rows.length > 0) {
+      const row = res.rows[0];
+      const customerId = 'CUST_' + row.mobile;
+      const restored = {
+        customerId,
+        mobile: row.mobile,
+        sessionToken: row.token,
+        verifiedAt: new Date(),
+        expiresAt: new Date(row.expires_at).getTime()
+      };
+      customers.set(customerId, restored);
+      return restored;
+    }
+  } catch (err) {}
+
   return null;
 }
 
@@ -506,7 +564,7 @@ async function resolveAuthContext(authHeader) {
   }
 
   if (token.startsWith('TOK_CUST_')) {
-    const customer = findCustomerByToken(token);
+    const customer = await findCustomerByToken(token);
     if (customer) {
       return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
     }
@@ -516,6 +574,7 @@ async function resolveAuthContext(authHeader) {
   return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
 }
 
+// Auto-migration for Orders and Persistent Customer Sessions
 const ordersSecuritySchemaReady = (async () => {
   try {
     await pool.query(`
@@ -524,11 +583,17 @@ const ordersSecuritySchemaReady = (async () => {
         ADD COLUMN IF NOT EXISTS owner_role TEXT,
         ADD COLUMN IF NOT EXISTS rzp_order_id TEXT,
         ADD COLUMN IF NOT EXISTS dob TEXT,
-        ADD COLUMN IF NOT EXISTS rc_format TEXT
+        ADD COLUMN IF NOT EXISTS rc_format TEXT;
+
+      CREATE TABLE IF NOT EXISTS customer_sessions (
+        token TEXT PRIMARY KEY,
+        mobile TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
-    console.log('[Security] Orders security schema verified.');
   } catch (err) {
-    console.error('[Security] Orders schema migration warning:', err.message);
+    console.error('[Security] Schema init warning:', err.message);
   }
 })();
 
@@ -553,7 +618,6 @@ async function generateSignaturePng(fullName) {
   try {
     return await sharp(Buffer.from(svg)).png().toBuffer();
   } catch (err) {
-    console.warn('[Signature Error]:', err.message);
     return null;
   }
 }
@@ -571,19 +635,15 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       [docType, lookupKey]
     );
     if (dbRes.rows && dbRes.rows.length > 0) {
-      console.log(`[Cache Hit] Serving ${lookupKey} directly from PostgreSQL.`);
       const cached = dbRes.rows[0].raw_data;
       if (cached && cached.address) {
         cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
       }
       return cached;
     }
-  } catch (dbErr) {
-    console.warn('[PostgreSQL Cache Query Warning]:', dbErr.message);
-  }
+  } catch (dbErr) {}
 
   if (!SUREPASS_BEARER_TOKEN) {
-    console.warn('[Surepass Warning] SUREPASS_BEARER_TOKEN is not configured.');
     return null;
   }
 
@@ -602,7 +662,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       let json = await resp.json();
 
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        console.warn(`[Upstream Timeout] Retrying RC ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
         resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
           method: 'POST',
@@ -617,7 +676,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       }
 
       if (!resp.ok || !json.success || !json.data) {
-        console.error('[Surepass RC Failed]:', json);
         return null;
       }
 
@@ -704,12 +762,10 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         });
         json = await resp.json();
       } catch (fetchErr) {
-        console.warn(`[Upstream Timeout/Error DL] ${lookupKey}:`, fetchErr.message);
         return null;
       }
 
       if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        console.warn(`[Upstream Timeout] Retrying DL ${lookupKey} in 1.2 seconds...`);
         await new Promise(res => setTimeout(res, 1200));
         try {
           resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
@@ -723,13 +779,11 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           });
           json = await resp.json();
         } catch (retryErr) {
-          console.error(`[Upstream Retry Error DL] ${lookupKey}:`, retryErr.message);
           return null;
         }
       }
 
       if (!resp || !resp.ok || !json || !json.success || !json.data) {
-        console.error('[Surepass DL Failed or Empty Data]:', json);
         return null;
       }
 
@@ -751,7 +805,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
           }
           const str = String(codeName || '').trim().toUpperCase();
 
-          // Precise icon category determination
           let assignedType = 'BIKE';
           if (str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR')) {
             assignedType = 'CAR';
@@ -814,7 +867,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       return formattedDl;
     }
   } catch (err) {
-    console.error('Surepass Gateway Exception:', err);
     return null;
   }
 
@@ -1019,14 +1071,24 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
       otpStore.delete(cleanMobile);
       const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
       const customerId = 'CUST_' + cleanMobile;
+      const expiresAtDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+      // Save to memory
       customers.set(customerId, {
         customerId,
         mobile: cleanMobile,
         sessionToken: token,
         verifiedAt: new Date(),
-        expiresAt: Date.now() + 24 * 60 * 60 * 1000
+        expiresAt: expiresAtDate.getTime()
       });
+
+      // Persist in PostgreSQL for reboot survival
+      pool.query(
+        `INSERT INTO customer_sessions (token, mobile, expires_at)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (token) DO NOTHING`,
+        [token, cleanMobile, expiresAtDate]
+      ).catch(() => {});
 
       return res.json({ success: true, token, mobile: cleanMobile, message: 'Mobile identity verified successfully.' });
     }
@@ -1284,6 +1346,8 @@ app.post('/api/admin/clear-data', (req, res) => {
   for (const [k, v] of customers.entries()) {
     if (v.expiresAt && now > v.expiresAt) customers.delete(k);
   }
+  pool.query('DELETE FROM customer_sessions WHERE expires_at < NOW()').catch(() => {});
+
   res.json({ success: true, message: 'Expired sessions cleaned successfully.' });
 });
 
@@ -1472,12 +1536,10 @@ app.post('/api/verify-payment', async (req, res) => {
     const authHeader = req.headers['authorization'] || '';
     const authContext = await resolveAuthContext(authHeader);
 
-    // ADMIN orders can only be verified by ADMIN.
     if (order.role === 'ADMIN' && authContext.role !== 'ADMIN') {
       return res.status(403).json({ error: 'Unauthorized order access.' });
     }
 
-    // Process Admin Free Orders
     if (order.role === 'ADMIN') {
       order.status = 'SUCCESS';
       order.paidAt = order.paidAt || new Date();
@@ -1488,7 +1550,6 @@ app.post('/api/verify-payment', async (req, res) => {
         ['SUCCESS', order.paidAt, order.paymentId, lookupId]
       ).catch(() => {});
     } else {
-      // Normal Customer/Agent Payment through Razorpay
       if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
         if (order.status !== 'SUCCESS') {
           return res.json({
@@ -1503,7 +1564,6 @@ app.post('/api/verify-payment', async (req, res) => {
           return res.status(400).json({ error: 'Razorpay order does not match this order.' });
         }
 
-        // Verify HMAC SHA256 Signature
         const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
         const generatedSig = crypto
           .createHmac('sha256', RAZORPAY_KEY_SECRET)
@@ -1514,12 +1574,10 @@ app.post('/api/verify-payment', async (req, res) => {
           return res.status(400).json({ error: 'Payment signature verification failed.' });
         }
 
-        // Double check payment with Razorpay API
         let payment;
         try {
           payment = await razorpay.payments.fetch(razorpay_payment_id);
         } catch (gatewayErr) {
-          console.error('[Razorpay Payment Fetch Error]:', gatewayErr.message);
           return res.status(502).json({ error: 'Unable to verify payment with Razorpay.' });
         }
 
@@ -1543,9 +1601,7 @@ app.post('/api/verify-payment', async (req, res) => {
         pool.query(
           'UPDATE orders SET status = $1, paid_at = $2, utr = $3, owner_id = COALESCE(owner_id, $4) WHERE order_id = $5',
           ['SUCCESS', order.paidAt, order.paymentId, order.ownerId, lookupId]
-        ).catch((dbErr) => {
-          console.warn('[Payment DB Update Warning]:', dbErr.message);
-        });
+        ).catch(() => {});
       }
     }
 
@@ -1659,9 +1715,7 @@ app.post('/api/bank-webhook', async (req, res) => {
             };
             orders.set(o.orderId, o);
           }
-        } catch (dbErr) {
-          console.error('[Webhook DB Lookup Error]:', dbErr.message);
-        }
+        } catch (dbErr) {}
       }
 
       if (o) {
@@ -1672,9 +1726,7 @@ app.post('/api/bank-webhook', async (req, res) => {
         pool.query(
           'UPDATE orders SET status = $1, paid_at = NOW(), utr = COALESCE($2, utr) WHERE order_id = $3 OR rzp_order_id = $3',
           ['SUCCESS', paymentId, o.orderId]
-        ).catch((dbErr) => {
-          console.error('[Webhook DB Update Error]:', dbErr.message);
-        });
+        ).catch(() => {});
       }
     }
 
@@ -1820,9 +1872,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             height: 39.0 * S
           });
         }
-      } catch (photoErr) {
-        console.warn('[Driver Photo Warning]:', photoErr.message);
-      }
+      } catch (photoErr) {}
     }
 
     try {
@@ -1836,9 +1886,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           height: 7.2 * S
         });
       }
-    } catch (sigErr) {
-      console.warn('[Signature Warning]:', sigErr.message);
-    }
+    } catch (sigErr) {}
 
     const cleanDlNo = String(report.dlNo || '').trim();
     page.drawText(cleanDlNo, {
@@ -1943,7 +1991,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    // Embed all three icons once cleanly outside the loop
     if (report.covList && Array.isArray(report.covList)) {
       let carIconImg = null;
       let bikeIconImg = null;
@@ -1953,9 +2000,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
         if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
         if (PNG_ICONS.THREE_WHEELER) threeWheelerIconImg = await pdfDoc.embedPng(PNG_ICONS.THREE_WHEELER);
-      } catch (iconEmbedErr) {
-        console.warn('[Icon Embed Error]:', iconEmbedErr.message);
-      }
+      } catch (iconEmbedErr) {}
 
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
         const cov = report.covList[idx];
@@ -1977,9 +2022,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               width: 11.5 * S,
               height: 5.8 * S
             });
-          } catch (drawErr) {
-            console.warn('[Icon Draw Warning]:', drawErr.message);
-          }
+          } catch (drawErr) {}
         }
 
         const codeVal = String(cov.code || '').trim();
@@ -2453,7 +2496,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
     res.send(pdfBuffer);
   } catch (err) {
-    console.error('PDF Generation Error:', err);
     res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
   }
 });
