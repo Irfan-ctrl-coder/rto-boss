@@ -270,9 +270,9 @@ function loadIconBuffer(fileName) {
 }
 
 const PNG_ICONS = {
-  CAR: loadIconBuffer('I5_transparent.png'),
-  BIKE: loadIconBuffer('I6_transparent.png'),
-  THREE_WHEELER: loadIconBuffer('I7_transparent.png')
+  BIKE: loadIconBuffer('I5_transparent.png'),
+  CAR: loadIconBuffer('I6_transparent.png'),
+  LORRY: loadIconBuffer('I7_transparent.png')
 };
 
 // Static Mock Vehicle & DL Database
@@ -726,7 +726,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         owner: d.owner_name || '',
         swd: d.father_name || 'NA',
         address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-        ownerSerial: String(d.owner_serial_number || d.owner_number || '01'),
+      ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
         color: normalizedColor,
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
@@ -2000,15 +2000,15 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-    if (report.covList && Array.isArray(report.covList)) {
+   if (report.covList && Array.isArray(report.covList)) {
       let carIconImg = null;
       let bikeIconImg = null;
-      let threeWheelerIconImg = null;
+      let lorryIconImg = null;
 
       try {
         if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
         if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
-        if (PNG_ICONS.THREE_WHEELER) threeWheelerIconImg = await pdfDoc.embedPng(PNG_ICONS.THREE_WHEELER);
+        if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
       } catch (iconEmbedErr) {}
 
       for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
@@ -2016,11 +2016,22 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         const rowPitch = 11.0;
         const rowY = 83.6 + (idx * rowPitch);
 
+        const covCode = String(cov.code || '').toUpperCase();
         let activeIcon = bikeIconImg;
-        if (cov.covType === 'CAR') {
+
+        if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
           activeIcon = carIconImg;
-        } else if (cov.covType === 'THREE_WHEELER') {
-          activeIcon = threeWheelerIconImg || carIconImg;
+        } else if (
+          covCode.includes('TRANS') ||
+          covCode.includes('TR') ||
+          covCode.includes('HMV') ||
+          covCode.includes('HGMV') ||
+          covCode.includes('HPV') ||
+          covCode.includes('LORRY')
+        ) {
+          activeIcon = lorryIconImg || carIconImg;
+        } else {
+          activeIcon = bikeIconImg;
         }
 
         if (activeIcon) {
@@ -2367,6 +2378,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
     fieldLayout.topRight.forEach((field) => {
       let value = report[getFieldKey(field.label)];
+      if (field.label === 'O SLNO' && value) {
+      value = String(value).padStart(2, '0');
+    }
       if (field.label === 'CLASS' && value) {
         value = String(value).replace(/\s*\(?2WN\)?\s*/i, '').trim();
       }
