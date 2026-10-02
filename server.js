@@ -934,7 +934,7 @@ const newRcFrontLayout = {
   regDate: { x: 126.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
   validUpto: { x: 186.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
   chassisNo: { x: 56.7, yTop: 58.5, size: 6.5, font: 'regular', maxW: 140 },
-  ownerSerial: { x: 210.0, yTop: 56.0, size: 6.8, font: 'bold', maxW: 15 },
+  ownerSerial: { x: 212.0, yTop: 56.0, size: 6.8, font: 'bold', maxW: 15 },
   engineNo: { x: 56.7, yTop: 80.0, size: 6.5, font: 'regular', maxW: 140 },
   ownerName: { x: 56.7, yTop: 96.0, size: 6.5, font: 'regular', maxW: 140 },
   swdName: { x: 56.7, yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
