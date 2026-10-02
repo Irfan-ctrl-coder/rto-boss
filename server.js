@@ -24,6 +24,14 @@ const PORT = process.env.PORT || 3000;
 // Security: Disable Express fingerprint header
 app.disable('x-powered-by');
 
+// Native Security Headers (Safe for Razorpay checkout modal & Tailwind CDN)
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 // Trust reverse proxy (Nginx on VPS) for accurate IP resolution in rate limiting
 app.set('trust proxy', 1);
 
@@ -926,6 +934,7 @@ const newRcFrontLayout = {
   regDate: { x: 126.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
   validUpto: { x: 186.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
   chassisNo: { x: 56.7, yTop: 58.5, size: 6.5, font: 'regular', maxW: 140 },
+  ownerSerial: { x: 191.5, yTop: 70.0, size: 7.0, font: 'bold', maxW: 15 },
   engineNo: { x: 56.7, yTop: 80.0, size: 6.5, font: 'regular', maxW: 140 },
   ownerName: { x: 56.7, yTop: 96.0, size: 6.5, font: 'regular', maxW: 140 },
   swdName: { x: 56.7, yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
@@ -2185,6 +2194,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       regDate: report.regDate,
       validUpto: report.validUpto,
       chassisNo: report.chassisNo,
+      ownerSerial: report.ownerSerial || '01',
       engineNo: report.engineNo,
       ownerName: report.owner,
       swdName: report.swd || 'NA',
