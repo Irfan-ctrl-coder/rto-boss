@@ -62,9 +62,52 @@
   <!-- MAIN WRAPPER -->
   <main class="w-full max-w-7xl mx-auto px-4 py-8 flex-1">
 
-    <!-- STATE 1: SEARCH & INPUT VIEW -->
-    <div id="view-input-state" class="space-y-8 max-w-5xl mx-auto">
-      
+    <!-- STATE 0: UPFRONT MOBILE OTP GATEKEEPER VIEW -->
+    <div id="view-auth-gate" class="max-w-md mx-auto space-y-6">
+      <div class="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm text-center space-y-5">
+        <div class="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-2xl mx-auto font-black text-brand-primary">
+          📱
+        </div>
+
+        <div>
+          <h2 class="text-2xl font-black text-brand-navy">Sign In to RTO Boss</h2>
+          <p class="text-xs text-slate-500 mt-1">Instant, passwordless verification for fleet operators and agents.</p>
+        </div>
+
+        <!-- Phone Input Stage -->
+        <div id="gateMobileStage" class="space-y-4 text-left">
+          <div>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile Number</label>
+            <div class="flex rounded-xl border-2 border-slate-200 focus-within:border-brand-primary overflow-hidden">
+              <span class="bg-slate-100 px-3.5 py-3 text-sm font-bold text-slate-600 border-r border-slate-200">+91</span>
+              <input type="text" id="gateMobileInput" placeholder="10-digit number" maxlength="10" class="w-full p-3 text-base font-bold text-slate-900 outline-none" />
+            </div>
+          </div>
+
+          <button type="button" onclick="sendGateOtp()" id="gateSendOtpBtn" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-blue-500/20 active:scale-[0.99]">
+            Send Verification Code →
+          </button>
+        </div>
+
+        <!-- OTP Input Stage -->
+        <div id="gateOtpStage" class="hidden space-y-4 text-left">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="text-[11px] font-bold text-slate-500 uppercase">Enter Verification Code</label>
+              <button onclick="resetGatePhone()" class="text-xs text-brand-primary font-bold hover:underline">Change Number</button>
+            </div>
+            <input type="text" id="gateOtpInput" placeholder="••••" maxlength="6" class="w-full text-center mono text-3xl font-black rounded-xl border-2 border-slate-200 p-3 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
+          </div>
+
+          <button type="button" onclick="verifyGateOtp()" id="gateVerifyBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-emerald-500/20 active:scale-[0.99]">
+            Verify &amp; Continue →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 1: SEARCH & INPUT VIEW (Visible after login) -->
+    <div id="view-input-state" class="hidden space-y-8 max-w-5xl mx-auto">
       <div class="text-center">
         <h1 class="text-3xl md:text-4xl font-black text-brand-navy tracking-tight leading-tight mb-2">
           Fleet Records &amp; Document Formatting Utility
@@ -74,151 +117,112 @@
         </p>
       </div>
 
-      <div class="grid md:grid-cols-12 gap-6 items-start">
-        
-        <!-- LEFT: INPUTS -->
-        <div class="md:col-span-7 space-y-5">
-          <div class="bg-white border border-slate-200 rounded-2xl p-5 md:p-6 shadow-sm">
-            
-            <div class="mb-5">
-              <div class="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-                <button 
-                  id="rcTabBtn" 
-                  onclick="switchService('RC')"
-                  class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2">
-                  <span>🚗</span> Vehicle RC Lookup
-                </button>
-                <button 
-                  id="dlTabBtn" 
-                  onclick="switchService('DL')"
-                  class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2">
-                  <span>🪪</span> Driving Licence Lookup
-                </button>
+      <div class="max-w-2xl mx-auto bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
+        <!-- Service Switcher -->
+        <div class="flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+          <button id="rcTabBtn" onclick="switchService('RC')" class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2">
+            <span>🚗</span> Vehicle RC Lookup
+          </button>
+          <button id="dlTabBtn" onclick="switchService('DL')" class="flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2">
+            <span>🪪</span> Driving Licence Lookup
+          </button>
+        </div>
+
+        <!-- RC Search Form -->
+        <div id="rcInputView" class="space-y-4">
+          <div>
+            <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Vehicle Registration Number</label>
+            <div class="flex items-stretch rounded-xl border-2 border-slate-300 bg-white focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-blue-100 transition-all overflow-hidden">
+              <div class="w-10 bg-[#002B7F] flex flex-col items-center justify-between py-2 border-r border-blue-900/40 select-none">
+                <span class="text-[8px] font-black text-white tracking-tighter">IND</span>
+                <div class="w-3.5 h-3.5 rounded-full border border-yellow-400 flex items-center justify-center">
+                  <span class="text-[6px] text-yellow-300">☸</span>
+                </div>
+                <span class="text-[7px] font-bold text-blue-200">RC</span>
               </div>
+              <input type="text" id="rcInput" placeholder="KA01AB1234" maxlength="13" oninput="handleRcInput(this)" class="w-full bg-transparent mono text-2xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none" />
             </div>
-
-            <!-- RC FORM -->
-            <div id="rcInputView" class="space-y-4">
-              <div>
-                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Vehicle Registration Number</label>
-                
-                <div class="flex items-stretch rounded-xl border-2 border-slate-300 bg-white focus-within:border-brand-primary focus-within:ring-2 focus-within:ring-blue-100 transition-all overflow-hidden">
-                  <div class="w-10 bg-[#002B7F] flex flex-col items-center justify-between py-2 border-r border-blue-900/40 select-none">
-                    <span class="text-[8px] font-black text-white tracking-tighter">IND</span>
-                    <div class="w-3.5 h-3.5 rounded-full border border-yellow-400 flex items-center justify-center">
-                      <span class="text-[6px] text-yellow-300">☸</span>
-                    </div>
-                    <span class="text-[7px] font-bold text-blue-200">RC</span>
-                  </div>
-
-                  <input 
-                    type="text" 
-                    id="rcInput" 
-                    placeholder="KA01AB1234" 
-                    maxlength="13" 
-                    oninput="handleRcInput(this)"
-                    class="w-full bg-transparent mono text-2xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none" 
-                  />
-                </div>
-
-                <div id="rtoBadge" class="mt-2 text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                  📍 Enter vehicle registration number to identify jurisdiction
-                </div>
-              </div>
-
-              <!-- TIER SELECTOR -->
-              <div class="pt-2">
-                <div class="flex justify-between items-center mb-2">
-                  <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Select Vehicle Category</label>
-                  <span class="text-[10px] text-brand-primary font-bold">Pricing Tier</span>
-                </div>
-
-                <div class="grid grid-cols-3 gap-2">
-                  <button type="button" onclick="selectRcTier('2-Wheeler', this)" id="tierBtn2W" class="tier-btn active p-3 rounded-xl border-2 border-brand-primary bg-blue-50/80 text-left transition-all">
-                    <div class="text-xl">🛵</div>
-                    <div class="text-xs font-bold text-brand-navy mt-1">2-Wheeler</div>
-                    <div class="text-xs font-black text-brand-primary" id="priceLabel2W">₹150</div>
-                  </button>
-
-                  <button type="button" onclick="selectRcTier('3-Wheeler', this)" id="tierBtn3W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
-                    <div class="text-xl">🛺</div>
-                    <div class="text-xs font-bold text-slate-700 mt-1">3-Wheeler</div>
-                    <div class="text-xs font-black text-slate-500" id="priceLabel3W">₹180</div>
-                  </button>
-
-                  <button type="button" onclick="selectRcTier('4-Wheeler+', this)" id="tierBtn4W" class="tier-btn p-3 rounded-xl border border-slate-200 bg-white text-left transition-all hover:border-blue-300">
-                    <div class="text-xl">🚗</div>
-                    <div class="text-xs font-bold text-slate-700 mt-1">4-Wheeler+</div>
-                    <div class="text-xs font-black text-slate-500" id="priceLabel4W">₹200</div>
-                  </button>
-                </div>
-              </div>
-
+            <div id="rtoBadge" class="mt-2 text-xs font-semibold text-slate-500">
+              📍 Enter vehicle registration number to identify jurisdiction and pricing
             </div>
+          </div>
 
-            <!-- DL FORM -->
-            <div id="dlInputView" class="hidden space-y-4">
-              <div>
-                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Driving Licence Number</label>
-                <input 
-                  type="text" 
-                  id="dlInput" 
-                  placeholder="KA01 20210000000" 
-                  maxlength="20" 
-                  class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary"
-                />
-              </div>
-              <div>
-                <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Date of Birth (As per DL)</label>
-                <input 
-                  type="date" 
-                  id="dlDob" 
-                  class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary"
-                />
-              </div>
+          <button type="button" id="rcLookupBtn" onclick="fetchRcPreview()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
+            <span>🔍</span>
+            <span id="rcLookupBtnText">Fetch &amp; Verify Vehicle Details</span>
+          </button>
+        </div>
+
+        <!-- DL Search Form -->
+        <div id="dlInputView" class="hidden space-y-4">
+          <div>
+            <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Driving Licence Number</label>
+            <input type="text" id="dlInput" placeholder="KA01 20210000000" maxlength="20" class="w-full rounded-xl border-2 border-slate-300 bg-white mono text-xl font-black text-slate-900 px-4 py-3 uppercase tracking-wider outline-none focus:border-brand-primary" />
+          </div>
+          <div>
+            <label class="text-[11px] font-bold tracking-wider text-slate-500 uppercase mb-1.5 block">Date of Birth (As per DL)</label>
+            <input type="date" id="dlDob" class="w-full rounded-xl border-2 border-slate-300 bg-white text-base font-bold text-slate-900 px-4 py-3 outline-none focus:border-brand-primary" />
+          </div>
+          <button type="button" onclick="startDlFlow()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
+            <span>⚡</span>
+            <span>Proceed to Download (₹150)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATE 1.5: RC PREVIEW MODAL -->
+    <div id="view-rc-preview-modal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-5 text-left">
+        <div class="flex items-center justify-between border-b pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wider">Record Found</span>
+            <h3 class="text-xl font-black text-brand-navy mt-1">Vehicle Verification</h3>
+          </div>
+          <button onclick="closePreviewModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
+        </div>
+
+        <!-- Verification Detail Card -->
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <div>
+            <div class="text-[10px] uppercase font-bold text-slate-400">Maker &amp; Model (Brand)</div>
+            <div class="text-base font-black text-brand-navy" id="previewBrand">---</div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-200/60">
+            <div>
+              <div class="text-[10px] uppercase font-bold text-slate-400">Registration Number</div>
+              <div class="text-sm font-black mono text-slate-800" id="previewRegNo">---</div>
             </div>
-
+            <div>
+              <div class="text-[10px] uppercase font-bold text-slate-400">Vehicle Category</div>
+              <div class="text-sm font-bold text-brand-primary" id="previewCategory">---</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-200/60">
+            <div>
+              <div class="text-[10px] uppercase font-bold text-slate-400">Chassis Number</div>
+              <div class="text-xs font-bold mono text-slate-600" id="previewChassis">•••••••••••••</div>
+            </div>
+            <div>
+              <div class="text-[10px] uppercase font-bold text-slate-400">Engine Number</div>
+              <div class="text-xs font-bold mono text-slate-600" id="previewEngine">•••••••••••••</div>
+            </div>
           </div>
         </div>
 
-        <!-- RIGHT: SUMMARY & PAY ACTION -->
-        <div class="md:col-span-5">
-          <div class="bg-white border-2 border-blue-200 rounded-2xl p-5 md:p-6 shadow-sm sticky top-20 space-y-5">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 class="text-base font-extrabold text-brand-navy">Order Summary</h3>
-              <span class="text-xs bg-blue-50 text-brand-primary font-bold px-2.5 py-0.5 rounded-full border border-blue-200" id="summaryServiceTag">Document Formatting</span>
-            </div>
-
-            <div class="space-y-2 text-xs">
-              <div class="flex justify-between text-slate-600">
-                <span id="summaryItemLabel">2-Wheeler RC Document</span>
-                <span class="font-bold text-slate-900" id="summaryBasePrice">₹150.00</span>
-              </div>
-              <div class="flex justify-between text-slate-600">
-                <span>Unified Vector PDF Engine</span>
-                <span class="font-bold text-brand-success">ACTIVE</span>
-              </div>
-              <div class="flex justify-between text-slate-600">
-                <span>Account Role</span>
-                <span class="font-bold text-brand-primary uppercase" id="summaryRoleLabel">Standard Rate</span>
-              </div>
-            </div>
-
-            <div class="border-t border-slate-100 pt-3 flex justify-between items-baseline">
-              <span class="text-xs font-bold text-slate-500 uppercase">Total Payable</span>
-              <span class="text-2xl font-black text-brand-navy" id="summaryTotalPrice">₹150</span>
-            </div>
-
-            <button 
-              id="payBtn" 
-              onclick="handleProceedClick()"
-              class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all">
-              <span>⚡</span>
-              <span id="btnText">Proceed to Format &amp; Download (₹150)</span>
-            </button>
+        <!-- Pricing Summary -->
+        <div class="flex justify-between items-baseline pt-1">
+          <div>
+            <span class="text-xs font-bold text-slate-500 uppercase">Calculated Charge</span>
+            <div class="text-[11px] text-slate-400" id="previewRateNote">Automated tier rate</div>
           </div>
+          <div class="text-3xl font-black text-brand-navy" id="previewPrice">₹150</div>
         </div>
 
+        <button type="button" onclick="confirmPreviewAndPay()" id="confirmPayBtn" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-4 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 active:scale-[0.99] transition-all text-base">
+          <span>⚡</span>
+          <span id="confirmPayBtnText">Pay &amp; Generate Vector PDF</span>
+        </button>
       </div>
     </div>
 
@@ -228,12 +232,10 @@
         <div class="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 text-3xl mx-auto font-black">
           ✓
         </div>
-        
         <div>
           <h2 class="text-2xl font-black text-brand-navy">Document Processed Successfully!</h2>
           <p class="text-sm text-slate-500 mt-1">Your formatted digital PDF has been generated and is ready for download.</p>
         </div>
-
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left text-xs space-y-2.5">
           <div class="flex justify-between text-slate-600">
             <span>Document Reference:</span>
@@ -252,18 +254,11 @@
             <span class="font-bold text-slate-900" id="receiptAmount">---</span>
           </div>
         </div>
-
         <div class="space-y-2.5 pt-2">
-          <button 
-            id="downloadAgainBtn"
-            onclick="downloadDigitalPdf()"
-            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
+          <button id="downloadAgainBtn" onclick="downloadDigitalPdf()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 text-sm transition-all active:scale-[0.99]">
             <span>📥</span> Download Digital PDF
           </button>
-          
-          <button 
-            onclick="navigateTo('search')"
-            class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
+          <button onclick="navigateTo('search')" class="w-full bg-white hover:bg-slate-100 text-slate-700 font-bold py-3 rounded-xl text-xs border border-slate-300 transition-all">
             ← Format Another Document
           </button>
         </div>
@@ -277,23 +272,15 @@
           <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200" id="formatChooserBadge">KARNATAKA (KA) VEHICLE</span>
           <h3 class="text-xl font-black text-brand-navy mt-2">Select Preferred RC Layout</h3>
         </div>
-
         <div class="grid grid-cols-2 gap-3 text-left">
-          <button 
-            type="button" 
-            onclick="confirmFormatSelection('OLD')"
-            class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
+          <button type="button" onclick="confirmFormatSelection('OLD')" class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
             <div>
               <div class="text-2xl">📄</div>
               <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old RC Card</h4>
             </div>
             <span class="text-xs font-bold text-brand-primary">FORM-23A</span>
           </button>
-
-          <button 
-            type="button" 
-            onclick="confirmFormatSelection('NEW')"
-            class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
+          <button type="button" onclick="confirmFormatSelection('NEW')" class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
             <div>
               <div class="text-2xl">💳</div>
               <h4 class="font-extrabold text-sm text-brand-navy mt-2">New RC Card</h4>
@@ -301,52 +288,7 @@
             <span class="text-xs font-bold text-brand-primary">STANDARD</span>
           </button>
         </div>
-
         <button onclick="closeFormatModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
-      </div>
-    </div>
-
-    <!-- CUSTOMER MOBILE OTP VERIFICATION MODAL -->
-    <div id="customerAuthModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl space-y-4">
-        <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-brand-primary text-xl mx-auto font-black">
-          📱
-        </div>
-
-        <div>
-          <h3 class="text-lg font-black text-brand-navy">Mobile Verification Required</h3>
-          <p class="text-xs text-slate-500 mt-1">Enter your phone number to receive your secure download passcode.</p>
-        </div>
-
-        <div id="authMobileStage" class="space-y-3 text-left">
-          <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Mobile Number</label>
-            <div class="flex rounded-xl border border-slate-300 overflow-hidden focus-within:border-brand-primary">
-              <span class="bg-slate-100 px-3 py-2.5 text-xs font-bold text-slate-500 flex items-center border-r border-slate-300">+91</span>
-              <input type="text" id="custAuthMobile" placeholder="10-digit mobile" maxlength="10" class="w-full p-2.5 text-sm font-bold text-slate-800 outline-none" />
-            </div>
-          </div>
-
-          <button type="button" onclick="sendCustomerOtp()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
-            Send Verification Code
-          </button>
-        </div>
-
-        <div id="authOtpStage" class="hidden space-y-3 text-left">
-          <div>
-            <div class="flex justify-between items-center mb-1">
-              <label class="text-[11px] font-bold text-slate-500 uppercase">Enter Verification Code</label>
-              <button onclick="resendCustomerOtp()" class="text-[10px] text-brand-primary font-bold hover:underline">Change Number</button>
-            </div>
-            <input type="text" id="custAuthOtp" placeholder="••••" maxlength="6" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2 text-slate-900 outline-none focus:border-brand-primary tracking-widest" />
-          </div>
-
-          <button type="button" onclick="verifyCustomerOtp()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
-            Verify &amp; Proceed to Payment
-          </button>
-        </div>
-
-        <button type="button" onclick="closeCustomerModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
       </div>
     </div>
 
@@ -370,11 +312,9 @@
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
             <input type="password" id="agentLogPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
-
           <button onclick="handleAgentLogin()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
             Log In to Agent Dashboard
           </button>
-
           <div class="text-center pt-2 border-t border-slate-100">
             <p class="text-xs text-slate-500">Want to become a verified agent partner?</p>
             <button onclick="toggleAgentAuthView('register')" class="text-xs font-bold text-brand-primary hover:underline mt-1">
@@ -406,16 +346,13 @@
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Operating Address</label>
             <textarea id="agentRegAddress" rows="2" placeholder="Suite #12, Commercial Area" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
           </div>
-
           <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight space-y-1">
             <div>ℹ️ <strong>One-time ₹500 Verification Fee</strong></div>
             <div>After payment, your account will be under review. Verification typically takes 24–48 hours.</div>
           </div>
-
           <button onclick="handleAgentRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
             Pay ₹500 &amp; Submit Application
           </button>
-
           <div class="text-center pt-2 border-t border-slate-100">
             <button onclick="toggleAgentAuthView('login')" class="text-xs font-bold text-slate-500 hover:underline">
               ← Back to Agent Login
@@ -471,27 +408,20 @@
   </footer>
 
   <script>
-    // 1. Production Console Silencing
     if (location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
       console.log = console.warn = console.error = console.info = console.debug = () => {};
     }
 
-    // 2. Context Menu Guard: Blocks inspect globally, but permits right-clicking inside text inputs for mouse pasting
     document.addEventListener('contextmenu', (e) => {
       const tag = e.target.tagName ? e.target.tagName.toLowerCase() : '';
-      if (tag === 'input' || tag === 'textarea') {
-        return true;
-      }
+      if (tag === 'input' || tag === 'textarea') return true;
       e.preventDefault();
       return false;
     });
 
-    // 3. DevTools Interceptor: Blocks F12 and inspect combos, but safely bypasses Ctrl+V, Ctrl+C, Ctrl+A, Ctrl+X
     document.addEventListener('keydown', (e) => {
       const k = e.key.toLowerCase();
-      if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(k)) {
-        return true;
-      }
+      if ((e.ctrlKey || e.metaKey) && ['c', 'v', 'a', 'x'].includes(k)) return true;
       if (
         e.key === 'F12' ||
         ((e.ctrlKey || e.metaKey) && e.shiftKey && ['i', 'j', 'c'].includes(k)) ||
@@ -513,13 +443,13 @@
     };
 
     let currentService = 'RC';
-    let selectedTierLabel = '2-Wheeler';
     let detectedState = 'KA';
     let chosenFormat = 'NEW';
     let activeOrderId = null;
     let activeDocNum = null;
     let isCompleted = false;
     let isDownloading = false;
+    let cachedPreviewData = null;
 
     let currentRole = sessionStorage.getItem('rto_role') || 'PUBLIC';
     let sessionToken = sessionStorage.getItem('rto_session_token') || null;
@@ -527,11 +457,29 @@
     let verifiedCustomerMobile = sessionStorage.getItem('rto_cust_mobile') || null;
     let customerSessionToken = sessionStorage.getItem('rto_session_token') || null;
 
-    function navigateTo(viewName, addToHistory = true) {
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!customerSessionToken && currentRole !== 'AGENT') {
+        showGateView();
+      } else {
+        navigateTo('search');
+      }
+      updatePriceUI();
+    });
+
+    function showGateView() {
+      document.getElementById('view-auth-gate').classList.remove('hidden');
       document.getElementById('view-input-state').classList.add('hidden');
       document.getElementById('view-success-state').classList.add('hidden');
+      document.getElementById('gateMobileStage').classList.remove('hidden');
+      document.getElementById('gateOtpStage').classList.add('hidden');
+    }
+
+    function navigateTo(viewName, addToHistory = true) {
+      document.getElementById('view-auth-gate').classList.add('hidden');
+      document.getElementById('view-input-state').classList.add('hidden');
+      document.getElementById('view-success-state').classList.add('hidden');
+      closePreviewModal();
       closeFormatModal();
-      closeCustomerModal();
       closeAgentModal();
       closePolicyModal();
 
@@ -552,49 +500,94 @@
       if (state && state.view) {
         navigateTo(state.view, false);
       } else {
-        navigateTo('search', false);
+        if (!customerSessionToken && currentRole !== 'AGENT') {
+          showGateView();
+        } else {
+          navigateTo('search', false);
+        }
       }
     });
 
-    window.addEventListener('DOMContentLoaded', async () => {
-      if (!window.location.hash) {
-        history.replaceState({ view: 'search' }, '', '#search');
+    async function sendGateOtp() {
+      const mobile = document.getElementById('gateMobileInput').value.trim();
+      if (!mobile || mobile.length !== 10) {
+        alert('Please enter a valid 10-digit mobile number');
+        return;
       }
-      updatePriceUI();
-    });
+      const btn = document.getElementById('gateSendOtpBtn');
+      btn.disabled = true;
+      btn.innerText = 'Sending Verification Code...';
 
-    function getRate(tier) {
-      if (currentRole === 'AGENT') {
-        if (currentService === 'DL') return 80;
-        if (tier === '3-Wheeler') return 120;
-        if (tier === '4-Wheeler+') return 150;
-        return 80;
+      try {
+        const res = await fetch('/api/customer/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile })
+        });
+        const d = await res.json();
+        if (d.success) {
+          document.getElementById('gateMobileStage').classList.add('hidden');
+          document.getElementById('gateOtpStage').classList.remove('hidden');
+        } else {
+          alert(d.error || 'Failed to dispatch verification code');
+        }
+      } catch (err) {
+        alert('Verification service temporarily unreachable.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Send Verification Code →';
       }
-      if (currentService === 'DL') return 150;
-      if (tier === '3-Wheeler') return 180;
-      if (tier === '4-Wheeler+') return 200;
-      return 150;
+    }
+
+    function resetGatePhone() {
+      document.getElementById('gateMobileStage').classList.remove('hidden');
+      document.getElementById('gateOtpStage').classList.add('hidden');
+      document.getElementById('gateOtpInput').value = '';
+    }
+
+    async function verifyGateOtp() {
+      const mobile = document.getElementById('gateMobileInput').value.trim();
+      const otp = document.getElementById('gateOtpInput').value.trim();
+
+      if (!otp || otp.length < 4) {
+        alert('Please enter your verification code');
+        return;
+      }
+
+      const btn = document.getElementById('gateVerifyBtn');
+      btn.disabled = true;
+      btn.innerText = 'Verifying...';
+
+      try {
+        const res = await fetch('/api/customer/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mobile, otp })
+        });
+        const d = await res.json();
+        if (d.success) {
+          verifiedCustomerMobile = d.mobile;
+          customerSessionToken = d.token;
+          sessionToken = d.token;
+
+          sessionStorage.setItem('rto_session_token', d.token);
+          sessionStorage.setItem('rto_cust_mobile', d.mobile);
+          sessionStorage.setItem('rto_role', 'CUSTOMER');
+
+          navigateTo('search');
+          updatePriceUI();
+        } else {
+          alert(d.error || 'Invalid verification code');
+        }
+      } catch (err) {
+        alert('Verification service error.');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'Verify & Continue →';
+      }
     }
 
     function updatePriceUI() {
-      const p2W = getRate('2-Wheeler');
-      const p3W = getRate('3-Wheeler');
-      const p4W = getRate('4-Wheeler+');
-
-      document.getElementById('priceLabel2W').innerText = '₹' + p2W;
-      document.getElementById('priceLabel3W').innerText = '₹' + p3W;
-      document.getElementById('priceLabel4W').innerText = '₹' + p4W;
-
-      const activePrice = currentService === 'DL' ? getRate('2-Wheeler') : getRate(selectedTierLabel);
-
-      document.getElementById('summaryBasePrice').innerText = '₹' + activePrice + '.00';
-      document.getElementById('summaryTotalPrice').innerText = '₹' + activePrice;
-      
-      const roleText = (currentRole === 'AGENT') ? 'Agent Wholesale Rate' : 'Standard Rate';
-      document.getElementById('summaryRoleLabel').innerText = roleText;
-
-      document.getElementById('btnText').innerText = `Proceed to Format & Download (₹${activePrice})`;
-
       const badgeCont = document.getElementById('roleBadgeContainer');
       if (currentRole === 'AGENT' && sessionAgentData) {
         badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
@@ -610,7 +603,6 @@
     function handleRcInput(elem) {
       let val = elem.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
       elem.value = val;
-
       const badge = document.getElementById('rtoBadge');
       detectedState = val.substring(0, 2);
 
@@ -629,181 +621,89 @@
       const dlTab = document.getElementById('dlTabBtn');
       const rcView = document.getElementById('rcInputView');
       const dlView = document.getElementById('dlInputView');
-      const serviceTag = document.getElementById('summaryServiceTag');
-      const itemLabel = document.getElementById('summaryItemLabel');
 
       if (service === 'RC') {
         rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
         dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
         rcView.classList.remove('hidden');
         dlView.classList.add('hidden');
-        serviceTag.innerText = "RC Document";
-        itemLabel.innerText = `${selectedTierLabel} RC Document`;
       } else {
         dlTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold bg-white text-brand-navy shadow-sm transition-all flex items-center justify-center gap-2";
         rcTab.className = "flex-1 py-2.5 rounded-lg text-xs md:text-sm font-bold text-slate-500 hover:text-brand-navy transition-all flex items-center justify-center gap-2";
         dlView.classList.remove('hidden');
         rcView.classList.add('hidden');
-        serviceTag.innerText = "DL Document";
-        itemLabel.innerText = "Driving Licence Format";
       }
-      updatePriceUI();
     }
 
-    function selectRcTier(label, btn) {
-      selectedTierLabel = label;
-      document.querySelectorAll('.tier-btn').forEach(b => {
-        b.classList.remove('border-2', 'border-brand-primary', 'bg-blue-50/80');
-        b.classList.add('border', 'border-slate-200', 'bg-white');
-        const p = b.querySelector('.font-black');
-        if (p) p.className = "text-xs font-black text-slate-500";
-      });
+    async function fetchRcPreview() {
+      const reg = document.getElementById('rcInput').value.trim().toUpperCase();
+      if (!reg || reg.length < 5) {
+        alert('Please enter a valid Registration Number');
+        return;
+      }
 
-      btn.classList.remove('border', 'border-slate-200', 'bg-white');
-      btn.classList.add('border-2', 'border-brand-primary', 'bg-blue-50/80');
-      const priceElem = btn.querySelector('.font-black');
-      if (priceElem) priceElem.className = "text-xs font-black text-brand-primary";
+      const btn = document.getElementById('rcLookupBtn');
+      const btnText = document.getElementById('rcLookupBtnText');
+      btn.disabled = true;
+      btnText.innerText = 'Querying live record...';
 
-      document.getElementById('summaryItemLabel').innerText = `${label} RC Document`;
-      updatePriceUI();
-    }
+      try {
+        const res = await fetch('/api/rc-preview', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+          },
+          body: JSON.stringify({ regNo: reg })
+        });
 
-    function handleProceedClick() {
-      if (currentService === 'DL') {
-        const dlVal = document.getElementById('dlInput').value.trim();
-        if (!dlVal || dlVal.length < 6) {
-          alert('Please enter a valid Driving Licence Number');
-          return;
+        const d = await res.json();
+        if (d.success) {
+          cachedPreviewData = d;
+          document.getElementById('previewBrand').innerText = d.brandName;
+          document.getElementById('previewRegNo').innerText = d.regNo;
+          document.getElementById('previewCategory').innerText = d.detectedTier;
+          document.getElementById('previewChassis').innerText = d.chassisMasked;
+          document.getElementById('previewEngine').innerText = d.engineMasked;
+          document.getElementById('previewPrice').innerText = '₹' + d.amount;
+          document.getElementById('previewRateNote').innerText = `Auto-detected ${d.detectedTier} rate`;
+
+          document.getElementById('view-rc-preview-modal').classList.remove('hidden');
+        } else {
+          alert(d.error || 'Record could not be retrieved.');
         }
+      } catch (err) {
+        alert('Network error communicating with server.');
+      } finally {
+        btn.disabled = false;
+        btnText.innerText = 'Fetch & Verify Vehicle Details';
+      }
+    }
+
+    function closePreviewModal() {
+      document.getElementById('view-rc-preview-modal').classList.add('hidden');
+    }
+
+    function confirmPreviewAndPay() {
+      closePreviewModal();
+      if (cachedPreviewData && cachedPreviewData.isKA) {
+        document.getElementById('formatChooserBadge').innerText = 'KARNATAKA (KA) VEHICLE';
+        document.getElementById('formatChooserModal').classList.remove('hidden');
+      } else {
         chosenFormat = 'NEW';
-      } else {
-        const reg = document.getElementById('rcInput').value.trim().toUpperCase();
-        if (!reg || reg.length < 5) {
-          alert('Please enter a valid Registration Number');
-          return;
-        }
+        executePaymentOrder();
       }
-
-      if (currentRole === 'AGENT' || customerSessionToken) {
-        checkFormatThenOrder();
-      } else {
-        openCustomerModal();
-      }
-    }
-
-    function checkFormatThenOrder() {
-      if (currentService === 'RC') {
-        const reg = document.getElementById('rcInput').value.trim().toUpperCase();
-        const state = reg.substring(0, 2);
-        if (state === 'KA') {
-          document.getElementById('formatChooserBadge').innerText = 'KARNATAKA (KA) VEHICLE';
-          document.getElementById('formatChooserModal').classList.remove('hidden');
-          return;
-        }
-      }
-      chosenFormat = 'NEW';
-      startOrderCreation();
     }
 
     function confirmFormatSelection(format) {
       chosenFormat = format;
       closeFormatModal();
-      startOrderCreation();
+      executePaymentOrder();
     }
 
-    function openCustomerModal() {
-      document.getElementById('customerAuthModal').classList.remove('hidden');
-      document.getElementById('authMobileStage').classList.remove('hidden');
-      document.getElementById('authOtpStage').classList.add('hidden');
-      document.getElementById('custAuthOtp').value = '';
-    }
-
-    function closeCustomerModal() {
-      document.getElementById('customerAuthModal').classList.add('hidden');
-    }
-
-    function resendCustomerOtp() {
-      document.getElementById('authMobileStage').classList.remove('hidden');
-      document.getElementById('authOtpStage').classList.add('hidden');
-      document.getElementById('custAuthOtp').value = '';
-    }
-
-    async function sendCustomerOtp() {
-      const mobile = document.getElementById('custAuthMobile').value.trim();
-      if (!mobile || mobile.length !== 10) {
-        alert('Please enter a valid 10-digit mobile number');
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/customer/send-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mobile })
-        });
-        const d = await res.json();
-        if (d.success) {
-          document.getElementById('authMobileStage').classList.add('hidden');
-          document.getElementById('authOtpStage').classList.remove('hidden');
-        } else {
-          alert(d.error || 'Failed to dispatch verification code');
-        }
-      } catch (err) {
-        alert('Verification service temporarily unavailable.');
-      }
-    }
-
-    async function verifyCustomerOtp() {
-      const mobile = document.getElementById('custAuthMobile').value.trim();
-      const otp = document.getElementById('custAuthOtp').value.trim();
-
-      if (!otp || otp.length < 4) {
-        alert('Please enter the verification code');
-        return;
-      }
-
-      try {
-        const res = await fetch('/api/customer/verify-otp', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mobile, otp })
-        });
-        const d = await res.json();
-        if (d.success) {
-          verifiedCustomerMobile = d.mobile;
-          customerSessionToken = d.token;
-          sessionToken = d.token;
-          
-          sessionStorage.setItem('rto_session_token', d.token);
-          sessionStorage.setItem('rto_cust_mobile', d.mobile);
-          sessionStorage.setItem('rto_role', 'CUSTOMER');
-
-          updatePriceUI();
-          closeCustomerModal();
-          checkFormatThenOrder();
-        } else {
-          alert(d.error || 'Invalid verification code');
-        }
-      } catch (err) {
-        alert('Verification service error. Please try again.');
-      }
-    }
-
-    async function startOrderCreation() {
-      let targetNumber = '';
-      let dob = null;
-
-      if (currentService === 'RC') {
-        targetNumber = document.getElementById('rcInput').value.trim().toUpperCase();
-      } else {
-        targetNumber = document.getElementById('dlInput').value.trim().toUpperCase();
-        dob = document.getElementById('dlDob').value;
-      }
-
-      const payBtn = document.getElementById('payBtn');
-      const originalText = document.getElementById('btnText').innerText;
-      document.getElementById('btnText').innerText = 'Initializing Checkout...';
-      payBtn.disabled = true;
+    async function executePaymentOrder() {
+      const regNo = cachedPreviewData ? cachedPreviewData.regNo : document.getElementById('rcInput').value.trim();
+      const tier = cachedPreviewData ? cachedPreviewData.detectedTier : '2-Wheeler';
 
       const headers = { 'Content-Type': 'application/json' };
       if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
@@ -813,20 +713,78 @@
           method: 'POST',
           headers,
           body: JSON.stringify({
-            docType: currentService,
-            targetNumber,
-            tier: selectedTierLabel,
-            dob,
+            docType: 'RC',
+            targetNumber: regNo,
+            tier: tier,
             rcFormat: chosenFormat,
             customerMobile: verifiedCustomerMobile,
             customerName: 'Customer'
           })
         });
-        const data = await res.json();
-        
-        document.getElementById('btnText').innerText = originalText;
-        payBtn.disabled = false;
 
+        const data = await res.json();
+        if (data.success) {
+          activeOrderId = data.orderId;
+          activeDocNum = regNo;
+          isCompleted = false;
+
+          const options = {
+            key: data.keyId,
+            amount: data.amountPaise,
+            currency: 'INR',
+            name: 'RTO BOSS',
+            description: `RC Formatting & PDF Download`,
+            order_id: data.orderId,
+            prefill: { contact: verifiedCustomerMobile || '' },
+            theme: { color: '#1D4ED8' },
+            handler: async function (response) {
+              await verifyAndCompleteRazorpayPayment(response);
+            }
+          };
+
+          const rzp = new Razorpay(options);
+          rzp.open();
+        } else {
+          alert(data.error || 'Failed to initialize payment.');
+        }
+      } catch (err) {
+        alert('Payment setup error.');
+      }
+    }
+
+    function startDlFlow() {
+      const dlVal = document.getElementById('dlInput').value.trim();
+      if (!dlVal || dlVal.length < 6) {
+        alert('Please enter a valid Driving Licence Number');
+        return;
+      }
+      chosenFormat = 'NEW';
+      executeDlOrder();
+    }
+
+    async function executeDlOrder() {
+      const targetNumber = document.getElementById('dlInput').value.trim().toUpperCase();
+      const dob = document.getElementById('dlDob').value;
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
+      try {
+        const res = await fetch('/api/create-order', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            docType: 'DL',
+            targetNumber,
+            tier: '2-Wheeler',
+            dob,
+            rcFormat: 'NEW',
+            customerMobile: verifiedCustomerMobile,
+            customerName: 'Customer'
+          })
+        });
+
+        const data = await res.json();
         if (data.success) {
           activeOrderId = data.orderId;
           activeDocNum = targetNumber;
@@ -835,16 +793,12 @@
           const options = {
             key: data.keyId,
             amount: data.amountPaise,
-            currency: data.currency || 'INR',
+            currency: 'INR',
             name: 'RTO BOSS',
-            description: `${currentService} Formatting & Vector PDF Download`,
+            description: `DL Formatting & PDF Download`,
             order_id: data.orderId,
-            prefill: {
-              contact: verifiedCustomerMobile || ''
-            },
-            theme: {
-              color: '#1D4ED8'
-            },
+            prefill: { contact: verifiedCustomerMobile || '' },
+            theme: { color: '#1D4ED8' },
             handler: async function (response) {
               await verifyAndCompleteRazorpayPayment(response);
             }
@@ -852,14 +806,11 @@
 
           const rzp = new Razorpay(options);
           rzp.open();
-
         } else {
-          alert(data.error || 'Failed to initialize payment');
+          alert(data.error || 'Failed to initialize DL payment.');
         }
-      } catch (e) {
-        alert('Payment service connection error.');
-        document.getElementById('btnText').innerText = originalText;
-        payBtn.disabled = false;
+      } catch (err) {
+        alert('DL order setup error.');
       }
     }
 
@@ -1074,6 +1025,7 @@
           sessionStorage.setItem('rto_agent_data', JSON.stringify(d.agent));
 
           closeAgentModal();
+          navigateTo('search');
           updatePriceUI();
           alert(`Welcome, ${d.agent.name}! Wholesale pricing activated.`);
         } else {

@@ -259,7 +259,7 @@ const STATE_NAMES = {
 };
 
 // =====================================================================
-// DISK-LOADED CLEAN PNG ICONS (CAR, BIKE, 3-WHEELER)
+// DISK-LOADED CLEAN PNG ICONS (BIKE=I5, CAR=I6, LORRY=I7)
 // =====================================================================
 function loadIconBuffer(fileName) {
   const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
@@ -274,6 +274,38 @@ const PNG_ICONS = {
   CAR: loadIconBuffer('I6_transparent.png'),
   LORRY: loadIconBuffer('I7_transparent.png')
 };
+
+// =====================================================================
+// HELPERS FOR RC PREVIEW & VEHICLE TIER MAPPING
+// =====================================================================
+function maskSensitiveValue(str, visibleChars = 4) {
+  if (!str) return '••••••••';
+  const clean = String(str).trim();
+  if (clean.length <= visibleChars) return clean;
+  const maskedPart = '•'.repeat(clean.length - visibleChars);
+  return maskedPart + clean.slice(-visibleChars);
+}
+
+function resolveVehicleTier(vClass, bodyType) {
+  const c = String(vClass || '').toUpperCase();
+  const b = String(bodyType || '').toUpperCase();
+
+  if (
+    c.includes('2W') || c.includes('CYCLE') || c.includes('SCOOTER') || 
+    c.includes('M-CYCLE') || c.includes('MOTORCYCLE') || b.includes('SOLO')
+  ) {
+    return '2-Wheeler';
+  }
+
+  if (
+    c.includes('3W') || c.includes('THREE') || c.includes('AUTO') || 
+    c.includes('RICKSHAW') || c.includes('3 WHEELER')
+  ) {
+    return '3-Wheeler';
+  }
+
+  return '4-Wheeler+';
+}
 
 // Static Mock Vehicle & DL Database
 const mockDatabase = {
@@ -509,7 +541,6 @@ async function verifyPassword(password, storedPassword) {
 async function findCustomerByToken(token) {
   if (!token) return null;
   
-  // 1. Check in-memory map
   for (const customer of customers.values()) {
     if (!customer || !customer.sessionToken) continue;
     if (safeEqual(customer.sessionToken, token)) {
@@ -521,7 +552,6 @@ async function findCustomerByToken(token) {
     }
   }
 
-  // 2. Fallback to PostgreSQL (Survives PM2 restarts)
   try {
     const res = await pool.query(
       'SELECT token, mobile, expires_at FROM customer_sessions WHERE token = $1 AND expires_at > NOW() LIMIT 1',
@@ -726,7 +756,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         owner: d.owner_name || '',
         swd: d.father_name || 'NA',
         address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-      ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
+        ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
         color: normalizedColor,
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
@@ -983,7 +1013,7 @@ function isCommercialClass(vClass) {
 }
 
 // =====================================================================
-// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET (100% PRODUCTION LIVE)
+// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET
 // =====================================================================
 app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
   const { mobile } = req.body;
@@ -1082,7 +1112,6 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
       const customerId = 'CUST_' + cleanMobile;
       const expiresAtDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      // Save to memory
       customers.set(customerId, {
         customerId,
         mobile: cleanMobile,
@@ -1091,7 +1120,6 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
         expiresAt: expiresAtDate.getTime()
       });
 
-      // Persist in PostgreSQL for reboot survival
       pool.query(
         `INSERT INTO customer_sessions (token, mobile, expires_at)
          VALUES ($1, $2, $3)
@@ -1105,6 +1133,60 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
     return res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
   } catch (err) {
     return res.status(500).json({ error: 'Verification service error.' });
+  }
+});
+
+// =====================================================================
+// PRE-PAYMENT RC PREVIEW & AUTOMATED PRICING ENDPOINT
+// =====================================================================
+app.post('/api/rc-preview', orderLimiter, async (req, res) => {
+  try {
+    const { regNo } = req.body;
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
+    if (authContext.role === 'PUBLIC') {
+      return res.status(401).json({ error: 'Please verify your mobile number to look up records.' });
+    }
+
+    if (!regNo || regNo.length < 5) {
+      return res.status(400).json({ error: 'Enter a valid registration number.' });
+    }
+
+    const report = await getVehicleOrDlRecord('RC', regNo);
+    if (!report) {
+      return res.status(404).json({ error: 'Vehicle details could not be found. Check the registration number.' });
+    }
+
+    const detectedTier = resolveVehicleTier(report.vehicleClassFull, report.bodyType);
+
+    let amount = 150;
+    if (authContext.role === 'ADMIN') {
+      amount = 0;
+    } else if (authContext.role === 'AGENT') {
+      if (detectedTier === '3-Wheeler') amount = 120;
+      else if (detectedTier === '4-Wheeler+') amount = 150;
+      else amount = 80;
+    } else {
+      if (detectedTier === '3-Wheeler') amount = 180;
+      else if (detectedTier === '4-Wheeler+') amount = 200;
+      else amount = 150;
+    }
+
+    const brandName = [report.maker, report.model].filter(Boolean).join(' — ') || 'AUTOMOBILE';
+
+    return res.json({
+      success: true,
+      regNo: report.regNo,
+      brandName,
+      chassisMasked: maskSensitiveValue(report.chassisNo, 5),
+      engineMasked: maskSensitiveValue(report.engineNo, 5),
+      detectedTier,
+      amount,
+      isKA: (report.regNo || '').substring(0, 2).toUpperCase() === 'KA'
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to preview vehicle record: ' + err.message });
   }
 });
 
@@ -2000,7 +2082,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       color: boldColor
     });
 
-   if (report.covList && Array.isArray(report.covList)) {
+    if (report.covList && Array.isArray(report.covList)) {
       let carIconImg = null;
       let bikeIconImg = null;
       let lorryIconImg = null;
@@ -2205,7 +2287,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       regDate: report.regDate,
       validUpto: report.validUpto,
       chassisNo: report.chassisNo,
-    ownerSerial: String(report.ownerSerial || '01').padStart(2, '0'),
+      ownerSerial: String(report.ownerSerial || '01').padStart(2, '0'),
       engineNo: report.engineNo,
       ownerName: report.owner,
       swdName: report.swd || 'NA',
@@ -2379,8 +2461,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     fieldLayout.topRight.forEach((field) => {
       let value = report[getFieldKey(field.label)];
       if (field.label === 'O SLNO' && value) {
-      value = String(value).padStart(2, '0');
-    }
+        value = String(value).padStart(2, '0');
+      }
       if (field.label === 'CLASS' && value) {
         value = String(value).replace(/\s*\(?2WN\)?\s*/i, '').trim();
       }
@@ -2493,7 +2575,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
       return res.status(403).json({ error: 'Payment has not been verified for this order.' });
     }
 
-    // Permission Verification
     if (authContext.role === 'ADMIN') {
       // Admin bypass
     } else if (order.role === 'ADMIN') {
