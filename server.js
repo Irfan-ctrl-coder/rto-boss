@@ -259,7 +259,7 @@ const STATE_NAMES = {
 };
 
 // =====================================================================
-// DISK-LOADED CLEAN PNG ICONS (BIKE=I5, CAR=I6, LORRY=I7)
+// DISK-LOADED CLEAN PNG ICONS (CAR, BIKE, 3-WHEELER)
 // =====================================================================
 function loadIconBuffer(fileName) {
   const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
@@ -276,14 +276,30 @@ const PNG_ICONS = {
 };
 
 // =====================================================================
-// HELPERS FOR RC PREVIEW & VEHICLE TIER MAPPING
+// EVEN & UNIFORM MASKING ENGINE
 // =====================================================================
-function maskSensitiveValue(str, visibleChars = 4) {
+function maskEvenly(str) {
   if (!str) return '••••••••';
   const clean = String(str).trim();
-  if (clean.length <= visibleChars) return clean;
-  const maskedPart = '•'.repeat(clean.length - visibleChars);
-  return maskedPart + clean.slice(-visibleChars);
+  if (clean.length <= 4) return '•'.repeat(clean.length);
+  
+  const chars = clean.split('');
+  const masked = chars.map((char, index) => {
+    if (char === ' ' || char === '-' || char === '/') return char;
+    if (index % 2 === 0 && index > 0 && index < clean.length - 1) {
+      return '•';
+    }
+    return char;
+  });
+  
+  let result = masked.join('');
+  if (result.length > 6) {
+    const start = result.slice(0, 2);
+    const end = result.slice(-2);
+    const middleDots = '••••';
+    return start + middleDots + end;
+  }
+  return result;
 }
 
 function resolveVehicleTier(vClass, bodyType) {
@@ -756,7 +772,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         owner: d.owner_name || '',
         swd: d.father_name || 'NA',
         address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-        ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
+      ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
         color: normalizedColor,
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
@@ -1137,8 +1153,161 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
 });
 
 // =====================================================================
-// PRE-PAYMENT RC PREVIEW & AUTOMATED PRICING ENDPOINT
+// AGENT ROUTES & PASSWORD RECOVERY
 // =====================================================================
+app.post('/api/agent/register', async (req, res) => {
+  try {
+    const { name, mobile, email, password, address } = req.body;
+    if (!name || !mobile || !email || !password || !address) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
+    if (checkRes.rows.length > 0) {
+      return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
+    }
+
+    const agentId = 'AGT_' + Date.now();
+    const passwordHash = await hashPassword(password);
+
+    await pool.query(
+      `INSERT INTO agents (agent_id, name, mobile, email, password, address, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_PAYMENT', NOW(), NOW())`,
+      [agentId, name, mobile, email, passwordHash, address]
+    );
+
+    res.json({ success: true, agentId, amount: 399, paymentProvider: 'RAZORPAY' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to process registration' });
+  }
+});
+
+app.post('/api/agent/login', loginLimiter, async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Mobile/email and password are required.' });
+    }
+
+    const dbRes = await pool.query(
+      'SELECT * FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1',
+      [identifier]
+    );
+
+    if (dbRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+    }
+
+    const agent = dbRes.rows[0];
+    const passwordResult = await verifyPassword(password, agent.password);
+
+    if (!passwordResult.valid) {
+      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+    }
+
+    if (agent.status !== 'ACTIVE') {
+      return res.status(403).json({ error: 'Onboarding fee pending', status: agent.status, agentId: agent.agent_id });
+    }
+
+    const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
+    await pool.query('UPDATE agents SET session_token = $1, updated_at = NOW() WHERE agent_id = $2', [token, agent.agent_id]);
+
+    res.json({
+      success: true,
+      token,
+      agent: { name: agent.name, mobile: agent.mobile, email: agent.email }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Login query failed' });
+  }
+});
+
+app.post('/api/agent/forgot-password/send', otpLimiter, async (req, res) => {
+  const { identifier } = req.body;
+  const cleanId = String(identifier || '').trim();
+  try {
+    const dbRes = await pool.query('SELECT mobile FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1', [cleanId]);
+    if (dbRes.rows.length === 0) return res.status(404).json({ error: 'Agent account not found.' });
+
+    const mobile = dbRes.rows[0].mobile;
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
+      method: 'POST',
+      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, identifier: `91${mobile}` })
+    });
+    const data = await response.json();
+    if (data.type === 'success' || data.reqId) {
+      otpStore.set('FORGOT_' + mobile, { reqId: data.reqId || data.message, mobile, expiresAt: Date.now() + 600000 });
+      return res.json({ success: true, mobile: mobile.slice(-4) });
+    }
+    return res.status(400).json({ error: 'Failed to send recovery OTP.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Recovery service unavailable.' });
+  }
+});
+
+app.post('/api/agent/forgot-password/reset', otpLimiter, async (req, res) => {
+  const { identifier, otp, newPassword } = req.body;
+  const cleanId = String(identifier || '').trim();
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+  try {
+    const dbRes = await pool.query('SELECT mobile FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1', [cleanId]);
+    if (dbRes.rows.length === 0) return res.status(404).json({ error: 'Agent not found.' });
+
+    const mobile = dbRes.rows[0].mobile;
+    const record = otpStore.get('FORGOT_' + mobile);
+    if (!record) return res.status(400).json({ error: 'OTP session expired. Request a new code.' });
+
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
+      method: 'POST',
+      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, reqId: record.reqId, otp: String(otp).trim() })
+    });
+    const data = await response.json();
+
+    if (data.type === 'success' || data['access-token']) {
+      otpStore.delete('FORGOT_' + mobile);
+      const newHash = await hashPassword(newPassword);
+      await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE mobile = $2', [newHash, mobile]);
+      return res.json({ success: true, message: 'Password reset successfully.' });
+    }
+    return res.status(400).json({ error: 'Invalid verification code.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Password reset failed.' });
+  }
+});
+
+// =====================================================================
+// PRE-PAYMENT RC PREVIEW (WITH EVEN MASKING & OWNER NAME)
+// =====================================================================
+function maskEvenly(str) {
+  if (!str) return '••••••••';
+  const clean = String(str).trim();
+  if (clean.length <= 4) return '•'.repeat(clean.length);
+  
+  const chars = clean.split('');
+  const masked = chars.map((char, index) => {
+    if (char === ' ' || char === '-' || char === '/') return char;
+    if (index % 2 === 0 && index > 0 && index < clean.length - 1) {
+      return '•';
+    }
+    return char;
+  });
+  
+  let result = masked.join('');
+  if (result.length > 6) {
+    const start = result.slice(0, 2);
+    const end = result.slice(-2);
+    const middleDots = '••••';
+    return start + middleDots + end;
+  }
+  return result;
+}
+
 app.post('/api/rc-preview', orderLimiter, async (req, res) => {
   try {
     const { regNo } = req.body;
@@ -1179,100 +1348,15 @@ app.post('/api/rc-preview', orderLimiter, async (req, res) => {
       success: true,
       regNo: report.regNo,
       brandName,
-      chassisMasked: maskSensitiveValue(report.chassisNo, 5),
-      engineMasked: maskSensitiveValue(report.engineNo, 5),
+      ownerMasked: maskEvenly(report.owner),
+      chassisMasked: maskEvenly(report.chassisNo),
+      engineMasked: maskEvenly(report.engineNo),
       detectedTier,
       amount,
       isKA: (report.regNo || '').substring(0, 2).toUpperCase() === 'KA'
     });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to preview vehicle record: ' + err.message });
-  }
-});
-
-// =====================================================================
-// AGENT ROUTES
-// =====================================================================
-app.post('/api/agent/register', async (req, res) => {
-  try {
-    const { name, mobile, email, password, address } = req.body;
-    if (!name || !mobile || !email || !password || !address) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
-    if (String(password).length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
-    }
-
-    const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
-    if (checkRes.rows.length > 0) {
-      return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
-    }
-
-    const agentId = 'AGT_' + Date.now();
-    const passwordHash = await hashPassword(password);
-
-    await pool.query(
-      `INSERT INTO agents (agent_id, name, mobile, email, password, address, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_APPROVAL', NOW(), NOW())`,
-      [agentId, name, mobile, email, passwordHash, address]
-    );
-
-    res.json({ success: true, agentId, amount: 500, paymentProvider: 'RAZORPAY' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to process registration' });
-  }
-});
-
-app.post('/api/agent/login', loginLimiter, async (req, res) => {
-  try {
-    const { identifier, password } = req.body;
-    if (!identifier || !password) {
-      return res.status(400).json({ error: 'Mobile/email and password are required.' });
-    }
-
-    const dbRes = await pool.query(
-      'SELECT * FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1',
-      [identifier]
-    );
-
-    if (dbRes.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid mobile/email or password' });
-    }
-
-    const agent = dbRes.rows[0];
-    const passwordResult = await verifyPassword(password, agent.password);
-
-    if (!passwordResult.valid) {
-      return res.status(401).json({ error: 'Invalid mobile/email or password' });
-    }
-
-    if (passwordResult.legacy) {
-      try {
-        const newHash = await hashPassword(password);
-        await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE agent_id = $2', [newHash, agent.agent_id]);
-      } catch (migrationErr) {}
-    }
-
-    if (agent.status === 'PENDING_PAYMENT') {
-      return res.status(403).json({ error: 'Onboarding fee pending', status: 'PENDING_PAYMENT', agentId: agent.agent_id });
-    }
-    if (agent.status === 'PENDING_APPROVAL') {
-      return res.status(403).json({ error: 'Account under review by admin', status: 'PENDING_APPROVAL' });
-    }
-    if (agent.status === 'REJECTED') {
-      return res.status(403).json({ error: 'Account application rejected by admin', status: 'REJECTED' });
-    }
-
-    const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
-    await pool.query('UPDATE agents SET session_token = $1, updated_at = NOW() WHERE agent_id = $2', [token, agent.agent_id]);
-
-    res.json({
-      success: true,
-      token,
-      agent: { name: agent.name, mobile: agent.mobile, email: agent.email }
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Login query failed' });
   }
 });
 
@@ -1443,7 +1527,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 });
 
 // =====================================================================
-// ORDER PROCESSING & PAYMENT
+// ORDER PROCESSING & PAYMENT (WITH ₹399 INSTANT AGENT ACTIVATION)
 // =====================================================================
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
@@ -1455,7 +1539,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
 
     let finalAmount = 150;
     if (docType === 'AGENT_ONBOARDING') {
-      finalAmount = 500;
+      finalAmount = 399;
     } else if (role === 'ADMIN') {
       finalAmount = 0;
     } else if (role === 'AGENT') {
@@ -1579,7 +1663,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
 });
 
 // =====================================================================
-// PAYMENT VERIFICATION
+// PAYMENT VERIFICATION (INSTANT AGENT ACTIVATION)
 // =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   try {
@@ -1615,9 +1699,7 @@ app.post('/api/verify-payment', async (req, res) => {
           };
           orders.set(lookupId, order);
         }
-      } catch (pgOrderErr) {
-        console.warn('[PostgreSQL Order Lookup Warning]:', pgOrderErr.message);
-      }
+      } catch (pgOrderErr) {}
     }
 
     if (!order) {
@@ -1705,11 +1787,15 @@ app.post('/api/verify-payment', async (req, res) => {
     }
 
     if (order.docType === 'AGENT_ONBOARDING') {
+      await pool.query(
+        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
+        [order.targetNumber]
+      );
       return res.json({
         status: 'SUCCESS',
         orderId: order.orderId,
         docType: order.docType,
-        message: 'Agent fee verified successfully.'
+        message: 'Agent fee verified successfully and account activated.'
       });
     }
 
@@ -1818,6 +1904,13 @@ app.post('/api/bank-webhook', async (req, res) => {
           'UPDATE orders SET status = $1, paid_at = NOW(), utr = COALESCE($2, utr) WHERE order_id = $3 OR rzp_order_id = $3',
           ['SUCCESS', paymentId, o.orderId]
         ).catch(() => {});
+
+        if (o.docType === 'AGENT_ONBOARDING') {
+          pool.query(
+            "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
+            [o.targetNumber]
+          ).catch(() => {});
+        }
       }
     }
 

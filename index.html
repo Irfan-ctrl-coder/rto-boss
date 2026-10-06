@@ -106,7 +106,7 @@
       </div>
     </div>
 
-    <!-- STATE 1: SEARCH & INPUT VIEW (Visible after login) -->
+    <!-- STATE 1: SEARCH & INPUT VIEW -->
     <div id="view-input-state" class="hidden space-y-8 max-w-5xl mx-auto">
       <div class="text-center">
         <h1 class="text-3xl md:text-4xl font-black text-brand-navy tracking-tight leading-tight mb-2">
@@ -171,7 +171,7 @@
       </div>
     </div>
 
-    <!-- STATE 1.5: RC PREVIEW MODAL -->
+    <!-- STATE 1.5: RC PREVIEW MODAL (WITH OWNER NAME CARD) -->
     <div id="view-rc-preview-modal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-5 text-left">
         <div class="flex items-center justify-between border-b pb-3">
@@ -187,6 +187,10 @@
           <div>
             <div class="text-[10px] uppercase font-bold text-slate-400">Maker &amp; Model (Brand)</div>
             <div class="text-base font-black text-brand-navy" id="previewBrand">---</div>
+          </div>
+          <div class="pt-1 border-t border-slate-200/60">
+            <div class="text-[10px] uppercase font-bold text-slate-400">Registered Owner Name</div>
+            <div class="text-sm font-black text-slate-800" id="previewOwner">---</div>
           </div>
           <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-200/60">
             <div>
@@ -292,7 +296,7 @@
       </div>
     </div>
 
-    <!-- AGENT MODAL -->
+    <!-- AGENT MODAL (WITH LOGIN, ₹399 INSTANT REGISTRATION & FORGOT PASSWORD FLOW) -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -303,6 +307,7 @@
           <button onclick="closeAgentModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
         </div>
 
+        <!-- Agent Login View -->
         <div id="agentLoginView" class="space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile or Email</label>
@@ -312,20 +317,24 @@
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Password</label>
             <input type="password" id="agentLogPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
+          <div class="flex justify-end">
+            <button onclick="toggleAgentAuthView('forgot')" class="text-xs text-brand-primary font-bold hover:underline">Forgot Password?</button>
+          </div>
           <button onclick="handleAgentLogin()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
             Log In to Agent Dashboard
           </button>
           <div class="text-center pt-2 border-t border-slate-100">
             <p class="text-xs text-slate-500">Want to become a verified agent partner?</p>
             <button onclick="toggleAgentAuthView('register')" class="text-xs font-bold text-brand-primary hover:underline mt-1">
-              Apply to Become an Agent (₹500 Fee) →
+              Apply to Become an Agent (₹399 Fee) →
             </button>
           </div>
         </div>
 
+        <!-- Agent Register View (₹399 Instant Activation) -->
         <div id="agentRegisterView" class="hidden space-y-3">
           <div>
-            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Full Name / Enterprise Name</label>
+            <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Business Name</label>
             <input type="text" id="agentRegName" placeholder="Fleet Works" class="w-full rounded-xl border border-slate-300 p-2 text-sm font-semibold outline-none focus:border-brand-primary" />
           </div>
           <div class="grid grid-cols-2 gap-2">
@@ -347,11 +356,11 @@
             <textarea id="agentRegAddress" rows="2" placeholder="Suite #12, Commercial Area" class="w-full rounded-xl border border-slate-300 p-2 text-xs font-semibold outline-none focus:border-brand-primary"></textarea>
           </div>
           <div class="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-tight space-y-1">
-            <div>ℹ️ <strong>One-time ₹500 Verification Fee</strong></div>
-            <div>After payment, your account will be under review. Verification typically takes 24–48 hours.</div>
+            <div>ℹ️ <strong>Instant Auto-Activation (₹399)</strong></div>
+            <div>Pay the onboarding fee to activate your wholesale partner account immediately.</div>
           </div>
           <button onclick="handleAgentRegister()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
-            Pay ₹500 &amp; Submit Application
+            Pay ₹399 &amp; Activate Instantly
           </button>
           <div class="text-center pt-2 border-t border-slate-100">
             <button onclick="toggleAgentAuthView('login')" class="text-xs font-bold text-slate-500 hover:underline">
@@ -360,16 +369,43 @@
           </div>
         </div>
 
-        <div id="agentHoldView" class="hidden text-center py-4 space-y-3">
-          <div class="w-12 h-12 rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xl font-bold flex items-center justify-center mx-auto">
-            ⏳
+        <!-- Agent Forgot Password Recovery View (OTP + New Password + Confirm Password) -->
+        <div id="agentForgotView" class="hidden space-y-3 text-left">
+          <div id="forgotStep1" class="space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Registered Mobile or Email</label>
+              <input type="text" id="agentForgotId" placeholder="9876543210 / agent@shop.com" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+            <button onclick="sendForgotOtp()" class="w-full bg-brand-primary hover:bg-brand-primaryHover text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+              Send Recovery OTP →
+            </button>
           </div>
-          <h4 class="font-extrabold text-base text-brand-navy">Application Under Review</h4>
-          <p class="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-            Your verification fee has been confirmed. Your profile is currently under review by our operations team.
-          </p>
-          <button onclick="closeAgentModal()" class="text-xs font-bold text-brand-primary hover:underline">Close Window</button>
+
+          <div id="forgotStep2" class="hidden space-y-3">
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Enter Verification Code</label>
+              <input type="text" id="agentForgotOtp" placeholder="••••" maxlength="6" class="w-full text-center mono text-2xl font-black rounded-xl border border-slate-300 p-2" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">New Password (Min 8 chars)</label>
+              <input type="password" id="agentNewPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Confirm New Password</label>
+              <input type="password" id="agentConfirmPassword" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 p-2.5 text-sm font-semibold outline-none focus:border-brand-primary" />
+            </div>
+            <button onclick="resetAgentPassword()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 rounded-xl text-sm transition-all shadow-md">
+              Update Password &amp; Login
+            </button>
+          </div>
+
+          <div class="text-center pt-2 border-t border-slate-100">
+            <button onclick="toggleAgentAuthView('login')" class="text-xs font-bold text-slate-500 hover:underline">
+              ← Back to Agent Login
+            </button>
+          </div>
         </div>
+
       </div>
     </div>
 
@@ -661,6 +697,7 @@
         if (d.success) {
           cachedPreviewData = d;
           document.getElementById('previewBrand').innerText = d.brandName;
+          document.getElementById('previewOwner').innerText = d.ownerMasked;
           document.getElementById('previewRegNo').innerText = d.regNo;
           document.getElementById('previewCategory').innerText = d.detectedTier;
           document.getElementById('previewChassis').innerText = d.chassisMasked;
@@ -908,14 +945,16 @@
     function toggleAgentAuthView(view) {
       document.getElementById('agentLoginView').classList.add('hidden');
       document.getElementById('agentRegisterView').classList.add('hidden');
-      document.getElementById('agentHoldView').classList.add('hidden');
+      document.getElementById('agentForgotView').classList.add('hidden');
 
       if (view === 'register') {
         document.getElementById('agentModalTitle').innerText = 'Apply for Wholesale Partnership';
         document.getElementById('agentRegisterView').classList.remove('hidden');
-      } else if (view === 'hold') {
-        document.getElementById('agentModalTitle').innerText = 'Application Status';
-        document.getElementById('agentHoldView').classList.remove('hidden');
+      } else if (view === 'forgot') {
+        document.getElementById('agentModalTitle').innerText = 'Recover Agent Password';
+        document.getElementById('agentForgotView').classList.remove('hidden');
+        document.getElementById('forgotStep1').classList.remove('hidden');
+        document.getElementById('forgotStep2').classList.add('hidden');
       } else {
         document.getElementById('agentModalTitle').innerText = 'Agent Login';
         document.getElementById('agentLoginView').classList.remove('hidden');
@@ -968,7 +1007,7 @@
             amount: orderData.amountPaise,
             currency: 'INR',
             name: 'RTO BOSS PARTNERS',
-            description: 'Agent Verification & Onboarding Fee (₹500)',
+            description: 'Agent Instant Activation Fee (₹399)',
             order_id: orderData.orderId,
             prefill: { name, email, contact: mobile },
             theme: { color: '#059669' },
@@ -980,8 +1019,9 @@
               });
               const verifyData = await verifyRes.json();
               if (verifyData.status === 'SUCCESS') {
+                alert('Agent account successfully activated! Please log in with your credentials.');
                 openAgentModal();
-                toggleAgentAuthView('hold');
+                toggleAgentAuthView('login');
               } else {
                 alert('Verification error. Contact support.');
               }
@@ -1029,14 +1069,71 @@
           updatePriceUI();
           alert(`Welcome, ${d.agent.name}! Wholesale pricing activated.`);
         } else {
-          if (d.status === 'PENDING_APPROVAL') {
-            toggleAgentAuthView('hold');
-          } else {
-            alert(d.error || 'Login failed');
-          }
+          alert(d.error || 'Login failed');
         }
       } catch (e) {
         alert('Login error. Please try again.');
+      }
+    }
+
+    async function sendForgotOtp() {
+      const identifier = document.getElementById('agentForgotId').value.trim();
+      if (!identifier) {
+        alert('Please enter your registered mobile number or email');
+        return;
+      }
+      try {
+        const res = await fetch('/api/agent/forgot-password/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier })
+        });
+        const d = await res.json();
+        if (d.success) {
+          document.getElementById('forgotStep1').classList.add('hidden');
+          document.getElementById('forgotStep2').classList.remove('hidden');
+        } else {
+          alert(d.error || 'Failed to send recovery code');
+        }
+      } catch (e) {
+        alert('Network error sending recovery code.');
+      }
+    }
+
+    async function resetAgentPassword() {
+      const identifier = document.getElementById('agentForgotId').value.trim();
+      const otp = document.getElementById('agentForgotOtp').value.trim();
+      const newPassword = document.getElementById('agentNewPassword').value.trim();
+      const confirmPassword = document.getElementById('agentConfirmPassword').value.trim();
+
+      if (!otp || !newPassword || !confirmPassword) {
+        alert('Please fill out all fields.');
+        return;
+      }
+      if (newPassword.length < 8) {
+        alert('New password must be at least 8 characters long.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        alert('Passwords do not match.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/agent/forgot-password/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identifier, otp, newPassword })
+        });
+        const d = await res.json();
+        if (d.success) {
+          alert('Password reset successfully! Please log in with your new password.');
+          toggleAgentAuthView('login');
+        } else {
+          alert(d.error || 'Password reset failed.');
+        }
+      } catch (e) {
+        alert('Network error resetting password.');
       }
     }
 
