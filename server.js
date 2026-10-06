@@ -1532,7 +1532,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
-    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName } = req.body;
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName, devBypass } = req.body;
     const authHeader = req.headers['authorization'] || '';
     const authContext = await resolveAuthContext(authHeader);
     const role = authContext.role;
@@ -1555,6 +1555,32 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
     }
 
     const localOrderId = 'ORD_' + Date.now();
+    
+    // DEV BYPASS SUPPORT FOR AGENT ONBOARDING
+    if (devBypass && docType === 'AGENT_ONBOARDING') {
+      const bypassOrderId = 'BYPASS_' + Date.now();
+      orders.set(bypassOrderId, {
+        orderId: bypassOrderId,
+        docType,
+        targetNumber,
+        amount: finalAmount,
+        status: 'SUCCESS'
+      });
+      
+      // Instantly activate the agent in database
+      await pool.query(
+        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
+        [targetNumber]
+      );
+
+      return res.json({
+        success: true,
+        bypassed: true,
+        orderId: bypassOrderId,
+        amount: finalAmount
+      });
+    }
+
     let rzpOrderId = null;
 
     if (role !== 'ADMIN' && finalAmount > 0) {
@@ -1566,11 +1592,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
         amount: Math.round(finalAmount * 100),
         currency: 'INR',
         receipt: localOrderId,
-        notes: {
-          docType: docType || 'RC',
-          targetNumber: targetNumber || '',
-          role
-        }
+        notes: { docType: docType || 'RC', targetNumber: targetNumber || '', role }
       };
 
       const rzpOrder = await razorpay.orders.create(options);
@@ -1580,16 +1602,7 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
     const effectiveOrderId = rzpOrderId || localOrderId;
     const initialStatus = role === 'ADMIN' ? 'SUCCESS' : 'PENDING';
 
-    let ownerId = null;
-    if (role === 'CUSTOMER') {
-      ownerId = authContext.mobile || customerMobile || null;
-    } else if (role === 'AGENT') {
-      ownerId = authContext.agentId;
-    } else if (role === 'ADMIN') {
-      ownerId = 'ADMIN';
-    } else if (customerMobile) {
-      ownerId = customerMobile;
-    }
+    let ownerId = authContext.mobile || authContext.agentId || customerMobile || 'ADMIN';
 
     const orderData = {
       orderId: effectiveOrderId,
@@ -1604,49 +1617,18 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
       dob: normalizeDob(dob),
       rcFormat: rcFormat || 'OLD',
       status: initialStatus,
-      currency: 'INR',
-      customerMobile: customerMobile || '',
-      customerEmail: customerEmail || '',
-      customerName: customerName || '',
-      paidAt: role === 'ADMIN' ? new Date() : null,
-      createdAt: new Date()
+      currency: 'INR'
     };
 
     orders.set(effectiveOrderId, orderData);
 
-    try {
-      await pool.query(
-        `INSERT INTO orders
-          (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, paid_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
-         VALUES
-          ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11, $12)
-         ON CONFLICT (order_id)
-         DO UPDATE SET
-           status = EXCLUDED.status,
-           paid_at = EXCLUDED.paid_at,
-           owner_id = EXCLUDED.owner_id,
-           owner_role = EXCLUDED.owner_role,
-           rzp_order_id = EXCLUDED.rzp_order_id,
-           dob = EXCLUDED.dob,
-           rc_format = EXCLUDED.rc_format`,
-        [
-          effectiveOrderId,
-          customerMobile || '',
-          docType,
-          targetNumber,
-          finalAmount,
-          initialStatus,
-          role === 'ADMIN' ? new Date() : null,
-          ownerId,
-          role,
-          rzpOrderId,
-          normalizeDob(dob),
-          rcFormat || 'OLD'
-        ]
-      );
-    } catch (pgErr) {
-      console.warn('[PostgreSQL Order Save Warning]:', pgErr.message);
-    }
+    await pool.query(
+      `INSERT INTO orders
+        (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11)
+       ON CONFLICT (order_id) DO NOTHING`,
+      [effectiveOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, ownerId, role, rzpOrderId, normalizeDob(dob), rcFormat || 'OLD']
+    );
 
     res.json({
       success: true,

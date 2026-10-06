@@ -961,7 +961,7 @@
       }
     }
 
-    async function handleAgentRegister() {
+  async function handleAgentRegister() {
       const name = document.getElementById('agentRegName').value.trim();
       const mobile = document.getElementById('agentRegMobile').value.trim();
       const email = document.getElementById('agentRegEmail').value.trim();
@@ -978,6 +978,9 @@
         return;
       }
 
+      // DEV BYPASS PROMPT FOR TESTING
+      const useDevBypass = confirm("⚡ DEV MODE: Click OK to bypass payment & activate instantly, or Cancel to pay via Razorpay.");
+
       try {
         const res = await fetch('/api/agent/register', {
           method: 'POST',
@@ -985,9 +988,35 @@
           body: JSON.stringify({ name, mobile, email, password, address })
         });
         const d = await res.json();
+        
         if (d.success) {
           closeAgentModal();
 
+          // If developer clicked OK to bypass payment
+          if (useDevBypass) {
+            const bypassRes = await fetch('/api/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                docType: 'AGENT_ONBOARDING',
+                targetNumber: d.agentId,
+                tier: '2-Wheeler',
+                customerMobile: mobile,
+                customerEmail: email,
+                customerName: name,
+                devBypass: true
+              })
+            });
+            const bypassData = await bypassRes.json();
+            if (bypassData.success) {
+              alert('⚡ Dev Bypass Successful! Agent account is now ACTIVE. You can log in.');
+              openAgentModal();
+              toggleAgentAuthView('login');
+              return;
+            }
+          }
+
+          // Normal Live Razorpay Flow
           const orderRes = await fetch('/api/create-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
