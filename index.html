@@ -50,13 +50,18 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+ <div class="flex items-center gap-2">
         <div id="roleBadgeContainer" class="hidden"></div>
+        <button id="navHistoryBtn" onclick="openHistoryModal()" class="hidden text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-all flex items-center gap-1.5">
+          <span>📂</span> History
+        </button>
+        <button id="navLogoutBtn" onclick="handleLogout()" class="hidden text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-all flex items-center gap-1.5">
+          <span>🚪</span> Logout
+        </button>
         <button id="navAgentBtn" onclick="openAgentModal()" class="text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 transition-all flex items-center gap-1.5">
           <span>🤝</span> Agent Portal
         </button>
       </div>
-    </div>
   </header>
 
   <!-- MAIN WRAPPER -->
@@ -293,6 +298,24 @@
           </button>
         </div>
         <button onclick="closeFormatModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+      </div>
+    </div>
+
+
+    <!-- PAST DOWNLOADS HISTORY MODAL -->
+    <div id="historyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-lg w-full p-6 text-left shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+        <div class="flex justify-between items-center border-b pb-3">
+          <div>
+            <span class="text-[10px] font-bold text-brand-primary uppercase tracking-wider">ARCHIVE</span>
+            <h3 class="text-xl font-black text-brand-navy">Last 5 Past Downloads</h3>
+          </div>
+          <button onclick="closeHistoryModal()" class="text-slate-400 font-bold hover:text-slate-600 text-lg">&times;</button>
+        </div>
+        <div id="historyListContainer" class="space-y-2.5 overflow-y-auto pr-1 flex-1">
+          <p class="text-xs text-slate-400 text-center py-6">Loading recent history...</p>
+        </div>
+        <button onclick="closeHistoryModal()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs transition-all">Close</button>
       </div>
     </div>
 
@@ -623,17 +646,87 @@
       }
     }
 
-    function updatePriceUI() {
+function updatePriceUI() {
       const badgeCont = document.getElementById('roleBadgeContainer');
+      const historyBtn = document.getElementById('navHistoryBtn');
+      const logoutBtn = document.getElementById('navLogoutBtn');
+      const agentBtn = document.getElementById('navAgentBtn');
+
       if (currentRole === 'AGENT' && sessionAgentData) {
         badgeCont.className = "flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full text-xs font-bold text-emerald-700";
         badgeCont.innerHTML = `<span>🤝</span> Partner: ${sessionAgentData.name}`;
+        historyBtn.classList.remove('hidden');
+        logoutBtn.classList.remove('hidden');
+        agentBtn.classList.add('hidden');
       } else if (verifiedCustomerMobile) {
         badgeCont.className = "flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full text-xs font-bold text-brand-primary";
         badgeCont.innerHTML = `<span>📱</span> +91 ${verifiedCustomerMobile}`;
+        historyBtn.classList.remove('hidden');
+        logoutBtn.classList.remove('hidden');
+        agentBtn.classList.add('hidden');
       } else {
         badgeCont.className = "hidden";
+        historyBtn.classList.add('hidden');
+        logoutBtn.classList.add('hidden');
+        agentBtn.classList.remove('hidden');
       }
+    }
+
+    function handleLogout() {
+      sessionStorage.clear();
+      customerSessionToken = null;
+      verifiedCustomerMobile = null;
+      sessionToken = null;
+      currentRole = 'PUBLIC';
+      sessionAgentData = null;
+
+      updatePriceUI();
+      showGateView();
+    }
+
+    async function openHistoryModal() {
+      document.getElementById('historyModal').classList.remove('hidden');
+      const container = document.getElementById('historyListContainer');
+      container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Loading recent history...</p>`;
+
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (sessionToken) headers['Authorization'] = `Bearer ${sessionToken}`;
+
+        const res = await fetch('/api/user/history', { headers });
+        const data = await res.json();
+
+        if (data.success && data.history && data.history.length > 0) {
+          container.innerHTML = data.history.map(item => `
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-black text-brand-navy">${item.doc_type}</span>
+                  <span class="mono text-xs font-bold text-slate-700">${item.lookup_key}</span>
+                </div>
+                <div class="text-[10px] text-slate-400 mt-0.5">Downloaded on: ${new Date(item.created_at).toLocaleString()}</div>
+              </div>
+              <button onclick="rebuildAndDownload('${item.order_id}', '${item.lookup_key}')" class="bg-brand-primary hover:bg-brand-primaryHover text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition-all flex items-center gap-1">
+                <span>📥</span> PDF
+              </button>
+            </div>
+          `).join('');
+        } else {
+          container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">No previous downloads found.</p>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<p class="text-xs text-red-500 text-center py-6">Failed to load history.</p>`;
+      }
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('historyModal').classList.add('hidden');
+    }
+
+    async function rebuildAndDownload(orderId, docNum) {
+      activeOrderId = orderId;
+      activeDocNum = docNum;
+      await downloadDigitalPdf();
     }
 
     function handleRcInput(elem) {

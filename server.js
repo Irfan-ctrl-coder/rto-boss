@@ -2712,6 +2712,39 @@ function getFieldKey(label) {
   return map[label] || label.toLowerCase();
 }
 
+
+// =====================================================================
+// PAST DOWNLOADS HISTORY (LAST 5 RECORDS FOR CUSTOMERS & AGENTS)
+// =====================================================================
+app.get('/api/user/history', async (req, res) => {
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
+    if (authContext.role === 'PUBLIC') {
+      return res.status(401).json({ error: 'Unauthorized access.' });
+    }
+
+    let ownerId = authContext.role === 'CUSTOMER' ? authContext.mobile : authContext.agentId;
+    if (!ownerId) {
+      return res.json({ success: true, history: [] });
+    }
+
+    const queryRes = await pool.query(
+      `SELECT order_id, doc_type, lookup_key, amount, created_at, rc_format
+       FROM orders
+       WHERE owner_id = $1 AND status = 'SUCCESS' AND doc_type != 'AGENT_ONBOARDING'
+       ORDER BY created_at DESC
+       LIMIT 5`,
+      [ownerId]
+    );
+
+    res.json({ success: true, history: queryRes.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve history.' });
+  }
+});
+
 // =====================================================================
 // SERVER START
 // =====================================================================
