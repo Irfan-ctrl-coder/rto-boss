@@ -707,7 +707,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
   try {
    if (docType === 'RC') {
-      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-text`, {
+      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -719,10 +719,10 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       let json = await resp.json();
 
-      console.log('[DEBUG SUREPASS RC TEXT RESPONSE]:', JSON.stringify(json, null, 2));
+      console.log('[DEBUG SUREPASS RC FULL RESPONSE]:', JSON.stringify(json, null, 2));
 
       if (!resp.ok || !json.success || !json.data) {
-        console.error('[Surepass RC Text Error Response]:', JSON.stringify(json, null, 2));
+        console.error('[Surepass RC Full Error Response]:', JSON.stringify(json, null, 2));
         return null;
       }
 
@@ -752,28 +752,28 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       const formattedRc = {
         regNo: d.rc_number || lookupKey,
         regDate: formatDateDisplay(d.registration_date || ''),
-        chassisNo: d.chassis_number || d.vehicle_chasi_number || '',
-        engineNo: d.engine_number || d.vehicle_engine_number || '',
+        chassisNo: d.vehicle_chasi_number || '',
+        engineNo: d.vehicle_engine_number || '',
         maker: d.maker_description || d.maker_model || '',
         model: d.maker_model || '',
         bodyType: normalizedBody,
         wheelBase: String(d.wheelbase || '0'),
         mfgDate: d.manufacturing_date || '',
         fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
-        validUpto: formatDateDisplay(d.fit_up_to || d.fitness_upto || ''),
+        validUpto: formatDateDisplay(d.fit_up_to || ''),
         taxUpto: d.tax_upto || 'LTT',
         owner: d.owner_name || '',
         swd: d.father_name || 'NA',
         address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-        ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
+        ownerSerial: String(d.owner_number || '01').padStart(2, '0'),
         color: normalizedColor,
-        vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
+        vehicleClassFull: d.vehicle_category_description || d.vehicle_category || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
         unladenWt: String(d.unladen_weight || '0'),
-        ladenWt: String(d.gross_vehicle_weight || d.vehicle_gross_weight || '0'),
+        ladenWt: String(d.vehicle_gross_weight || '0'),
         horsePower: String(d.horse_power || '0'),
-        seating: String(d.seat_capacity || d.seating_capacity || '5'),
-        stdgSlpr: `${d.standing_capacity || 0} / 0`,
+        seating: String(d.seat_capacity || '5'),
+        stdgSlpr: `${d.standing_capacity || 0} / ${d.sleeper_capacity || 0}`,
         cubicCap: String(d.cubic_capacity || '0'),
         rto: d.registered_at || 'TRANSPORT DEPARTMENT',
         emissionNorms: d.norms_type || 'BHARAT STAGE VI',
@@ -1277,30 +1277,6 @@ app.post('/api/agent/forgot-password/reset', otpLimiter, async (req, res) => {
 // =====================================================================
 // PRE-PAYMENT RC PREVIEW (WITH EVEN MASKING & OWNER NAME)
 // =====================================================================
-function maskEvenly(str) {
-  if (!str) return '••••••••';
-  const clean = String(str).trim();
-  if (clean.length <= 4) return '•'.repeat(clean.length);
-  
-  const chars = clean.split('');
-  const masked = chars.map((char, index) => {
-    if (char === ' ' || char === '-' || char === '/') return char;
-    if (index % 2 === 0 && index > 0 && index < clean.length - 1) {
-      return '•';
-    }
-    return char;
-  });
-  
-  let result = masked.join('');
-  if (result.length > 6) {
-    const start = result.slice(0, 2);
-    const end = result.slice(-2);
-    const middleDots = '••••';
-    return start + middleDots + end;
-  }
-  return result;
-}
-
 app.post('/api/rc-preview', orderLimiter, async (req, res) => {
   try {
     const { regNo } = req.body;
