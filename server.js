@@ -117,12 +117,16 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// FIX 2: Strict Production CORS Whitelist
+// FIX 2: Production CORS Whitelist (Supporting HTTP, HTTPS, and Server IP)
 const allowedOrigins = [
   'https://rtoboss.in',
   'https://www.rtoboss.in',
+  'http://rtoboss.in',
+  'http://www.rtoboss.in',
   'http://localhost:3000',
-  'http://127.0.0.1:3000'
+  'http://127.0.0.1:3000',
+  'http://187.126.113.210:3000',
+  'http://187.126.113.210'
 ];
 if (process.env.FRONTEND_URL) {
   process.env.FRONTEND_URL.split(',').forEach(u => allowedOrigins.push(u.trim()));
