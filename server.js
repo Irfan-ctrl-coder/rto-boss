@@ -715,21 +715,8 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       let json = await resp.json();
 
-      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        await new Promise(res => setTimeout(res, 1200));
-        resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
-          },
-          body: JSON.stringify({ id_number: lookupKey, enrich: false }),
-          timeout: 12000
-        });
-        json = await resp.json();
-      }
-
       if (!resp.ok || !json.success || !json.data) {
+        console.error('[Surepass RC Text Error Response]:', JSON.stringify(json, null, 2));
         return null;
       }
 
@@ -772,7 +759,7 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
         owner: d.owner_name || '',
         swd: d.father_name || 'NA',
         address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-      ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
+        ownerSerial: String(d.owner_serial_number || d.owner_number || '01').padStart(2, '0'),
         color: normalizedColor,
         vehicleClassFull: d.vehicle_category_description || d.vehicle_class || 'Motor Car (LMV)',
         cylinders: String(d.no_cylinders || '4'),
