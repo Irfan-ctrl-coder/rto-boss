@@ -715,6 +715,8 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
       let json = await resp.json();
 
+      console.log('[DEBUG SUREPASS RC TEXT RESPONSE]:', JSON.stringify(json, null, 2));
+
       if (!resp.ok || !json.success || !json.data) {
         console.error('[Surepass RC Text Error Response]:', JSON.stringify(json, null, 2));
         return null;
