@@ -702,14 +702,14 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   }
 
   try {
-    if (docType === 'RC') {
-      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-v2`, {
+   if (docType === 'RC') {
+      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-text`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
         },
-        body: JSON.stringify({ id_number: lookupKey, enrich: true }),
+        body: JSON.stringify({ id_number: lookupKey }),
         timeout: 12000
       });
 
