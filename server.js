@@ -972,13 +972,13 @@ const newRcBackLayout = {
 };
 
 const oldDlBackLayout = {
-  dlNo: { x: 62.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 120 },
+  dlNo: { x: 92.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 130 },
   doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 62.0, yTop: 42.0, size: 6.5, font: 'bold', maxW: 150 },
-  dob: { x: 62.0, yTop: 56.5, size: 6.5, font: 'regular', maxW: 100 },
-  validUptoNT: { x: 62.0, yTop: 71.0, size: 6.5, font: 'regular', maxW: 120 },
-  swd: { x: 62.0, yTop: 120.0, size: 6.5, font: 'regular', maxW: 150 },
-  address: { x: 62.0, yTop: 132.5, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 175 },
+  name: { x: 92.0, yTop: 36.5, size: 6.5, font: 'bold', maxW: 140 },
+  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'regular', maxW: 120 },
+  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'regular', maxW: 130 },
+  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'regular', maxW: 140 },
+  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
@@ -1923,8 +1923,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      // 1. FRONT CARD (LEFT) -> RENDER CLEAN TEMPLATE WITHOUT TEXT OVERLAY
-      // Profile Photo Placement on Left Card
+      // 1. FRONT CARD (LEFT) -> RENDER CLEAN TEMPLATE (PHOTO ONLY)
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1945,7 +1944,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         } catch (photoErr) {}
       }
 
-      // 2. BACK CARD (RIGHT) -> MAP ALL DETAILS HERE
+      // 2. BACK CARD (RIGHT) -> MAP ALL TEXT, COV TABLE, & SIGNATURES HERE
       const backData = {
         dlNo: report.dlNo || '',
         doi: report.doi || '',
@@ -2000,8 +1999,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
-          const rowPitch = 12.0;
-          const rowY = 82.0 + (idx * rowPitch);
+          const rowPitch = 10.5;
+          const rowY = 70.0 + (idx * rowPitch);
 
           const covCode = String(cov.code || '').toUpperCase();
           let activeIcon = bikeIconImg;
@@ -2011,10 +2010,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           if (activeIcon) {
             try {
               page.drawImage(activeIcon, {
-                x: rightCardX + (42.0 * S),
-                y: cardY + ((CARD_HEIGHT - (rowY + 1.5)) * S),
-                width: 10.0 * S,
-                height: 5.0 * S
+                x: rightCardX + (45.0 * S),
+                y: cardY + ((CARD_HEIGHT - (rowY + 1.0)) * S),
+                width: 9.0 * S,
+                height: 4.5 * S
               });
             } catch (err) {}
           }
