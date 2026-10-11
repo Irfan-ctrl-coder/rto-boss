@@ -1926,7 +1926,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               x: rightCardX + (10* S), // Moved left
               y: cardY + ((CARD_HEIGHT - 90) * S), // Moved up from 105.0 to 98.0
               width: 36.0 * S,
-              height: 32.0 * S
+              height: 45.0 * S
             });
           }
         } catch (photoErr) {}
