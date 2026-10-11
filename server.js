@@ -12,6 +12,7 @@ const Razorpay = require('razorpay');
 const { rateLimit } = require('express-rate-limit');
 const pincodeLookup = require('india-pincode-lookup');
 
+// Mitigate libvips threadpool starvation and memory bloat on VPS
 sharp.concurrency(1);
 sharp.cache(false);
 
@@ -20,8 +21,10 @@ const scryptAsync = promisify(crypto.scrypt);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Security: Disable Express fingerprint header
 app.disable('x-powered-by');
 
+// Native Security Headers (Safe for Razorpay checkout modal & Tailwind CDN)
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -29,8 +32,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Trust reverse proxy (Nginx on VPS) for accurate IP resolution in rate limiting
 app.set('trust proxy', 1);
 
+// PostgreSQL Connection Setup
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (process.env.NODE_ENV === 'production' && !DATABASE_URL) {
@@ -49,12 +54,16 @@ pool.on('error', (err) => {
 });
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
+
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || (
   ADMIN_MASTER_SECRET
     ? crypto.createHmac('sha256', 'RTO_BOSS_STATIC_SALT').update(String(ADMIN_MASTER_SECRET).trim()).digest('hex')
     : crypto.randomBytes(32).toString('hex')
 );
 
+// =====================================================================
+// RAZORPAY PRODUCTION GATEWAY CONFIG
+// =====================================================================
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
@@ -64,6 +73,9 @@ const razorpay = new Razorpay({
   key_secret: RAZORPAY_KEY_SECRET
 });
 
+// =====================================================================
+// SUREPASS PRODUCTION API CONFIG
+// =====================================================================
 const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
@@ -72,7 +84,10 @@ async function fetchWithTimeout(resource, options = {}) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(resource, { ...rest, signal: controller.signal });
+    const response = await fetch(resource, {
+      ...rest,
+      signal: controller.signal
+    });
     clearTimeout(id);
     return response;
   } catch (error) {
@@ -85,52 +100,138 @@ const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
 const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID || '3669776c5531333237393636';
 const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '';
 
+if (process.env.NODE_ENV === 'production') {
+  if (!ADMIN_MASTER_SECRET) {
+    throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
+  }
+  if (!DATABASE_URL) {
+    throw new Error('DATABASE_URL must be configured in production.');
+  }
+  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+    throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured in production.');
+  }
+}
+
 const allowedOrigins = [
-  'https://rtoboss.in', 'https://www.rtoboss.in', 'http://rtoboss.in', 'http://www.rtoboss.in',
-  'http://localhost:3000', 'http://127.0.0.1:3000', 'http://187.126.113.210:3000', 'http://187.126.113.210'
+  'https://rtoboss.in',
+  'https://www.rtoboss.in',
+  'http://rtoboss.in',
+  'http://www.rtoboss.in',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://187.126.113.210:3000',
+  'http://187.126.113.210'
 ];
+if (process.env.FRONTEND_URL) {
+  process.env.FRONTEND_URL.split(',').forEach(u => allowedOrigins.push(u.trim()));
+}
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
     return callback(new Error('Cross-origin request blocked by security policy.'));
   },
   credentials: false
 }));
 
-app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/health', (req, res) => res.status(200).send('OK'));
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
 
 app.get('/', (req, res) => {
   const publicIndexPath = path.join(__dirname, 'public', 'index.html');
-  if (fs.existsSync(publicIndexPath)) return res.sendFile(publicIndexPath);
+  if (fs.existsSync(publicIndexPath)) {
+    return res.sendFile(publicIndexPath);
+  }
   const rootIndexPath = path.join(__dirname, 'index.html');
-  if (fs.existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
+  if (fs.existsSync(rootIndexPath)) {
+    return res.sendFile(rootIndexPath);
+  }
   return res.status(404).send('Not Found');
 });
 
 app.get('/admin', (req, res) => {
   const publicAdminPath = path.join(__dirname, 'public', 'admin.html');
-  if (fs.existsSync(publicAdminPath)) return res.sendFile(publicAdminPath);
+  if (fs.existsSync(publicAdminPath)) {
+    return res.sendFile(publicAdminPath);
+  }
   const rootAdminPath = path.join(__dirname, 'admin.html');
-  if (fs.existsSync(rootAdminPath)) return res.sendFile(rootAdminPath);
+  if (fs.existsSync(rootAdminPath)) {
+    return res.sendFile(rootAdminPath);
+  }
   return res.status(404).send('Not Found');
 });
 
-const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false });
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again in a few minutes.' }
+});
 app.use('/api/', generalLimiter);
 
-const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false });
-const orderLimiter = rateLimit({ windowMs: 1 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
-const adminLoginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false });
+const otpLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many verification code attempts from this connection. Please wait 10 minutes.' }
+});
+
+const orderLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many order requests. Please slow down.' }
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts. Please try again later.' }
+});
+
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many admin login attempts. Please try again later.' }
+});
 
 const orders = new Map();
 const otpStore = new Map();
 const customers = new Map();
+
+setInterval(async () => {
+  const now = Date.now();
+  for (const [k, v] of otpStore.entries()) {
+    if (v.expiresAt && now > v.expiresAt) otpStore.delete(k);
+  }
+  for (const [k, v] of customers.entries()) {
+    if (v.expiresAt && now > v.expiresAt) customers.delete(k);
+  }
+  try {
+    await pool.query('DELETE FROM customer_sessions WHERE expires_at < NOW()');
+  } catch (err) {}
+}, 10 * 60 * 1000);
 
 const STATE_NAMES = {
   AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
@@ -146,15 +247,22 @@ function maskEvenly(str) {
   if (!str) return '••••••••';
   const clean = String(str).trim();
   if (clean.length <= 4) return '•'.repeat(clean.length);
+  
   const chars = clean.split('');
   const masked = chars.map((char, index) => {
     if (char === ' ' || char === '-' || char === '/') return char;
-    if (index % 2 === 0 && index > 0 && index < clean.length - 1) return '•';
+    if (index % 2 === 0 && index > 0 && index < clean.length - 1) {
+      return '•';
+    }
     return char;
   });
+  
   let result = masked.join('');
   if (result.length > 6) {
-    return result.slice(0, 2) + '••••' + result.slice(-2);
+    const start = result.slice(0, 2);
+    const end = result.slice(-2);
+    const middleDots = '••••';
+    return start + middleDots + end;
   }
   return result;
 }
@@ -162,8 +270,21 @@ function maskEvenly(str) {
 function resolveVehicleTier(vClass, bodyType) {
   const c = String(vClass || '').toUpperCase();
   const b = String(bodyType || '').toUpperCase();
-  if (c.includes('2W') || c.includes('CYCLE') || c.includes('SCOOTER') || c.includes('M-CYCLE') || c.includes('MOTORCYCLE') || b.includes('SOLO')) return '2-Wheeler';
-  if (c.includes('3W') || c.includes('THREE') || c.includes('AUTO') || c.includes('RICKSHAW')) return '3-Wheeler';
+
+  if (
+    c.includes('2W') || c.includes('CYCLE') || c.includes('SCOOTER') || 
+    c.includes('M-CYCLE') || c.includes('MOTORCYCLE') || b.includes('SOLO')
+  ) {
+    return '2-Wheeler';
+  }
+
+  if (
+    c.includes('3W') || c.includes('THREE') || c.includes('AUTO') || 
+    c.includes('RICKSHAW') || c.includes('3 WHEELER')
+  ) {
+    return '3-Wheeler';
+  }
+
   return '4-Wheeler+';
 }
 
@@ -198,28 +319,71 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: ''
   },
-  'KA0320180012734': {
-    dlNo: 'KA03 20180012734',
-    doi: '06-06-2018',
-    validUptoNT: '05-06-2038',
+  'KA0120110006162': {
+    dlNo: 'KA01 20110006162',
+    doi: '10-06-2011',
+    validUptoNT: '09-06-2031',
     validUptoTR: '',
-    name: 'BASILEIA PAROUSIA M F',
-    dob: '31-05-1999',
+    name: 'MAMATHA H S',
+    dob: '17-03-1992',
     bloodGroup: '',
     organDonor: 'N',
-    swd: 'A M FRANCIS',
-    address: 'NO 2/2 1ST CROSS NEAR ASHA NURSING HOME VANNARPET VIVEKNAGAR BANGALORE NORTH,BANGALORE,KA, 560047',
-    firstIssueDate: '06-06-2018',
+    swd: 'SIDDAIAH',
+    address: '# 197, CAR, POLICE QTRS, BANGALORE - 560018',
+    firstIssueDate: '10-06-2011',
     adpVehNo: '',
     hazardousValidity: '',
     hillValidity: '',
     profileImage: '',
     covList: [
-      { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA03', doi: '06-06-2018', category: 'NT' },
-      { covType: 'CAR', code: 'LMV', issuedBy: 'KA03', doi: '06-06-2018', category: 'NT' }
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA01', doi: '10-06-2011', category: 'NT' },
+      { covType: 'BIKE', code: 'MCWOG', issuedBy: 'KA01', doi: '10-06-2011', category: 'NT' }
     ],
     mobileNo: '',
-    rtoAuthority: 'RTO BANGALORE (EAST), KASTURINAGAR'
+    rtoAuthority: 'RTO BANGALORE (CENTRAL), HSR LAYOUT'
+  },
+  'KA1320170004921': {
+    dlNo: 'KA13 20170004921',
+    doi: '05-05-2017',
+    validUptoNT: '04-05-2037',
+    validUptoTR: '',
+    name: 'HARISHAKUMARA C',
+    dob: '24-04-1993',
+    bloodGroup: '',
+    organDonor: 'N',
+    swd: 'DHARMEGOWDA',
+    address: '#1 KOLAR ROAD, VIJAYAPURA, Bangalore Rural, KA - 562135',
+    firstIssueDate: '18-05-2013',
+    adpVehNo: '',
+    hazardousValidity: '',
+    hillValidity: '',
+    covList: [
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA51', doi: '18-05-2013', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
+    ],
+    mobileNo: '',
+    rtoAuthority: 'RTO, HASSAN'
+  },
+  'KA1120140002551': {
+    dlNo: 'KA11 20140002551',
+    doi: '23-08-2022',
+    validUptoNT: '08-06-2035',
+    validUptoTR: '',
+    name: 'PAVAN KUMAR K',
+    dob: '09-06-1995',
+    bloodGroup: 'B+VE',
+    organDonor: 'N',
+    swd: 'KALASAIAH',
+    address: 'Javarayyana Beedi Kurupete Kanakapura, Ramanagar, KA - 562117',
+    firstIssueDate: '12-04-2014',
+    adpVehNo: '',
+    hazardousValidity: '',
+    hillValidity: '',
+    covList: [
+      { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA11', doi: '12-04-2014', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' },
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA42', doi: '23-08-2022', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
+    ],
+    mobileNo: '',
+    rtoAuthority: 'RAMANAGARA-(KA42)'
   }
 };
 
@@ -797,10 +961,10 @@ const oldDlBackLayout = {
   dlNo: { x: 92.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 130 },
   doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
   name: { x: 92.0, yTop: 36.5, size: 6.5, font: 'bold', maxW: 140 },
-  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'bold', maxW: 120 },
-  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'bold', maxW: 130 },
-  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
-  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'regular', maxW: 120 },
+  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'regular', maxW: 130 },
+  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'regular', maxW: 140 },
+  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
@@ -837,15 +1001,26 @@ app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
 
     const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
       method: 'POST',
-      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, identifier: `91${cleanMobile}` }),
+      headers: {
+        'authkey': MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        widgetId: MSG91_WIDGET_ID,
+        tokenAuth: MSG91_TOKEN_AUTH,
+        identifier: `91${cleanMobile}`
+      }),
       timeout: 10000
     });
 
     const data = await response.json();
 
     if (data.type === 'success' || data.message === 'OTP sent successfully' || data.reqId) {
-      otpStore.set(cleanMobile, { reqId: data.reqId || data.message, attempts: 0, expiresAt: Date.now() + 10 * 60 * 1000 });
+      otpStore.set(cleanMobile, {
+        reqId: data.reqId || data.message,
+        attempts: 0,
+        expiresAt: Date.now() + 10 * 60 * 1000
+      });
       return res.json({ success: true, message: 'Verification code sent via SMS.', mobile: cleanMobile });
     }
 
@@ -860,21 +1035,43 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
   const enteredOtp = String(otp || '').trim();
 
-  if (cleanMobile.length !== 10) return res.status(400).json({ error: 'Invalid mobile number.' });
+  if (cleanMobile.length !== 10) {
+    return res.status(400).json({ error: 'Invalid mobile number.' });
+  }
 
   const record = otpStore.get(cleanMobile);
-  if (!record || !record.reqId) return res.status(400).json({ error: 'No OTP session found for this number.' });
+  if (!record || !record.reqId) {
+    return res.status(400).json({ error: 'No OTP session found for this number. Please request a new code.' });
+  }
 
   if (!record.expiresAt || Date.now() > record.expiresAt) {
     otpStore.delete(cleanMobile);
-    return res.status(400).json({ error: 'OTP session has expired.' });
+    return res.status(400).json({ error: 'OTP session has expired. Please request a new code.' });
+  }
+
+  record.attempts = Number(record.attempts || 0) + 1;
+  if (record.attempts > 5) {
+    otpStore.delete(cleanMobile);
+    return res.status(429).json({ error: 'Too many OTP attempts. Please request a new code.' });
   }
 
   try {
+    if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
+      return res.status(503).json({ error: 'SMS verification service is not configured.' });
+    }
+
     const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
       method: 'POST',
-      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, reqId: record.reqId, otp: enteredOtp }),
+      headers: {
+        'authkey': MSG91_AUTH_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        widgetId: MSG91_WIDGET_ID,
+        tokenAuth: MSG91_TOKEN_AUTH,
+        reqId: record.reqId,
+        otp: enteredOtp
+      }),
       timeout: 10000
     });
 
@@ -886,10 +1083,18 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
       const customerId = 'CUST_' + cleanMobile;
       const expiresAtDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-      customers.set(customerId, { customerId, mobile: cleanMobile, sessionToken: token, verifiedAt: new Date(), expiresAt: expiresAtDate.getTime() });
+      customers.set(customerId, {
+        customerId,
+        mobile: cleanMobile,
+        sessionToken: token,
+        verifiedAt: new Date(),
+        expiresAt: expiresAtDate.getTime()
+      });
 
       pool.query(
-        `INSERT INTO customer_sessions (token, mobile, expires_at) VALUES ($1, $2, $3) ON CONFLICT (token) DO NOTHING`,
+        `INSERT INTO customer_sessions (token, mobile, expires_at)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (token) DO NOTHING`,
         [token, cleanMobile, expiresAtDate]
       ).catch(() => {});
 
@@ -902,24 +1107,172 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
   }
 });
 
+app.post('/api/agent/register', async (req, res) => {
+  try {
+    const { name, mobile, email, password, address } = req.body;
+    if (!name || !mobile || !email || !password || !address) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    }
+
+    const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
+    if (checkRes.rows.length > 0) {
+      return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
+    }
+
+    const agentId = 'AGT_' + Date.now();
+    const passwordHash = await hashPassword(password);
+
+    await pool.query(
+      `INSERT INTO agents (agent_id, name, mobile, email, password, address, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_PAYMENT', NOW(), NOW())`,
+      [agentId, name, mobile, email, passwordHash, address]
+    );
+
+    res.json({ success: true, agentId, amount: 399, paymentProvider: 'RAZORPAY' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to process registration' });
+  }
+});
+
+app.post('/api/agent/login', loginLimiter, async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Mobile/email and password are required.' });
+    }
+
+    const dbRes = await pool.query(
+      'SELECT * FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1',
+      [identifier]
+    );
+
+    if (dbRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+    }
+
+    const agent = dbRes.rows[0];
+    const passwordResult = await verifyPassword(password, agent.password);
+
+    if (!passwordResult.valid) {
+      return res.status(401).json({ error: 'Invalid mobile/email or password' });
+    }
+
+    if (agent.status !== 'ACTIVE') {
+      return res.status(403).json({ error: 'Onboarding fee pending', status: agent.status, agentId: agent.agent_id });
+    }
+
+    const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
+    await pool.query('UPDATE agents SET session_token = $1, updated_at = NOW() WHERE agent_id = $2', [token, agent.agent_id]);
+
+    res.json({
+      success: true,
+      token,
+      agent: { name: agent.name, mobile: agent.mobile, email: agent.email }
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Login query failed' });
+  }
+});
+
+app.post('/api/agent/forgot-password/send', otpLimiter, async (req, res) => {
+  const { identifier } = req.body;
+  const cleanId = String(identifier || '').trim();
+  try {
+    const dbRes = await pool.query('SELECT mobile FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1', [cleanId]);
+    if (dbRes.rows.length === 0) return res.status(404).json({ error: 'Agent account not found.' });
+
+    const mobile = dbRes.rows[0].mobile;
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
+      method: 'POST',
+      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, identifier: `91${mobile}` })
+    });
+    const data = await response.json();
+    if (data.type === 'success' || data.reqId) {
+      otpStore.set('FORGOT_' + mobile, { reqId: data.reqId || data.message, mobile, expiresAt: Date.now() + 600000 });
+      return res.json({ success: true, mobile: mobile.slice(-4) });
+    }
+    return res.status(400).json({ error: 'Failed to send recovery OTP.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Recovery service unavailable.' });
+  }
+});
+
+app.post('/api/agent/forgot-password/reset', otpLimiter, async (req, res) => {
+  const { identifier, otp, newPassword } = req.body;
+  const cleanId = String(identifier || '').trim();
+  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+
+  try {
+    const dbRes = await pool.query('SELECT mobile FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1', [cleanId]);
+    if (dbRes.rows.length === 0) return res.status(404).json({ error: 'Agent not found.' });
+
+    const mobile = dbRes.rows[0].mobile;
+    const record = otpStore.get('FORGOT_' + mobile);
+    if (!record) return res.status(400).json({ error: 'OTP session expired. Request a new code.' });
+
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
+      method: 'POST',
+      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, reqId: record.reqId, otp: String(otp).trim() })
+    });
+    const data = await response.json();
+
+    if (data.type === 'success' || data['access-token']) {
+      otpStore.delete('FORGOT_' + mobile);
+      const newHash = await hashPassword(newPassword);
+      await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE mobile = $2', [newHash, mobile]);
+      return res.json({ success: true, message: 'Password reset successfully.' });
+    }
+    return res.status(400).json({ error: 'Invalid verification code.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Password reset failed.' });
+  }
+});
+
 app.post('/api/rc-preview', orderLimiter, async (req, res) => {
   try {
     const { regNo } = req.body;
     const authHeader = req.headers['authorization'] || '';
     const authContext = await resolveAuthContext(authHeader);
 
-    if (authContext.role === 'PUBLIC') return res.status(401).json({ error: 'Please verify your mobile number.' });
+    if (authContext.role === 'PUBLIC') {
+      return res.status(401).json({ error: 'Please verify your mobile number to look up records.' });
+    }
+
+    if (!regNo || regNo.length < 5) {
+      return res.status(400).json({ error: 'Enter a valid registration number.' });
+    }
 
     const report = await getVehicleOrDlRecord('RC', regNo);
-    if (!report) return res.status(404).json({ error: 'Vehicle details could not be found.' });
+    if (!report) {
+      return res.status(404).json({ error: 'Vehicle details could not be found. Check the registration number.' });
+    }
 
     const detectedTier = resolveVehicleTier(report.vehicleClassFull, report.bodyType);
-    let amount = detectedTier === '3-Wheeler' ? 180 : detectedTier === '4-Wheeler+' ? 200 : 150;
+
+    let amount = 150;
+    if (authContext.role === 'ADMIN') {
+      amount = 0;
+    } else if (authContext.role === 'AGENT') {
+      if (detectedTier === '3-Wheeler') amount = 120;
+      else if (detectedTier === '4-Wheeler+') amount = 150;
+      else amount = 80;
+    } else {
+      if (detectedTier === '3-Wheeler') amount = 180;
+      else if (detectedTier === '4-Wheeler+') amount = 200;
+      else amount = 150;
+    }
+
+    const brandName = [report.maker, report.model].filter(Boolean).join(' — ') || 'AUTOMOBILE';
 
     return res.json({
       success: true,
       regNo: report.regNo,
-      brandName: [report.maker, report.model].filter(Boolean).join(' — ') || 'AUTOMOBILE',
+      brandName,
       ownerMasked: maskEvenly(report.owner),
       chassisMasked: maskEvenly(report.chassisNo),
       engineMasked: maskEvenly(report.engineNo),
@@ -928,42 +1281,535 @@ app.post('/api/rc-preview', orderLimiter, async (req, res) => {
       isKA: (report.regNo || '').substring(0, 2).toUpperCase() === 'KA'
     });
   } catch (err) {
-    res.status(500).json({ error: 'Preview error' });
+    return res.status(500).json({ error: 'Failed to preview vehicle record: ' + err.message });
   }
+});
+
+app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
+  const secretKey = String(req.body.secretKey || '').trim();
+  const masterSecret = String(ADMIN_MASTER_SECRET || '').trim();
+
+  if (masterSecret && secretKey && safeEqual(secretKey, masterSecret)) {
+    return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
+  }
+  return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
+});
+
+app.get('/api/admin/stats', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  try {
+    const statsRes = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total_downloads,
+        COUNT(CASE WHEN doc_type = 'RC' THEN 1 END)::int AS rc_count,
+        COUNT(CASE WHEN doc_type = 'DL' THEN 1 END)::int AS dl_count,
+        COALESCE(SUM(amount), 0)::numeric AS total_revenue
+      FROM orders
+      WHERE status = 'SUCCESS';
+    `);
+
+    const agentStatsRes = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total_agents,
+        COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END)::int AS active_agents,
+        COUNT(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 END)::int AS pending_agents
+      FROM agents;
+    `);
+
+    res.json({
+      success: true,
+      summary: statsRes.rows[0],
+      agents: agentStatsRes.rows[0]
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+app.get('/api/admin/orders', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  try {
+    const result = await pool.query(`
+      SELECT order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at
+      FROM orders
+      ORDER BY created_at DESC
+      LIMIT 100;
+    `);
+    res.json({ success: true, orders: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch order history' });
+  }
+});
+
+app.get('/api/admin/agents', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT agent_id, name, mobile, email, address, status, created_at FROM agents ORDER BY created_at DESC'
+    );
+    res.json({ success: true, agents: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch agents' });
+  }
+});
+
+app.post('/api/admin/update-agent-status', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  const { agentId, status } = req.body;
+  const allowedStatuses = ['PENDING_PAYMENT', 'PENDING_APPROVAL', 'ACTIVE', 'REJECTED'];
+  if (!allowedStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid agent status.' });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE agents SET status = $1, updated_at = NOW() WHERE agent_id = $2 RETURNING *',
+      [status, agentId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+
+    res.json({ success: true, agent: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Database update failed' });
+  }
+});
+
+app.post('/api/admin/direct-download', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  try {
+    const { docType, targetNumber, dob, rcFormat } = req.body;
+    if (!targetNumber) {
+      return res.status(400).json({ error: 'Target reference number is required' });
+    }
+
+    const report = await getVehicleOrDlRecord(docType, targetNumber, dob);
+    if (!report) {
+      return res.status(404).json({ error: 'Record not found in live databases.' });
+    }
+
+    const adminOrderId = 'ADM_' + Date.now();
+    pool.query(
+      `INSERT INTO orders
+        (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
+       VALUES
+        ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW(), 'ADMIN', 'ADMIN', NULL, $4, $5)`,
+      [adminOrderId, docType, targetNumber, normalizeDob(dob), rcFormat || 'OLD']
+    ).catch(() => {});
+
+    const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
+    const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
+  }
+});
+
+app.post('/api/admin/clear-data', (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
+    return res.status(403).json({ error: 'Unauthorized admin access' });
+  }
+
+  const now = Date.now();
+  for (const [k, v] of otpStore.entries()) {
+    if (v.expiresAt && now > v.expiresAt) otpStore.delete(k);
+  }
+  for (const [k, v] of customers.entries()) {
+    if (v.expiresAt && now > v.expiresAt) customers.delete(k);
+  }
+  pool.query('DELETE FROM customer_sessions WHERE expires_at < NOW()').catch(() => {});
+
+  res.json({ success: true, message: 'Expired sessions cleaned successfully.' });
 });
 
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
-    const { docType, targetNumber, tier, dob, rcFormat, customerMobile } = req.body;
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName, devBypass } = req.body;
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+    const role = authContext.role;
+
+    let finalAmount = 150;
+    if (docType === 'AGENT_ONBOARDING') {
+      finalAmount = 399;
+    } else if (role === 'ADMIN') {
+      finalAmount = 0;
+    } else if (role === 'AGENT') {
+      if (docType === 'DL') finalAmount = 80;
+      else if (tier === '3-Wheeler') finalAmount = 120;
+      else if (tier === '4-Wheeler+') finalAmount = 150;
+      else finalAmount = 80;
+    } else {
+      if (docType === 'DL') finalAmount = 150;
+      else if (tier === '3-Wheeler') finalAmount = 180;
+      else if (tier === '4-Wheeler+') finalAmount = 200;
+      else finalAmount = 150;
+    }
+
     const localOrderId = 'ORD_' + Date.now();
-    const finalAmount = docType === 'DL' ? 150 : 150;
+    
+    if (devBypass && docType === 'AGENT_ONBOARDING') {
+      const bypassOrderId = 'BYPASS_' + Date.now();
+      orders.set(bypassOrderId, {
+        orderId: bypassOrderId,
+        docType,
+        targetNumber,
+        amount: finalAmount,
+        status: 'SUCCESS'
+      });
+      
+      await pool.query(
+        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
+        [targetNumber]
+      );
+
+      return res.json({
+        success: true,
+        bypassed: true,
+        orderId: bypassOrderId,
+        amount: finalAmount
+      });
+    }
 
     let rzpOrderId = null;
-    if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
-      const rzpOrder = await razorpay.orders.create({ amount: Math.round(finalAmount * 100), currency: 'INR', receipt: localOrderId });
+
+    if (role !== 'ADMIN' && finalAmount > 0) {
+      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        return res.status(500).json({ error: 'Razorpay keys not configured on server.' });
+      }
+
+      const options = {
+        amount: Math.round(finalAmount * 100),
+        currency: 'INR',
+        receipt: localOrderId,
+        notes: { docType: docType || 'RC', targetNumber: targetNumber || '', role }
+      };
+
+      const rzpOrder = await razorpay.orders.create(options);
       rzpOrderId = rzpOrder.id;
     }
 
     const effectiveOrderId = rzpOrderId || localOrderId;
-    orders.set(effectiveOrderId, { orderId: effectiveOrderId, docType, targetNumber, amount: finalAmount, dob, rcFormat: rcFormat || 'OLD', status: 'SUCCESS' });
+    const initialStatus = role === 'ADMIN' ? 'SUCCESS' : 'PENDING';
 
-    res.json({ success: true, orderId: effectiveOrderId, amount: finalAmount, amountPaise: Math.round(finalAmount * 100), keyId: RAZORPAY_KEY_ID });
+    let ownerId = authContext.mobile || authContext.agentId || customerMobile || 'ADMIN';
+
+    const orderData = {
+      orderId: effectiveOrderId,
+      rzpOrderId,
+      localOrderId,
+      docType,
+      targetNumber,
+      tier,
+      amount: finalAmount,
+      role,
+      ownerId,
+      dob: normalizeDob(dob),
+      rcFormat: rcFormat || 'OLD',
+      status: initialStatus,
+      currency: 'INR'
+    };
+
+    orders.set(effectiveOrderId, orderData);
+
+    await pool.query(
+      `INSERT INTO orders
+        (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11)
+       ON CONFLICT (order_id) DO NOTHING`,
+      [effectiveOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, ownerId, role, rzpOrderId, normalizeDob(dob), rcFormat || 'OLD']
+    );
+
+    res.json({
+      success: true,
+      orderId: effectiveOrderId,
+      amount: finalAmount,
+      amountPaise: Math.round(finalAmount * 100),
+      currency: 'INR',
+      keyId: RAZORPAY_KEY_ID,
+      role
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Order creation failed' });
+    res.status(500).json({ error: 'Failed to create payment order: ' + err.message });
   }
 });
 
 app.post('/api/verify-payment', async (req, res) => {
   try {
-    const { orderId } = req.body;
-    const order = orders.get(orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    await ordersSecuritySchemaReady;
+    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const lookupId = razorpay_order_id || orderId;
+
+    if (!lookupId) {
+      return res.status(400).json({ error: 'Order ID is required.' });
+    }
+
+    let order = orders.get(lookupId);
+
+    if (!order) {
+      try {
+        const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1', [lookupId]);
+        if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
+          const row = dbOrderRes.rows[0];
+          order = {
+            orderId: row.order_id,
+            rzpOrderId: row.rzp_order_id || row.order_id,
+            docType: row.doc_type,
+            targetNumber: row.lookup_key,
+            amount: Number(row.amount),
+            role: row.owner_role || 'PUBLIC',
+            ownerId: row.owner_id || null,
+            dob: row.dob || '',
+            rcFormat: row.rc_format || 'OLD',
+            status: row.status,
+            currency: 'INR',
+            paidAt: row.paid_at,
+            paymentId: row.utr
+          };
+          orders.set(lookupId, order);
+        }
+      } catch (pgOrderErr) {}
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
+    if (order.role === 'ADMIN' && authContext.role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized order access.' });
+    }
+
+    if (order.role === 'ADMIN') {
+      order.status = 'SUCCESS';
+      order.paidAt = order.paidAt || new Date();
+      order.paymentId = order.paymentId || ('RZP_ADM_' + crypto.randomBytes(6).toString('hex'));
+
+      pool.query(
+        'UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4',
+        ['SUCCESS', order.paidAt, order.paymentId, lookupId]
+      ).catch(() => {});
+    } else {
+      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        if (order.status !== 'SUCCESS') {
+          return res.json({
+            status: 'PENDING',
+            orderId: order.orderId,
+            message: 'Awaiting payment verification.'
+          });
+        }
+      } else {
+        const expectedRzpOrderId = order.rzpOrderId || order.orderId;
+        if (!safeEqual(razorpay_order_id, expectedRzpOrderId)) {
+          return res.status(400).json({ error: 'Razorpay order does not match this order.' });
+        }
+
+        const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
+        const generatedSig = crypto
+          .createHmac('sha256', RAZORPAY_KEY_SECRET)
+          .update(textToSign)
+          .digest('hex');
+
+        if (!safeEqual(generatedSig, razorpay_signature)) {
+          return res.status(400).json({ error: 'Payment signature verification failed.' });
+        }
+
+        let payment;
+        try {
+          payment = await razorpay.payments.fetch(razorpay_payment_id);
+        } catch (gatewayErr) {
+          return res.status(502).json({ error: 'Unable to verify payment with Razorpay.' });
+        }
+
+        if (!payment || payment.id !== razorpay_payment_id) {
+          return res.status(400).json({ error: 'Invalid Razorpay payment.' });
+        }
+
+        const expectedAmountPaise = Math.round(Number(order.amount) * 100);
+        if (Number(payment.amount) !== expectedAmountPaise) {
+          return res.status(400).json({ error: 'Paid amount does not match the order.' });
+        }
+
+        if (authContext.mobile && !order.ownerId) {
+          order.ownerId = authContext.mobile;
+        }
+
+        order.status = 'SUCCESS';
+        order.paidAt = new Date();
+        order.paymentId = razorpay_payment_id;
+
+        pool.query(
+          'UPDATE orders SET status = $1, paid_at = $2, utr = $3, owner_id = COALESCE(owner_id, $4) WHERE order_id = $5',
+          ['SUCCESS', order.paidAt, order.paymentId, order.ownerId, lookupId]
+        ).catch(() => {});
+      }
+    }
+
+    if (order.status !== 'SUCCESS') {
+      return res.json({
+        status: 'PENDING',
+        orderId: order.orderId,
+        message: 'Awaiting payment verification.'
+      });
+    }
+
+    if (order.docType === 'AGENT_ONBOARDING') {
+      await pool.query(
+        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
+        [order.targetNumber]
+      );
+      return res.json({
+        status: 'SUCCESS',
+        orderId: order.orderId,
+        docType: order.docType,
+        message: 'Agent fee verified successfully and account activated.'
+      });
+    }
 
     const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-    res.json({ status: 'SUCCESS', orderId: order.orderId, docType: order.docType, rcFormat: order.rcFormat || 'OLD', report });
+
+    if (!report) {
+      pool.query('UPDATE orders SET status = $1 WHERE order_id = $2', ['FETCH_FAILED', lookupId]).catch(() => {});
+      return res.json({
+        status: 'FETCH_FAILED',
+        orderId: order.orderId,
+        amount: order.amount,
+        message: 'Payment received. Server is busy; document can be downloaded from history shortly.'
+      });
+    }
+
+    res.json({
+      status: 'SUCCESS',
+      orderId: order.orderId,
+      docType: order.docType,
+      rcFormat: order.rcFormat || 'OLD',
+      amount: order.amount,
+      currency: order.currency || 'INR',
+      role: order.role,
+      paymentId: order.paymentId,
+      report
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Verification failed' });
+    res.status(500).json({ error: 'Payment verification failed.' });
+  }
+});
+
+app.post('/api/bank-webhook', async (req, res) => {
+  try {
+    await ordersSecuritySchemaReady;
+
+    if (!RAZORPAY_WEBHOOK_SECRET) {
+      return res.status(503).send('Webhook secret not configured');
+    }
+
+    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
+    const signature = req.headers['x-razorpay-signature'] || '';
+
+    if (!signature) {
+      return res.status(401).send('Missing webhook signature');
+    }
+
+    const expectedSig = crypto
+      .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
+      .update(rawBody)
+      .digest('hex');
+
+    if (!safeEqual(expectedSig, signature)) {
+      return res.status(401).send('Bad webhook signature');
+    }
+
+    const payload = req.body || {};
+    const event = payload.event;
+
+    if (event === 'payment.captured' || event === 'order.paid') {
+      const paymentEntity = payload.payload?.payment?.entity || null;
+      const orderEntity = payload.payload?.order?.entity || null;
+      const rzpOrderId = paymentEntity?.order_id || orderEntity?.id || null;
+      const paymentId = paymentEntity?.id || null;
+
+      if (!rzpOrderId) return res.status(200).json({ status: 'ignored' });
+
+      let o = orders.get(rzpOrderId);
+
+      if (!o) {
+        try {
+          const dbRes = await pool.query(
+            'SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1 LIMIT 1',
+            [rzpOrderId]
+          );
+          if (dbRes.rows.length > 0) {
+            const row = dbRes.rows[0];
+            o = {
+              orderId: row.order_id,
+              rzpOrderId: row.rzp_order_id || row.order_id,
+              docType: row.doc_type,
+              targetNumber: row.lookup_key,
+              amount: Number(row.amount),
+              role: row.owner_role || 'PUBLIC',
+              ownerId: row.owner_id || null,
+              dob: row.dob || '',
+              rcFormat: row.rc_format || 'OLD',
+              status: row.status,
+              currency: 'INR',
+              paidAt: row.paid_at,
+              paymentId: row.utr
+            };
+            orders.set(o.orderId, o);
+          }
+        } catch (dbErr) {}
+      }
+
+      if (o) {
+        o.status = 'SUCCESS';
+        o.paidAt = new Date();
+        if (paymentId) o.paymentId = paymentId;
+
+        pool.query(
+          'UPDATE orders SET status = $1, paid_at = NOW(), utr = COALESCE($2, utr) WHERE order_id = $3 OR rzp_order_id = $3',
+          ['SUCCESS', paymentId, o.orderId]
+        ).catch(() => {});
+
+        if (o.docType === 'AGENT_ONBOARDING') {
+          pool.query(
+            "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
+            [o.targetNumber]
+          ).catch(() => {});
+        }
+      }
+    }
+
+    return res.status(200).json({ status: 'ok' });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -988,19 +1834,30 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const leftCardX = startX;
   const rightCardX = startX + cardW + gap;
   const cardY = startY;
+
+  // Pure solid black color for dark, sharp font rendering
   const solidBlack = rgb(0, 0, 0);
 
   function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
     const clean = String(addr).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (clean.length <= maxChars) return [clean];
+
     const words = clean.split(' ');
     const lines = [];
     let currentLine = '';
-    for (let word of words) {
-      if (!currentLine) currentLine = word;
-      else if ((currentLine + ' ' + word).length <= maxChars) currentLine += ' ' + word;
-      else { lines.push(currentLine); currentLine = word; }
+
+    for (let i = 0; i < words.length; i++) {
+      let word = words[i];
+      if (word.length > maxChars) word = word.substring(0, maxChars);
+      if (!currentLine) {
+        currentLine = word;
+      } else if ((currentLine + ' ' + word).length <= maxChars) {
+        currentLine += ' ' + word;
+      } else {
+        lines.push(currentLine);
+        currentLine = word;
+      }
     }
     if (currentLine) lines.push(currentLine);
     return lines;
@@ -1010,110 +1867,774 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     let size = initialSize;
     const str = String(text || '').trim();
     for (let i = 0; i < 12; i++) {
-      if (size <= minSize || targetFont.widthOfTextAtSize(str, size) <= maxWidth) break;
+      if (size <= minSize) break;
+      if (targetFont.widthOfTextAtSize(str, size) <= maxWidth) break;
       size -= 0.25;
     }
     return Math.max(size, minSize);
   }
 
-  const roundedMask = Buffer.from(`<svg width="1040" height="655"><rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/></svg>`);
+  const roundedMask = Buffer.from(`
+    <svg width="1040" height="655">
+      <rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/>
+    </svg>
+  `);
 
-  if (docType === 'DL' && rcFormat === 'OLD') {
-    const frontPath = getTemplatePath(['old_dl_front.png', 'dl_front.png']);
+  if (docType === 'DL') {
+    const isOldDl = (rcFormat === 'OLD');
+
+    const frontCandidates = isOldDl ? ['old_dl_front.png', 'dl_front.png'] : ['dl_front.png', 'Website Template Final (13).png'];
+    const backCandidates = isOldDl ? ['old_dl_back.png', 'dl_back.png'] : ['dl_back.png', 'Website Template Final (14).png'];
+
+    const frontPath = getTemplatePath(frontCandidates);
     if (frontPath) {
-      const maskedFrontPng = await sharp(frontPath).resize(1040, 655).composite([{ input: roundedMask, blend: 'dest-in' }]).png().toBuffer();
-      page.drawImage(await pdfDoc.embedPng(maskedFrontPng), { x: leftCardX, y: cardY, width: cardW, height: cardH });
+      const maskedFrontPng = await sharp(frontPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const frontImg = await pdfDoc.embedPng(maskedFrontPng);
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    const backPath = getTemplatePath(['old_dl_back.png', 'dl_back.png']);
+    const backPath = getTemplatePath(backCandidates);
     if (backPath) {
-      const maskedBackPng = await sharp(backPath).resize(1040, 655).composite([{ input: roundedMask, blend: 'dest-in' }]).png().toBuffer();
-      page.drawImage(await pdfDoc.embedPng(maskedBackPng), { x: rightCardX, y: cardY, width: cardW, height: cardH });
+      const maskedBackPng = await sharp(backPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const backImg = await pdfDoc.embedPng(maskedBackPng);
+      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
-      try {
-        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
-        const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-        if (rawPhotoBuffer.length > 200) {
-          const photoPng = await sharp(rawPhotoBuffer, { failOnError: false }).resize(150, 180, { fit: 'cover' }).png().toBuffer();
-          const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-          page.drawImage(embeddedPhoto, {
-            x: rightCardX + (36.0 * S),
-            y: cardY + ((CARD_HEIGHT - 110.0) * S),
-            width: 32.5 * S,
-            height: 38.0 * S
+    if (isOldDl) {
+      // 1. FRONT CARD (LEFT) -> CLEAN TEMPLATE ONLY (NO TEXT OR PHOTO OVERLAID)
+
+      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE IN SOLID BLACK
+      if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
+        try {
+          const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
+          const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
+          if (rawPhotoBuffer.length > 200) {
+            const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
+              .resize(150, 180, { fit: 'cover' })
+              .png()
+              .toBuffer();
+            const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+            page.drawImage(embeddedPhoto, {
+              x: rightCardX + (36.0 * S),
+              y: cardY + ((CARD_HEIGHT - 110.0) * S),
+              width: 32.5 * S,
+              height: 38.0 * S
+            });
+          }
+        } catch (photoErr) {}
+      }
+
+      const backData = {
+        dlNo: report.dlNo || '',
+        doi: report.doi || '',
+        name: report.name || '',
+        dob: report.dob || '',
+        validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
+        swd: report.swd || 'NA',
+        address: report.address || ''
+      };
+
+      Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
+        if (key === 'rtoAuthority') return;
+        const val = backData[key] || '';
+        if (!val) return;
+        const font = cfg.font === 'bold' ? fontBold : fontRegular;
+        const baselineY = CARD_HEIGHT - cfg.yTop;
+
+        if (cfg.multiLine) {
+          const lines = splitAddress(val, 38);
+          lines.slice(0, cfg.maxLines).forEach((line, idx) => {
+            page.drawText(String(line).trim(), {
+              x: rightCardX + (cfg.x * S),
+              y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
+              size: cfg.size * S,
+              font,
+              color: solidBlack
+            });
+          });
+        } else {
+          const textVal = String(val).trim();
+          const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
+          page.drawText(textVal, {
+            x: rightCardX + (cfg.x * S),
+            y: cardY + (baselineY * S),
+            size: fontSize,
+            font,
+            color: solidBlack
           });
         }
-      } catch (err) {}
+      });
+
+      // COV Table (No icons needed for old template format)
+      if (report.covList && Array.isArray(report.covList)) {
+        for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
+          const cov = report.covList[idx];
+          const rowPitch = 10.5;
+          const rowY = 70.0 + (idx * rowPitch);
+
+          const codeVal = String(cov.code || '').trim();
+          page.drawText(codeVal, {
+            x: rightCardX + (62.0 * S),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 6.0 * S,
+            font: fontBold,
+            color: solidBlack
+          });
+
+          const issuedVal = String(cov.issuedBy || '').trim();
+          page.drawText(issuedVal, {
+            x: rightCardX + (95.0 * S),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 6.0 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const doiVal = String(cov.doi || '').trim();
+          page.drawText(doiVal, {
+            x: rightCardX + (128.0 * S),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 6.0 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const catVal = String(cov.category || 'NT').trim();
+          page.drawText(catVal, {
+            x: rightCardX + (178.0 * S),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 6.0 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+        }
+      }
+
+      const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
+      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+      page.drawText(rtoVal, {
+        x: rightCardX + ((236.0 * S) - rtoWidth),
+        y: cardY + ((CARD_HEIGHT - 143.0) * S),
+        size: 5.5 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+    } else {
+      const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
+      const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
+
+      const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
+      const dlSubTitleSize = getFittedSize(dlSubTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
+      const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
+
+      page.drawText(dlSubTitleText, {
+        x: leftCardX + Math.max(0, (cardW - dlSubTitleWidth) / 2),
+        y: cardY + ((CARD_HEIGHT - 21.0) * S),
+        size: dlSubTitleSize,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      const dlBadgeText = dlStateCode;
+      const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.0 * S);
+      page.drawText(dlBadgeText, {
+        x: leftCardX + (230.0 * S) - (dlBadgeW / 2),
+        y: cardY + ((CARD_HEIGHT - 12.3) * S),
+        size: 5.0 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
+        try {
+          const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
+          const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
+          if (rawPhotoBuffer.length > 200) {
+            const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
+              .resize(150, 180, { fit: 'cover' })
+              .png()
+              .toBuffer();
+
+            const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+            page.drawImage(embeddedPhoto, {
+              x: leftCardX + (193.5 * S),
+              y: cardY + ((CARD_HEIGHT - 72.0) * S),
+              width: 33.0 * S,
+              height: 39.0 * S
+            });
+          }
+        } catch (photoErr) {}
+      }
+
+      try {
+        const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
+        if (sigPngBuffer) {
+          const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
+          page.drawImage(embeddedSig, {
+            x: leftCardX + (191.0 * S),
+            y: cardY + ((CARD_HEIGHT - 76.2) * S),
+            width: 35.0 * S,
+            height: 7.2 * S
+          });
+        }
+      } catch (sigErr) {}
+
+      const cleanDlNo = String(report.dlNo || '').trim();
+      page.drawText(cleanDlNo, {
+        x: leftCardX + (89.0 * S),
+        y: cardY + ((CARD_HEIGHT - 35.5) * S),
+        size: 8.5 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.doi || '').trim(), {
+        x: leftCardX + (57.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.validUptoNT || '').trim(), {
+        x: leftCardX + (101.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      if (report.validUptoTR) {
+        page.drawText(String(report.validUptoTR).trim(), {
+          x: leftCardX + (152.0 * S),
+          y: cardY + ((CARD_HEIGHT - 59.5) * S),
+          size: 6.5 * S,
+          font: fontRegular,
+          color: solidBlack
+        });
+      }
+
+      page.drawText(String(report.name || '').trim(), {
+        x: leftCardX + (28.0 * S),
+        y: cardY + ((CARD_HEIGHT - 92.0) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.dob || '').trim(), {
+        x: leftCardX + (47.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.bloodGroup || '').trim(), {
+        x: leftCardX + (148.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.organDonor || 'N').trim(), {
+        x: leftCardX + (222.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.swd || 'NA').trim(), {
+        x: leftCardX + (79.0 * S),
+        y: cardY + ((CARD_HEIGHT - 122.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      const dlAddrLines = splitAddress(report.address || '', 38);
+      dlAddrLines.slice(0, 3).forEach((line, idx) => {
+        page.drawText(String(line).trim(), {
+          x: leftCardX + (35.0 * S),
+          y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
+          size: 5.5 * S,
+          font: fontRegular,
+          color: solidBlack
+        });
+      });
+
+      page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
+        x: leftCardX + (238.5 * S),
+        y: cardY + (72.0 * S),
+        size: 5.0 * S,
+        font: fontRegular,
+        color: solidBlack,
+        rotate: degrees(90)
+      });
+
+      page.drawText(cleanDlNo, {
+        x: rightCardX + (32.0 * S),
+        y: cardY + ((CARD_HEIGHT - 9.0) * S),
+        size: 7.0 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      if (report.covList && Array.isArray(report.covList)) {
+        let carIconImg = null;
+        let bikeIconImg = null;
+        let lorryIconImg = null;
+
+        try {
+          if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
+          if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
+          if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
+        } catch (iconEmbedErr) {}
+
+        for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
+          const cov = report.covList[idx];
+          const rowPitch = 11.0;
+          const rowY = 83.6 + (idx * rowPitch);
+
+          const covCode = String(cov.code || '').toUpperCase();
+          let activeIcon = bikeIconImg;
+
+          if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
+            activeIcon = carIconImg;
+          } else if (
+            covCode.includes('TRANS') ||
+            covCode.includes('TR') ||
+            covCode.includes('HMV') ||
+            covCode.includes('HGMV') ||
+            covCode.includes('HPV') ||
+            covCode.includes('LORRY')
+          ) {
+            activeIcon = lorryIconImg || carIconImg;
+          } else {
+            activeIcon = bikeIconImg;
+          }
+
+          if (activeIcon) {
+            try {
+              page.drawImage(activeIcon, {
+                x: rightCardX + (17.5 * S),
+                y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
+                width: 11.5 * S,
+                height: 5.8 * S
+              });
+            } catch (drawErr) {}
+          }
+
+          const codeVal = String(cov.code || '').trim();
+          const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
+          const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
+
+          page.drawText(codeVal, {
+            x: rightCardX + (47.5 * S) - (codeW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: codeFontSize,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const issuedVal = String(cov.issuedBy || '').trim();
+          const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+
+          page.drawText(issuedVal, {
+            x: rightCardX + (73.0 * S) - (issuedW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const doiVal = String(cov.doi || '').trim();
+          const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+
+          page.drawText(doiVal, {
+            x: rightCardX + (107.5 * S) - (doiW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 4.8 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const catVal = String(cov.category || 'NT').trim();
+          const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+
+          page.drawText(catVal, {
+            x: rightCardX + (137.0 * S) - (catW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+        }
+      }
+
+      if (report.mobileNo) {
+        page.drawText(String(report.mobileNo).trim(), {
+          x: rightCardX + (46.0 * S),
+          y: cardY + ((CARD_HEIGHT - 146.0) * S),
+          size: 6.0 * S,
+          font: fontRegular,
+          color: solidBlack
+        });
+      }
+
+      const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
+      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+
+      page.drawText(rtoVal, {
+        x: rightCardX + ((236.0 * S) - rtoWidth),
+        y: cardY + ((CARD_HEIGHT - 149.5) * S),
+        size: 5.5 * S,
+        font: fontBold,
+        color: solidBlack
+      });
     }
 
-    const backData = {
-      dlNo: report.dlNo || '',
-      doi: report.doi || '',
-      name: report.name || '',
-      dob: report.dob || '',
-      validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
-      swd: report.swd || 'NA',
-      address: report.address || ''
+  } else if (rcFormat === 'NEW') {
+    const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
+    const isKA = stateCode === 'KA';
+    const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+    const frontCandidates = isKA ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png'] : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
+    const frontPath = getTemplatePath(frontCandidates);
+
+    if (frontPath) {
+      const maskedFrontPng = await sharp(frontPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const frontImg = await pdfDoc.embedPng(maskedFrontPng);
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+    }
+
+    const backCandidates = isKA ? ['new_rc_back.png', 'new_rc_back_.png'] : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
+    const backPath = getTemplatePath(backCandidates);
+
+    if (backPath) {
+      const maskedBackPng = await sharp(backPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const backImg = await pdfDoc.embedPng(maskedBackPng);
+      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+    }
+
+    if (!isKA) {
+      const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
+      const subTitleSize = getFittedSize(subTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
+      const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
+
+      page.drawText(subTitleText, {
+        x: leftCardX + Math.max(0, (cardW - subTitleWidth) / 2),
+        y: cardY + ((CARD_HEIGHT - 21.0) * S),
+        size: subTitleSize,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      const isCommercial = isCommercialClass(report.vehicleClassFull);
+      const blueBadgeText = isCommercial ? 'TR' : 'NT';
+      const orangeBadgeText = stateCode;
+      const badgeSize = 5.0 * S;
+      const badgeY = cardY + ((CARD_HEIGHT - 12.3) * S);
+
+      const blueW1 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
+      page.drawText(blueBadgeText, {
+        x: leftCardX + (221.0 * S) - (blueW1 / 2),
+        y: badgeY,
+        size: badgeSize,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      const orangeW1 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
+      page.drawText(orangeBadgeText, {
+        x: leftCardX + (234.0 * S) - (orangeW1 / 2),
+        y: badgeY,
+        size: badgeSize,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
+      page.drawText(blueBadgeText, {
+        x: rightCardX + (13.0 * S) - (blueW2 / 2),
+        y: badgeY,
+        size: badgeSize,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      const orangeW2 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
+      page.drawText(orangeBadgeText, {
+        x: rightCardX + (26.0 * S) - (orangeW2 / 2),
+        y: badgeY,
+        size: badgeSize,
+        font: fontBold,
+        color: solidBlack
+      });
+    }
+
+    const frontData = {
+      regNo: report.regNo,
+      regDate: report.regDate,
+      validUpto: report.validUpto,
+      chassisNo: report.chassisNo,
+      ownerSerial: String(report.ownerSerial || '01').padStart(2, '0'),
+      engineNo: report.engineNo,
+      ownerName: report.owner,
+      swdName: report.swd || 'NA',
+      address: report.address,
+      fuel: report.fuel,
+      emissionNorms: report.emissionNorms || 'BHARAT STAGE VI'
     };
 
-    Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
-      const val = backData[key] || '';
+    Object.entries(newRcFrontLayout).forEach(([key, cfg]) => {
+      const val = frontData[key] || '';
       if (!val) return;
+
+      const font = cfg.font === 'bold' ? fontBold : fontRegular;
+      const textColor = cfg.font === 'bold' ? solidBlack : solidBlack;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
         const lines = splitAddress(val, 38);
         lines.slice(0, cfg.maxLines).forEach((line, idx) => {
+          const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
           page.drawText(String(line).trim(), {
-            x: rightCardX + (cfg.x * S),
+            x: leftCardX + (posX * S),
             y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
             size: cfg.size * S,
-            font: fontBold,
-            color: solidBlack
+            font,
+            color: textColor
           });
         });
       } else {
         const textVal = String(val).trim();
-        const fontSize = getFittedSize(textVal, fontBold, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
+        const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
+        page.drawText(textVal, {
+          x: leftCardX + (cfg.x * S),
+          y: cardY + (baselineY * S),
+          size: fontSize,
+          font,
+          color: textColor
+        });
+      }
+    });
+
+    const backData = {
+      vehicleClass: report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
+      regNo: report.regNo || '',
+      maker: report.maker || '',
+      model: report.model || '',
+      bodyType: report.bodyType || '',
+      seatingCapacity: report.seating ? String(report.seating) : '2',
+      standingCapacity: report.stdgSlpr ? report.stdgSlpr.split('/')[0].trim() : '0',
+      sleeperCapacity: '0',
+      mfgDate: report.mfgDate || '',
+      unladenWeight: report.unladenWt ? String(report.unladenWt) : '109',
+      ladenWeight: report.ladenWt ? String(report.ladenWt) : '239',
+      grossWeight: '0',
+      cylinders: report.cylinders ? String(report.cylinders) : '1',
+      cubicCapacity: report.cubicCap ? String(report.cubicCap) : '109.7',
+      horsePower: report.horsePower ? String(report.horsePower) : '7.37',
+      wheelbase: report.wheelBase ? String(report.wheelBase) : '1275',
+      financer: report.financer || '',
+      rtoAuthority: report.rto || 'CHICKABALLAPURA RTO'
+    };
+
+    Object.entries(newRcBackLayout).forEach(([key, cfg]) => {
+      const val = backData[key] || '';
+      if (!val) return;
+
+      const font = cfg.font === 'bold' ? fontBold : fontRegular;
+      const baselineY = CARD_HEIGHT - cfg.yTop;
+      const textVal = String(val).trim();
+      const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
+
+      if (cfg.rightAnchor) {
+        const textWidth = font.widthOfTextAtSize(textVal, fontSize);
+        page.drawText(textVal, {
+          x: rightCardX + ((cfg.x * S) - textWidth),
+          y: cardY + (baselineY * S),
+          size: fontSize,
+          font,
+          color: solidBlack
+        });
+      } else {
         page.drawText(textVal, {
           x: rightCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
           size: fontSize,
-          font: fontBold,
+          font,
           color: solidBlack
         });
       }
     });
 
-    if (report.covList && Array.isArray(report.covList)) {
-      for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-        const cov = report.covList[idx];
-        const rowPitch = 10.5;
-        const rowY = 70.0 + (idx * rowPitch);
-
-        const codeVal = String(cov.code || '').trim();
-        page.drawText(codeVal, { x: rightCardX + (62.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
-        const issuedVal = String(cov.issuedBy || '').trim();
-        page.drawText(issuedVal, { x: rightCardX + (95.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
-        const doiVal = String(cov.doi || '').trim();
-        page.drawText(doiVal, { x: rightCardX + (128.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
-        const catVal = String(cov.category || 'NT').trim();
-        page.drawText(catVal, { x: rightCardX + (178.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
-      }
+  } else {
+    const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
+    if (fs.existsSync(frontImgPath)) {
+      const roundedFrontPng = await sharp(frontImgPath)
+        .resize(1040, 655)
+        .composite([{ input: roundedMask, blend: 'dest-in' }])
+        .png()
+        .toBuffer();
+      const frontImg = await pdfDoc.embedPng(roundedFrontPng);
+      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
-    const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
-    page.drawText(rtoVal, {
-      x: rightCardX + ((236.0 * S) - rtoWidth),
-      y: cardY + ((CARD_HEIGHT - 143.0) * S),
-      size: 5.5 * S,
-      font: fontBold,
-      color: solidBlack
+    page.drawRectangle({
+      x: rightCardX,
+      y: cardY,
+      width: cardW,
+      height: cardH,
+      color: rgb(1, 1, 1)
     });
+
+    function drawText(text, x, y, size, maxWidth = 170) {
+      if (!text) return;
+      const displayText = String(text).trim();
+      const fontSize = getFittedSize(displayText, fontBold, size * S, 3.8 * S, maxWidth * S);
+
+      page.drawText(displayText, {
+        x: rightCardX + (x * S),
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: solidBlack
+      });
+    }
+
+    function drawTextRightAnchor(text, rightAnchorX, y, size) {
+      if (!text) return;
+      const displayText = String(text).trim();
+      const fontSize = size * S;
+      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+      const calculatedX = (rightAnchorX * S) - textWidth;
+
+      page.drawText(displayText, {
+        x: rightCardX + calculatedX,
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: solidBlack
+      });
+    }
+
+    function drawTextCenter(text, y, size) {
+      if (!text) return;
+      const displayText = String(text).trim();
+      const fontSize = size * S;
+      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
+      const calculatedX = (cardW - textWidth) / 2;
+
+      page.drawText(displayText, {
+        x: rightCardX + calculatedX,
+        y: cardY + (y * S),
+        size: fontSize,
+        font: fontBold,
+        color: solidBlack
+      });
+    }
+
+    const fullRegNoText = `REG NO : ${report.regNo || ''}`;
+    drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
+    drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
+    drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
+
+    fieldLayout.topLeft.forEach((field) => {
+      const value = report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 95);
+    });
+
+    fieldLayout.topRight.forEach((field) => {
+      let value = report[getFieldKey(field.label)];
+      if (field.label === 'O SLNO' && value) {
+        value = String(value).padStart(2, '0');
+      }
+      if (field.label === 'CLASS' && value) {
+        value = String(value).replace(/\s*\(?2WN\)?\s*/i, '').trim();
+      }
+      if (field.label === 'COLOUR' && value) {
+        value = String(value)
+          .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
+          .replace(/METALLIC\s+/i, 'MET. ')
+          .replace(/ELECTRONIC\s+/i, 'E. ')
+          .trim();
+      }
+      drawText(field.label, field.labelX, field.y, field.fontSize, 28);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 56);
+    });
+
+    fieldLayout.middle.forEach((field) => {
+      const value = field.label === 'S/W/D OF' ? (report.swd || 'NA') : report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+
+      if (field.multiLine && value) {
+        const lines = splitAddress(value, 38);
+        lines.slice(0, field.maxLines).forEach((line, idx) => {
+          const lineY = field.y - (idx * field.lineHeight);
+          drawText(line, field.valueX, lineY, 5.8, 175);
+        });
+      } else {
+        drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 175);
+      }
+    });
+
+    fieldLayout.bottomLeft.forEach((field) => {
+      let value = report[getFieldKey(field.label)];
+      if (field.label === 'BODY' && value && /SOLO/i.test(String(value))) value = 'SOLO';
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
+    });
+
+    fieldLayout.bottomRight.forEach((field) => {
+      const value = report[getFieldKey(field.label)];
+      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
+      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
+      drawText(':', field.colonX, field.y, field.fontSize, 5);
+      drawText(value, field.valueX, field.y, field.fontSize, 35);
+    });
+
+    drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
+    drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
   }
+
+  const roundedSvg = Buffer.from(`
+    <svg width="1040" height="655" viewBox="0 0 1040 655" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="4"/>
+    </svg>
+  `);
+
+  const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
+  const borderImg = await pdfDoc.embedPng(borderPngBuffer);
+
+  page.drawImage(borderImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+  page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
@@ -1121,23 +2642,132 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
+    await ordersSecuritySchemaReady;
     const { orderId } = req.body;
-    const order = orders.get(orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    if (!orderId) {
+      return res.status(400).json({ error: 'Order ID is required' });
+    }
+
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
+    let order = orders.get(orderId);
+
+    if (!order) {
+      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1', [orderId]);
+      if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
+        const row = dbOrderRes.rows[0];
+        order = {
+          orderId: row.order_id,
+          rzpOrderId: row.rzp_order_id || row.order_id,
+          docType: row.doc_type,
+          targetNumber: row.lookup_key,
+          amount: Number(row.amount),
+          status: row.status,
+          role: row.owner_role || 'PUBLIC',
+          ownerId: row.owner_id || null,
+          dob: row.dob || '',
+          rcFormat: row.rc_format || 'OLD',
+          paymentId: row.utr
+        };
+      }
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.status !== 'SUCCESS') {
+      return res.status(403).json({ error: 'Payment has not been verified for this order.' });
+    }
+
+    if (authContext.role === 'ADMIN') {
+      // Admin bypass
+    } else if (order.role === 'ADMIN') {
+      return res.status(403).json({ error: 'Unauthorized to download admin-generated document.' });
+    } else if (authContext.role === 'CUSTOMER' && order.ownerId && authContext.mobile) {
+      if (!safeEqual(authContext.mobile, order.ownerId)) {
+        return res.status(403).json({ error: 'This document was purchased by another user.' });
+      }
+    } else if (authContext.role === 'AGENT' && order.ownerId && authContext.agentId) {
+      if (!safeEqual(authContext.agentId, order.ownerId)) {
+        return res.status(403).json({ error: 'This document was ordered by another agent.' });
+      }
+    }
 
     const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
+    if (!report) {
+      return res.status(404).json({ error: 'Record could not be retrieved.' });
+    }
+
     const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
-    
+    const fileName = order.docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
+
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="DL_${report.dlNo || 'Document'}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
     res.send(pdfBuffer);
   } catch (err) {
-    res.status(500).json({ error: 'PDF generation failed' });
+    res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
   }
 });
 
+function getFieldKey(label) {
+  const map = {
+    'REG.DATE': 'regDate',
+    'CHASSIS NO.': 'chassisNo',
+    'ENGINE NO': 'engineNo',
+    'MFR': 'maker',
+    'O SLNO': 'ownerSerial',
+    'CLASS': 'vehicleClassFull',
+    'COLOUR': 'color',
+    'OWNERNAME': 'owner',
+    'S/W/D OF': 'swd',
+    'ADDRESS': 'address',
+    'MODEL': 'model',
+    'BODY': 'bodyType',
+    'WHEEL BASE': 'wheelBase',
+    'MFG DATE': 'mfgDate',
+    'FUEL': 'fuel',
+    'REG/FC UPTO': 'validUpto',
+    'TAX UPTO': 'taxUpto',
+    'NO.OF CYL': 'cylinders',
+    'UNLADEN WT': 'unladenWt',
+    'SEATING': 'seating',
+    'STDG/SLPR': 'stdgSlpr',
+    'CC': 'cubicCap'
+  };
+
+  return map[label] || label.toLowerCase();
+}
+
 app.get('/api/user/history', async (req, res) => {
-  res.json({ success: true, history: [] });
+  try {
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
+    if (authContext.role === 'PUBLIC') {
+      return res.status(401).json({ error: 'Unauthorized access.' });
+    }
+
+    let ownerId = authContext.role === 'CUSTOMER' ? authContext.mobile : authContext.agentId;
+    if (!ownerId) {
+      return res.json({ success: true, history: [] });
+    }
+
+    const queryRes = await pool.query(
+      `SELECT order_id, doc_type, lookup_key, amount, created_at, rc_format
+       FROM orders
+       WHERE owner_id = $1 AND status = 'SUCCESS' AND doc_type != 'AGENT_ONBOARDING'
+       ORDER BY created_at DESC
+       LIMIT 5`,
+      [ownerId]
+    );
+
+    res.json({ success: true, history: queryRes.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve history.' });
+  }
 });
 
 app.listen(PORT, () => {
