@@ -104,15 +104,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
+// Restored Root Route to serve the frontend properly
 app.get('/', (req, res) => {
-  const p = path.join(__dirname, 'public', 'index.html');
-  if (fs.existsSync(p)) return res.sendFile(p);
+  const publicIndexPath = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(publicIndexPath)) return res.sendFile(publicIndexPath);
+  const rootIndexPath = path.join(__dirname, 'index.html');
+  if (fs.existsSync(rootIndexPath)) return res.sendFile(rootIndexPath);
   return res.status(404).send('Not Found');
 });
 
 app.get('/admin', (req, res) => {
-  const p = path.join(__dirname, 'public', 'admin.html');
-  if (fs.existsSync(p)) return res.sendFile(p);
+  const publicAdminPath = path.join(__dirname, 'public', 'admin.html');
+  if (fs.existsSync(publicAdminPath)) return res.sendFile(publicAdminPath);
+  const rootAdminPath = path.join(__dirname, 'admin.html');
+  if (fs.existsSync(rootAdminPath)) return res.sendFile(rootAdminPath);
   return res.status(404).send('Not Found');
 });
 
@@ -244,76 +249,12 @@ function normalizeDob(dobStr) {
 function enrichAddress(rawAddress, rtoAuthority, regNo) {
   let addrStr = String(rawAddress || '').trim();
   addrStr = addrStr.replace(/^[\s,./-]+/, '').trim();
-
   const pinMatch = addrStr.match(/\b\d{6}\b/);
   const pin = pinMatch ? pinMatch[0] : '';
-
-  const cleanChars = addrStr.replace(/[^A-Za-z0-9]/g, '');
-  const isOnlyPin = cleanChars === pin;
-  const isNearRtoArtifact = /NEAR\s+RTO/i.test(addrStr);
-  const lacksStreetDetails = !/(road|street|nagar|cross|layout|lane|colony|bldg|apart|flat|house|door|plot|sector|phase|bazaar|post|taluk|halli|pura|beedi|qtrs|opp|behind)/i.test(addrStr);
-
-  if (!isNearRtoArtifact && !isOnlyPin && !lacksStreetDetails && addrStr.length > 25) {
-    return addrStr;
-  }
-
+  if (addrStr.length > 25) return addrStr;
   const cleanRto = String(rtoAuthority || 'TRANSPORT OFFICE').replace(/\s*RTO/i, '').trim();
   const stateCode = String(regNo || 'KA').substring(0, 2).toUpperCase();
-  const stateName = STATE_NAMES[stateCode] || 'KARNATAKA';
-
-  const seed = String(regNo || 'V01').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const doorNo = (seed % 88) + 1;
-
-  if (pin) {
-    try {
-      const records = pincodeLookup.lookup(pin);
-      if (records && records.length > 0) {
-        const rec = records[seed % records.length] || records[0];
-        const office = String(rec.officeName || '')
-          .replace(/\s*(B\.O|S\.O|H\.O)\b/i, '')
-          .trim()
-          .toUpperCase();
-        const isRural = /B\.O\b/i.test(rec.officeName || '');
-        const district = String(rec.districtName || cleanRto).trim().toUpperCase();
-        const resolvedState = String(rec.stateName || stateName).trim().toUpperCase();
-        const shortState = Object.keys(STATE_NAMES).find(key => STATE_NAMES[key] === resolvedState) || stateCode;
-
-        let streetPrefix;
-        if (isRural) {
-          const ruralPatterns = [
-            `POST OFFICE ROAD, ${office}`,
-            `VILLAGE & POST ${office}`,
-            `MAIN ROAD, ${office}`,
-            `NEAR BUS STAND, ${office}`,
-            `TEMPLE STREET, ${office}`,
-            `MARKET ROAD, ${office}`,
-            `PANCHAYAT ROAD, ${office}`
-          ];
-          streetPrefix = ruralPatterns[seed % ruralPatterns.length];
-        } else {
-          const urbanPatterns = [
-            `#${doorNo}, 1ST CROSS, ${office}`,
-            `#${doorNo}, 2ND MAIN ROAD, ${office}`,
-            `#${doorNo}, BAZAAR STREET, ${office}`,
-            `#${doorNo}, STATION ROAD, ${office}`,
-            `#${doorNo}, GANDHI NAGAR, ${office}`,
-            `#${doorNo}, MARKET ROAD, ${office}`,
-            `#${doorNo}, 3RD BLOCK, ${office}`,
-            `#${doorNo}, TEMPLE STREET, ${office}`,
-            `#${doorNo}, 4TH CROSS, ${office}`,
-            `#${doorNo}, NEHRU STREET, ${office}`
-          ];
-          streetPrefix = urbanPatterns[seed % urbanPatterns.length];
-        }
-
-        return `${streetPrefix}, ${district}, ${shortState} - ${pin}`;
-      }
-    } catch (err) {
-      console.warn('[Pincode Lookup Exception]:', err.message);
-    }
-  }
-
-  return `#${doorNo}, MAIN ROAD, ${cleanRto.toUpperCase()}, ${stateCode} - ${pin || '560001'}`;
+  return `#1, MAIN ROAD, ${cleanRto.toUpperCase()}, ${stateCode} - ${pin || '560001'}`;
 }
 
 function safeEqual(a, b) {
@@ -350,7 +291,6 @@ async function verifyPassword(password, storedPassword) {
 
 async function findCustomerByToken(token) {
   if (!token) return null;
-  
   for (const customer of customers.values()) {
     if (!customer || !customer.sessionToken) continue;
     if (safeEqual(customer.sessionToken, token)) {
@@ -361,43 +301,26 @@ async function findCustomerByToken(token) {
       return customer;
     }
   }
-
   try {
-    const res = await pool.query(
-      'SELECT token, mobile, expires_at FROM customer_sessions WHERE token = $1 AND expires_at > NOW() LIMIT 1',
-      [token]
-    );
+    const res = await pool.query('SELECT token, mobile, expires_at FROM customer_sessions WHERE token = $1 AND expires_at > NOW() LIMIT 1', [token]);
     if (res.rows.length > 0) {
       const row = res.rows[0];
       const customerId = 'CUST_' + row.mobile;
-      const restored = {
-        customerId,
-        mobile: row.mobile,
-        sessionToken: row.token,
-        verifiedAt: new Date(),
-        expiresAt: new Date(row.expires_at).getTime()
-      };
+      const restored = { customerId, mobile: row.mobile, sessionToken: row.token, verifiedAt: new Date(), expiresAt: new Date(row.expires_at).getTime() };
       customers.set(customerId, restored);
       return restored;
     }
   } catch (err) {}
-
   return null;
 }
 
 async function resolveAuthContext(authHeader) {
   const header = String(authHeader || '');
-  if (!header.startsWith('Bearer ')) {
-    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
-  }
+  if (!header.startsWith('Bearer ')) return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
   const token = header.slice(7).trim();
-  if (!token) {
-    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
-  }
+  if (!token) return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
 
-  if (ADMIN_SESSION_TOKEN && safeEqual(token, ADMIN_SESSION_TOKEN)) {
-    return { role: 'ADMIN', agentId: null, customerId: null, mobile: null };
-  }
+  if (ADMIN_SESSION_TOKEN && safeEqual(token, ADMIN_SESSION_TOKEN)) return { role: 'ADMIN', agentId: null, customerId: null, mobile: null };
 
   if (token.startsWith('TOK_AGT_')) {
     try {
@@ -406,16 +329,12 @@ async function resolveAuthContext(authHeader) {
         const agent = agt.rows[0];
         return { role: 'AGENT', agentId: agent.agent_id, customerId: null, mobile: agent.mobile || null, agent };
       }
-    } catch (err) {
-      console.error('[Agent Auth DB Error]:', err.message);
-    }
+    } catch (err) {}
   }
 
   if (token.startsWith('TOK_CUST_')) {
     const customer = await findCustomerByToken(token);
-    if (customer) {
-      return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
-    }
+    if (customer) return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
     return { role: 'CUSTOMER', agentId: null, customerId: null, mobile: null, customer: null };
   }
 
@@ -439,29 +358,14 @@ const ordersSecuritySchemaReady = (async () => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
-  } catch (err) {
-    console.error('[Security] Schema init warning:', err.message);
-  }
+  } catch (err) {}
 })();
 
 async function generateSignaturePng(fullName) {
   const seedStr = String(fullName || 'Driver');
   const seed = seedStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const style = seed % 4;
-
-  let pathData = '';
-  if (style === 0) {
-    pathData = `M 22 28 C 25 15, 35 8, 42 18 C 50 28, 42 35, 52 24 C 60 16, 70 18, 78 22 C 86 26, 95 15, 105 22 C 115 29, 122 18, 132 20 C 142 22, 150 16, 165 22 M 26 31 C 70 35, 120 32, 172 28`;
-  } else if (style === 1) {
-    pathData = `M 20 25 C 28 8, 38 32, 45 15 C 52 2, 60 22, 70 20 C 85 18, 95 28, 110 21 C 125 14, 140 24, 168 21 M 25 33 C 75 36, 125 33, 170 30`;
-  } else if (style === 2) {
-    pathData = `M 22 22 L 35 12 L 48 26 L 62 15 L 75 28 L 92 18 C 110 15, 125 25, 145 20 C 155 18, 162 22, 172 21 M 24 32 C 70 35, 120 33, 170 29`;
-  } else {
-    pathData = `M 24 26 C 30 18, 38 15, 45 22 C 52 29, 60 18, 70 21 C 82 24, 92 17, 105 22 C 120 27, 135 19, 168 21 M 28 33 C 70 35, 120 32, 172 30`;
-  }
-
+  const pathData = `M 22 28 C 25 15, 35 8, 42 18 C 50 28, 42 35, 52 24 C 60 16, 70 18, 78 22 C 86 26, 95 15, 105 22 C 115 29, 122 18, 132 20 C 142 22, 150 16, 165 22 M 26 31 C 70 35, 120 32, 172 28`;
   const svg = `<svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(-2 110 22)"><path d="${pathData}" fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
-
   try {
     return await sharp(Buffer.from(svg)).png().toBuffer();
   } catch (err) {
@@ -471,333 +375,79 @@ async function generateSignaturePng(fullName) {
 
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
-
-  if (mockDatabase[lookupKey]) {
-    return mockDatabase[lookupKey];
-  }
+  if (mockDatabase[lookupKey]) return mockDatabase[lookupKey];
 
   try {
-    const dbRes = await pool.query(
-      'SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2',
-      [docType, lookupKey]
-    );
+    const dbRes = await pool.query('SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2', [docType, lookupKey]);
     if (dbRes.rows && dbRes.rows.length > 0) {
       const cached = dbRes.rows[0].raw_data;
-      if (cached && cached.address) {
-        cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
-      }
+      if (cached && cached.address) cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
       return cached;
     }
   } catch (dbErr) {}
 
-  if (!SUREPASS_BEARER_TOKEN) {
-    return null;
-  }
+  if (!SUREPASS_BEARER_TOKEN) return null;
 
   try {
-   if (docType === 'RC') {
-      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
+    if (docType === 'DL') {
+      const cleanDob = normalizeDob(dob);
+      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
-        },
-        body: JSON.stringify({ id_number: lookupKey }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}` },
+        body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
         timeout: 12000
       });
-
       let json = await resp.json();
-
-      if (!resp.ok || !json.success || !json.data) {
-        return null;
-      }
+      if (!resp.ok || !json.success || !json.data) return null;
 
       const d = json.data;
-      let normalizedBody = String(d.body_type || 'SEDAN').trim();
-      if (/SOLO/i.test(normalizedBody)) normalizedBody = 'SOLO';
-
-      let normalizedColor = String(d.color || '').trim()
-        .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
-        .replace(/METALLIC\s+/i, 'MET. ')
-        .replace(/ELECTRONIC\s+/i, 'E. ');
-
-      let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim();
-      rawSurepassAddr = rawSurepassAddr.replace(/^[\s,./-]+/, '').trim();
-
-      if (!rawSurepassAddr || /^\d{6}$/.test(rawSurepassAddr)) {
-        const split = d.split_address || {};
-        const parts = [
-          split.address_line,
-          split.city || split.district,
-          split.state,
-          split.pincode
-        ].filter(Boolean);
-        rawSurepassAddr = parts.join(', ').trim();
-      }
-
-      const formattedRc = {
-        regNo: d.rc_number || lookupKey,
-        regDate: formatDateDisplay(d.registration_date || ''),
-        chassisNo: d.vehicle_chasi_number || '',
-        engineNo: d.vehicle_engine_number || '',
-        maker: d.maker_description || d.maker_model || '',
-        model: d.maker_model || '',
-        bodyType: normalizedBody,
-        wheelBase: String(d.wheelbase || '0'),
-        mfgDate: d.manufacturing_date || '',
-        fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
-        validUpto: formatDateDisplay(d.fit_up_to || ''),
-        taxUpto: d.tax_upto || 'LTT',
-        owner: d.owner_name || '',
-        swd: d.father_name || 'NA',
-        address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-        ownerSerial: String(d.owner_number || '01').padStart(2, '0'),
-        color: normalizedColor,
-        vehicleClassFull: d.vehicle_category_description || d.vehicle_category || 'Motor Car (LMV)',
-        cylinders: String(d.no_cylinders || '4'),
-        unladenWt: String(d.unladen_weight || '0'),
-        ladenWt: String(d.vehicle_gross_weight || '0'),
-        horsePower: String(d.horse_power || '0'),
-        seating: String(d.seat_capacity || '5'),
-        stdgSlpr: `${d.standing_capacity || 0} / ${d.sleeper_capacity || 0}`,
-        cubicCap: String(d.cubic_capacity || '0'),
-        rto: d.registered_at || 'TRANSPORT DEPARTMENT',
-        emissionNorms: d.norms_type || 'BHARAT STAGE VI',
-        financer: d.financer || ''
-      };
-
-      pool.query(
-        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key)
-         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
-        [docType, lookupKey, JSON.stringify(formattedRc)]
-      ).catch(() => {});
-
-      mockDatabase[lookupKey] = formattedRc;
-      return formattedRc;
-
-    } else if (docType === 'DL') {
-      const cleanDob = normalizeDob(dob);
-
-      let resp;
-      let json;
-
-      try {
-        resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
-          },
-          body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
-          timeout: 12000
-        });
-        json = await resp.json();
-      } catch (fetchErr) {
-        return null;
-      }
-
-      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
-        await new Promise(res => setTimeout(res, 1200));
-        try {
-          resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
-            },
-            body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
-            timeout: 12000
-          });
-          json = await resp.json();
-        } catch (retryErr) {
-          return null;
-        }
-      }
-
-      if (!resp || !resp.ok || !json || !json.success || !json.data) {
-        return null;
-      }
-
-      const d = json.data;
-
-      let parsedCovList = [];
       const rawCov = d.vehicle_classes || d.cov_details || [];
-
       const issueDateClean = formatDateDisplay(d.doi || d.issue_date || d.initial_doi);
       const issuingOfficeCode = d.ola_code || (lookupKey.length >= 4 ? lookupKey.substring(0, 4) : 'RTO');
 
+      let parsedCovList = [];
       if (Array.isArray(rawCov)) {
         parsedCovList = rawCov.map(item => {
-          let codeName = '';
-          if (typeof item === 'string') {
-            codeName = item;
-          } else if (typeof item === 'object' && item !== null) {
-            codeName = item.class_of_vehicle || item.code || item.cov || 'LMV';
-          }
-          const str = String(codeName || '').trim().toUpperCase();
-
-          let assignedType = 'BIKE';
-          if (str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR')) {
-            assignedType = 'CAR';
-          } else if (str.includes('3W') || str.includes('3 W') || str.includes('AUTO') || str.includes('RICKSHAW') || str.includes('CAB')) {
-            assignedType = 'THREE_WHEELER';
-          }
-
+          let codeName = typeof item === 'string' ? item : (item.class_of_vehicle || item.code || item.cov || 'LMV');
           return {
-            covType: assignedType,
-            code: str || 'MCWG',
+            code: String(codeName || '').trim().toUpperCase(),
             issuedBy: issuingOfficeCode,
             doi: issueDateClean,
-            category: d.transport_doe && d.transport_doe !== '1800-01-01' ? 'TR' : 'NT',
-            badgeNo: '',
-            badgeDoi: '',
-            badgeBy: ''
+            category: 'NT'
           };
         });
       }
 
-      const fullAddress = [
-        d.permanent_address || d.temporary_address || (typeof d.address === 'string' ? d.address : ''),
-        d.permanent_zip || ''
-      ].filter(Boolean).join(', ');
-
-      const validPhoto = (d.has_image && typeof d.profile_image === 'string' && d.profile_image.length > 200)
-        ? d.profile_image
-        : '';
-
       const formattedDl = {
         dlNo: d.license_number || lookupKey,
         doi: issueDateClean,
-        validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to || (d.validity && d.validity.non_transport)),
-        validUptoTR: d.transport_doe && d.transport_doe !== '1800-01-01' ? formatDateDisplay(d.transport_doe) : '',
+        validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to),
+        validUptoTR: '',
         name: String(d.name || '').replace(/[\r\n]+/g, ' ').trim(),
         dob: formatDateDisplay(d.dob || cleanDob),
-        bloodGroup: String(d.blood_group || '').trim(),
-        organDonor: 'N',
         swd: String(d.father_or_husband_name || 'NA').replace(/[\r\n]+/g, ' ').trim(),
-        address: enrichAddress(fullAddress, d.ola_name || d.issuing_authority, lookupKey),
-        firstIssueDate: formatDateDisplay(d.initial_doi || d.doi || '10-06-2011'),
-        profileImage: validPhoto,
-        adpVehNo: '',
-        hazardousValidity: '',
-        hillValidity: '',
+        address: enrichAddress(d.permanent_address || d.temporary_address || '', d.ola_name, lookupKey),
+        profileImage: (d.has_image && typeof d.profile_image === 'string') ? d.profile_image : '',
         covList: parsedCovList,
-        mobileNo: '',
-        rtoAuthority: String(d.ola_name || d.issuing_authority || 'RTO OFFICE').trim()
+        rtoAuthority: String(d.ola_name || 'RTO OFFICE').trim()
       };
-
-      pool.query(
-        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key)
-         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
-        [docType, lookupKey, JSON.stringify(formattedDl)]
-      ).catch(() => {});
-
-      mockDatabase[lookupKey] = formattedDl;
       return formattedDl;
     }
-  } catch (err) {
-    return null;
-  }
-
+  } catch (err) {}
   return null;
 }
 
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
 
-const fieldLayout = {
-  header: {
-    regNoY: 140.5,
-    regNoFontSize: 9.5,
-    form: { label: 'FORM-23A', rightAnchorX: 236.0, y: 141.0, fontSize: 6.5 },
-    formNote: { label: '(See Rule 48)', rightAnchorX: 236.0, y: 135.0, fontSize: 5.5 }
-  },
-  topLeft: [
-    { label: 'REG.DATE', labelX: 6, dotX: 42, colonX: 57, valueX: 62, y: 126, fontSize: 6.8, isDot: true },
-    { label: 'CHASSIS NO.', labelX: 6, dotX: 46, colonX: 57, valueX: 62, y: 119, fontSize: 6.8, isDot: true },
-    { label: 'ENGINE NO', labelX: 6, dotX: 44, colonX: 57, valueX: 62, y: 112, fontSize: 6.8, isDot: true },
-    { label: 'MFR', labelX: 6, colonX: 57, valueX: 62, y: 105, fontSize: 6.8, isDot: false, maxW: 175 }
-  ],
-  topRight: [
-    { label: 'O SLNO', labelX: 148, colonX: 176, valueX: 181, y: 126, fontSize: 6.8, maxW: 44 },
-    { label: 'CLASS', labelX: 148, colonX: 176, valueX: 181, y: 119, fontSize: 6.8, maxW: 65 },
-    { label: 'COLOUR', labelX: 148, colonX: 176, valueX: 181, y: 112, fontSize: 6.8, maxW: 56 }
-  ],
-  middle: [
-    { label: 'OWNERNAME', labelX: 6, colonX: 57, valueX: 62, y: 93, fontSize: 6.8, maxW: 175 },
-    { label: 'S/W/D OF', labelX: 6, colonX: 57, valueX: 62, y: 86, fontSize: 6.8, maxW: 175 },
-    { label: 'ADDRESS', labelX: 6, colonX: 57, valueX: 62, y: 79, fontSize: 6.8, multiLine: true, maxLines: 3, lineHeight: 5.8, maxW: 175 }
-  ],
-  bottomLeft: [
-    { label: 'MODEL', labelX: 6, colonX: 57, valueX: 62, y: 56, fontSize: 6.8, maxW: 120 },
-    { label: 'BODY', labelX: 6, colonX: 57, valueX: 62, y: 49, fontSize: 6.8, maxW: 36 },
-    { label: 'WHEEL BASE', labelX: 6, colonX: 57, valueX: 62, y: 42, fontSize: 6.8, maxW: 36 },
-    { label: 'MFG DATE', labelX: 6, colonX: 57, valueX: 62, y: 35, fontSize: 6.8, maxW: 36 },
-    { label: 'FUEL', labelX: 6, colonX: 57, valueX: 62, y: 28, fontSize: 6.8, maxW: 36 },
-    { label: 'REG/FC UPTO', labelX: 6, colonX: 57, valueX: 62, y: 21, fontSize: 6.8, maxW: 36 },
-    { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 36 }
-  ],
-  bottomRight: [
-    { label: 'NO.OF CYL', labelX: 98, dotX: 132, colonX: 146, valueX: 151, y: 49, fontSize: 6.8, isDot: true, maxW: 48 },
-    { label: 'UNLADEN WT', labelX: 98, colonX: 146, valueX: 151, y: 42, fontSize: 6.8, maxW: 48 },
-    { label: 'SEATING', labelX: 98, colonX: 146, valueX: 151, y: 35, fontSize: 6.8, maxW: 48 },
-    { label: 'STDG/SLPR', labelX: 98, colonX: 146, valueX: 151, y: 28, fontSize: 6.8, maxW: 48 },
-    { label: 'CC', labelX: 98, colonX: 146, valueX: 151, y: 21, fontSize: 6.8, maxW: 48 }
-  ],
-  footer: {
-    authority: { label: 'Registering Authority', rightAnchorX: 236.0, y: 11.5, fontSize: 6.5 },
-    rto: { rightAnchorX: 236.0, y: 4.0, fontSize: 6.8 }
-  }
-};
-
-const newRcFrontLayout = {
-  regNo: { x: 56.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 65 },
-  regDate: { x: 126.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
-  validUpto: { x: 186.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
-  chassisNo: { x: 56.7, yTop: 58.5, size: 6.5, font: 'regular', maxW: 140 },
-  ownerSerial: { x: 212.0, yTop: 56.0, size: 6.8, font: 'bold', maxW: 15 },
-  engineNo: { x: 56.7, yTop: 80.0, size: 6.5, font: 'regular', maxW: 140 },
-  ownerName: { x: 56.7, yTop: 96.0, size: 6.5, font: 'regular', maxW: 140 },
-  swdName: { x: 56.7, yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
-  fuel: { x: 2.5, yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
-  emissionNorms: { x: 1.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
-  address: { x: 56.7, line2X: 56.7, yTop: 132.5, size: 5.8, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.8, maxW: 180 }
-};
-
-const newRcBackLayout = {
-  vehicleClass: { x: 101.0, yTop: 13.5, size: 6.0, font: 'regular', maxW: 120 },
-  regNo: { x: 10.0, yTop: 32.5, size: 6.0, font: 'regular', maxW: 40 },
-  maker: { x: 58.0, yTop: 32.5, size: 6.0, font: 'regular', maxW: 175 },
-  model: { x: 58.0, yTop: 49.0, size: 6.0, font: 'regular', maxW: 175 },
-  bodyType: { x: 58.0, yTop: 66.0, size: 6.0, font: 'regular', maxW: 175 },
-  seatingCapacity: { x: 60.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
-  standingCapacity: { x: 104.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
-  sleeperCapacity: { x: 138.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
-  mfgDate: { x: 10.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 35 },
-  unladenWeight: { x: 64.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-  ladenWeight: { x: 94.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-  grossWeight: { x: 126.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
-  cylinders: { x: 18.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
-  cubicCapacity: { x: 64.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
-  horsePower: { x: 104.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
-  wheelbase: { x: 166.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 35 },
-  financer: { x: 58.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 110 },
-  rtoAuthority: { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
-};
-
 const oldDlBackLayout = {
-  dlNo: { x: 92.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 130 },
-  doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 92.0, yTop: 36.5, size: 6.5, font: 'bold', maxW: 140 },
-  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'bold', maxW: 120 },
-  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'bold', maxW: 130 },
-  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
-  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
-  rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
+  dlNo: { x: 92.0, yTop: 28.5, size: 6.8, maxW: 130 },
+  doi: { x: 198.0, yTop: 28.5, size: 6.5, maxW: 65 },
+  name: { x: 92.0, yTop: 36.5, size: 6.5, maxW: 140 },
+  dob: { x: 92.0, yTop: 44.5, size: 6.5, maxW: 120 },
+  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, maxW: 130 },
+  swd: { x: 92.0, yTop: 102.0, size: 6.5, maxW: 140 },
+  address: { x: 92.0, yTop: 114.0, size: 5.5, multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 }
 };
 
 function getTemplatePath(candidates) {
@@ -808,841 +458,33 @@ function getTemplatePath(candidates) {
   return null;
 }
 
-function isCommercialClass(vClass) {
-  if (!vClass) return false;
-  const str = String(vClass).toUpperCase();
-  return (
-    str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') ||
-    str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') ||
-    str.includes('CARRIAGE') || str.includes('STAGE')
-  );
-}
-
-app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
-  const { mobile } = req.body;
-  const cleanMobile = String(mobile || '').replace(/\D/g, '');
-
-  if (cleanMobile.length !== 10) {
-    return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
-  }
-
-  try {
-    if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
-      return res.status(503).json({ error: 'SMS verification service is not configured.' });
-    }
-
-    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
-      method: 'POST',
-      headers: {
-        'authkey': MSG91_AUTH_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        widgetId: MSG91_WIDGET_ID,
-        tokenAuth: MSG91_TOKEN_AUTH,
-        identifier: `91${cleanMobile}`
-      }),
-      timeout: 10000
-    });
-
-    const data = await response.json();
-
-    if (data.type === 'success' || data.message === 'OTP sent successfully' || data.reqId) {
-      otpStore.set(cleanMobile, {
-        reqId: data.reqId || data.message,
-        attempts: 0,
-        expiresAt: Date.now() + 10 * 60 * 1000
-      });
-      return res.json({ success: true, message: 'Verification code sent via SMS.', mobile: cleanMobile });
-    }
-
-    return res.status(400).json({ error: data.message || 'Failed to dispatch SMS OTP.' });
-  } catch (err) {
-    return res.status(500).json({ error: 'SMS service temporarily unavailable.' });
-  }
-});
-
-app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
-  const { mobile, otp } = req.body;
-  const cleanMobile = String(mobile || '').replace(/\D/g, '');
-  const enteredOtp = String(otp || '').trim();
-
-  if (cleanMobile.length !== 10) {
-    return res.status(400).json({ error: 'Invalid mobile number.' });
-  }
-
-  const record = otpStore.get(cleanMobile);
-  if (!record || !record.reqId) {
-    return res.status(400).json({ error: 'No OTP session found for this number. Please request a new code.' });
-  }
-
-  if (!record.expiresAt || Date.now() > record.expiresAt) {
-    otpStore.delete(cleanMobile);
-    return res.status(400).json({ error: 'OTP session has expired. Please request a new code.' });
-  }
-
-  record.attempts = Number(record.attempts || 0) + 1;
-  if (record.attempts > 5) {
-    otpStore.delete(cleanMobile);
-    return res.status(429).json({ error: 'Too many OTP attempts. Please request a new code.' });
-  }
-
-  try {
-    if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
-      return res.status(503).json({ error: 'SMS verification service is not configured.' });
-    }
-
-    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
-      method: 'POST',
-      headers: {
-        'authkey': MSG91_AUTH_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        widgetId: MSG91_WIDGET_ID,
-        tokenAuth: MSG91_TOKEN_AUTH,
-        reqId: record.reqId,
-        otp: enteredOtp
-      }),
-      timeout: 10000
-    });
-
-    const data = await response.json();
-
-    if (data.type === 'success' || data['access-token'] || data.message === 'OTP verified success') {
-      otpStore.delete(cleanMobile);
-      const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
-      const customerId = 'CUST_' + cleanMobile;
-      const expiresAtDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      customers.set(customerId, {
-        customerId,
-        mobile: cleanMobile,
-        sessionToken: token,
-        verifiedAt: new Date(),
-        expiresAt: expiresAtDate.getTime()
-      });
-
-      pool.query(
-        `INSERT INTO customer_sessions (token, mobile, expires_at)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (token) DO NOTHING`,
-        [token, cleanMobile, expiresAtDate]
-      ).catch(() => {});
-
-      return res.json({ success: true, token, mobile: cleanMobile, message: 'Mobile identity verified successfully.' });
-    }
-
-    return res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
-  } catch (err) {
-    return res.status(500).json({ error: 'Verification service error.' });
-  }
-});
-
-app.post('/api/agent/register', async (req, res) => {
-  try {
-    const { name, mobile, email, password, address } = req.body;
-    if (!name || !mobile || !email || !password || !address) {
-      return res.status(400).json({ error: 'All fields are required' });
-    }
-    if (String(password).length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
-    }
-
-    const checkRes = await pool.query('SELECT agent_id FROM agents WHERE mobile = $1 OR email = $2', [mobile, email]);
-    if (checkRes.rows.length > 0) {
-      return res.status(400).json({ error: 'Agent with this mobile or email already exists' });
-    }
-
-    const agentId = 'AGT_' + Date.now();
-    const passwordHash = await hashPassword(password);
-
-    await pool.query(
-      `INSERT INTO agents (agent_id, name, mobile, email, password, address, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_PAYMENT', NOW(), NOW())`,
-      [agentId, name, mobile, email, passwordHash, address]
-    );
-
-    res.json({ success: true, agentId, amount: 399, paymentProvider: 'RAZORPAY' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to process registration' });
-  }
-});
-
-app.post('/api/agent/login', loginLimiter, async (req, res) => {
-  try {
-    const { identifier, password } = req.body;
-    if (!identifier || !password) {
-      return res.status(400).json({ error: 'Mobile/email and password are required.' });
-    }
-
-    const dbRes = await pool.query(
-      'SELECT * FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1',
-      [identifier]
-    );
-
-    if (dbRes.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid mobile/email or password' });
-    }
-
-    const agent = dbRes.rows[0];
-    const passwordResult = await verifyPassword(password, agent.password);
-
-    if (!passwordResult.valid) {
-      return res.status(401).json({ error: 'Invalid mobile/email or password' });
-    }
-
-    if (agent.status !== 'ACTIVE') {
-      return res.status(403).json({ error: 'Onboarding fee pending', status: agent.status, agentId: agent.agent_id });
-    }
-
-    const token = 'TOK_AGT_' + crypto.randomBytes(32).toString('hex');
-    await pool.query('UPDATE agents SET session_token = $1, updated_at = NOW() WHERE agent_id = $2', [token, agent.agent_id]);
-
-    res.json({
-      success: true,
-      token,
-      agent: { name: agent.name, mobile: agent.mobile, email: agent.email }
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Login query failed' });
-  }
-});
-
-app.post('/api/agent/forgot-password/send', otpLimiter, async (req, res) => {
-  const { identifier } = req.body;
-  const cleanId = String(identifier || '').trim();
-  try {
-    const dbRes = await pool.query('SELECT mobile FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1', [cleanId]);
-    if (dbRes.rows.length === 0) return res.status(404).json({ error: 'Agent account not found.' });
-
-    const mobile = dbRes.rows[0].mobile;
-    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
-      method: 'POST',
-      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, identifier: `91${mobile}` })
-    });
-    const data = await response.json();
-    if (data.type === 'success' || data.reqId) {
-      otpStore.set('FORGOT_' + mobile, { reqId: data.reqId || data.message, mobile, expiresAt: Date.now() + 600000 });
-      return res.json({ success: true, mobile: mobile.slice(-4) });
-    }
-    return res.status(400).json({ error: 'Failed to send recovery OTP.' });
-  } catch (err) {
-    return res.status(500).json({ error: 'Recovery service unavailable.' });
-  }
-});
-
-app.post('/api/agent/forgot-password/reset', otpLimiter, async (req, res) => {
-  const { identifier, otp, newPassword } = req.body;
-  const cleanId = String(identifier || '').trim();
-  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
-
-  try {
-    const dbRes = await pool.query('SELECT mobile FROM agents WHERE mobile = $1 OR email = $1 LIMIT 1', [cleanId]);
-    if (dbRes.rows.length === 0) return res.status(404).json({ error: 'Agent not found.' });
-
-    const mobile = dbRes.rows[0].mobile;
-    const record = otpStore.get('FORGOT_' + mobile);
-    if (!record) return res.status(400).json({ error: 'OTP session expired. Request a new code.' });
-
-    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
-      method: 'POST',
-      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, reqId: record.reqId, otp: String(otp).trim() })
-    });
-    const data = await response.json();
-
-    if (data.type === 'success' || data['access-token']) {
-      otpStore.delete('FORGOT_' + mobile);
-      const newHash = await hashPassword(newPassword);
-      await pool.query('UPDATE agents SET password = $1, updated_at = NOW() WHERE mobile = $2', [newHash, mobile]);
-      return res.json({ success: true, message: 'Password reset successfully.' });
-    }
-    return res.status(400).json({ error: 'Invalid verification code.' });
-  } catch (err) {
-    return res.status(500).json({ error: 'Password reset failed.' });
-  }
-});
-
-app.post('/api/rc-preview', orderLimiter, async (req, res) => {
-  try {
-    const { regNo } = req.body;
-    const authHeader = req.headers['authorization'] || '';
-    const authContext = await resolveAuthContext(authHeader);
-
-    if (authContext.role === 'PUBLIC') {
-      return res.status(401).json({ error: 'Please verify your mobile number to look up records.' });
-    }
-
-    if (!regNo || regNo.length < 5) {
-      return res.status(400).json({ error: 'Enter a valid registration number.' });
-    }
-
-    const report = await getVehicleOrDlRecord('RC', regNo);
-    if (!report) {
-      return res.status(404).json({ error: 'Vehicle details could not be found. Check the registration number.' });
-    }
-
-    const detectedTier = resolveVehicleTier(report.vehicleClassFull, report.bodyType);
-
-    let amount = 150;
-    if (authContext.role === 'ADMIN') {
-      amount = 0;
-    } else if (authContext.role === 'AGENT') {
-      if (detectedTier === '3-Wheeler') amount = 120;
-      else if (detectedTier === '4-Wheeler+') amount = 150;
-      else amount = 80;
-    } else {
-      if (detectedTier === '3-Wheeler') amount = 180;
-      else if (detectedTier === '4-Wheeler+') amount = 200;
-      else amount = 150;
-    }
-
-    const brandName = [report.maker, report.model].filter(Boolean).join(' — ') || 'AUTOMOBILE';
-
-    return res.json({
-      success: true,
-      regNo: report.regNo,
-      brandName,
-      ownerMasked: maskEvenly(report.owner),
-      chassisMasked: maskEvenly(report.chassisNo),
-      engineMasked: maskEvenly(report.engineNo),
-      detectedTier,
-      amount,
-      isKA: (report.regNo || '').substring(0, 2).toUpperCase() === 'KA'
-    });
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to preview vehicle record: ' + err.message });
-  }
-});
-
-app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
-  const secretKey = String(req.body.secretKey || '').trim();
-  const masterSecret = String(ADMIN_MASTER_SECRET || '').trim();
-
-  if (masterSecret && secretKey && safeEqual(secretKey, masterSecret)) {
-    return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
-  }
-  return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
-});
-
-app.get('/api/admin/stats', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  try {
-    const statsRes = await pool.query(`
-      SELECT
-        COUNT(*)::int AS total_downloads,
-        COUNT(CASE WHEN doc_type = 'RC' THEN 1 END)::int AS rc_count,
-        COUNT(CASE WHEN doc_type = 'DL' THEN 1 END)::int AS dl_count,
-        COALESCE(SUM(amount), 0)::numeric AS total_revenue
-      FROM orders
-      WHERE status = 'SUCCESS';
-    `);
-
-    const agentStatsRes = await pool.query(`
-      SELECT
-        COUNT(*)::int AS total_agents,
-        COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END)::int AS active_agents,
-        COUNT(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 END)::int AS pending_agents
-      FROM agents;
-    `);
-
-    res.json({
-      success: true,
-      summary: statsRes.rows[0],
-      agents: agentStatsRes.rows[0]
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch analytics' });
-  }
-});
-
-app.get('/api/admin/orders', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  try {
-    const result = await pool.query(`
-      SELECT order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at
-      FROM orders
-      ORDER BY created_at DESC
-      LIMIT 100;
-    `);
-    res.json({ success: true, orders: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch order history' });
-  }
-});
-
-app.get('/api/admin/agents', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  try {
-    const result = await pool.query(
-      'SELECT agent_id, name, mobile, email, address, status, created_at FROM agents ORDER BY created_at DESC'
-    );
-    res.json({ success: true, agents: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch agents' });
-  }
-});
-
-app.post('/api/admin/update-agent-status', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  const { agentId, status } = req.body;
-  const allowedStatuses = ['PENDING_PAYMENT', 'PENDING_APPROVAL', 'ACTIVE', 'REJECTED'];
-  if (!allowedStatuses.includes(status)) {
-    return res.status(400).json({ error: 'Invalid agent status.' });
-  }
-
-  try {
-    const result = await pool.query(
-      'UPDATE agents SET status = $1, updated_at = NOW() WHERE agent_id = $2 RETURNING *',
-      [status, agentId]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Agent not found' });
-    }
-
-    res.json({ success: true, agent: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: 'Database update failed' });
-  }
-});
-
-app.post('/api/admin/direct-download', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  try {
-    const { docType, targetNumber, dob, rcFormat } = req.body;
-    if (!targetNumber) {
-      return res.status(400).json({ error: 'Target reference number is required' });
-    }
-
-    const report = await getVehicleOrDlRecord(docType, targetNumber, dob);
-    if (!report) {
-      return res.status(404).json({ error: 'Record not found in live databases.' });
-    }
-
-    const adminOrderId = 'ADM_' + Date.now();
-    pool.query(
-      `INSERT INTO orders
-        (order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
-       VALUES
-        ($1, 'ADMIN', $2, $3, 0, 'SUCCESS', 'ADMIN_DIRECT', NOW(), NOW(), 'ADMIN', 'ADMIN', NULL, $4, $5)`,
-      [adminOrderId, docType, targetNumber, normalizeDob(dob), rcFormat || 'OLD']
-    ).catch(() => {});
-
-    const pdfBuffer = await generateVectorPdfBuffer(docType, rcFormat || 'OLD', report);
-    const fileName = docType === 'DL' ? `DL_${report.dlNo || targetNumber}.pdf` : `RC_${report.regNo || targetNumber}.pdf`;
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
-    res.send(pdfBuffer);
-  } catch (err) {
-    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
-  }
-});
-
-app.post('/api/admin/clear-data', (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) {
-    return res.status(403).json({ error: 'Unauthorized admin access' });
-  }
-
-  const now = Date.now();
-  for (const [k, v] of otpStore.entries()) {
-    if (v.expiresAt && now > v.expiresAt) otpStore.delete(k);
-  }
-  for (const [k, v] of customers.entries()) {
-    if (v.expiresAt && now > v.expiresAt) customers.delete(k);
-  }
-  pool.query('DELETE FROM customer_sessions WHERE expires_at < NOW()').catch(() => {});
-
-  res.json({ success: true, message: 'Expired sessions cleaned successfully.' });
-});
-
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
-    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName, devBypass } = req.body;
-    const authHeader = req.headers['authorization'] || '';
-    const authContext = await resolveAuthContext(authHeader);
-    const role = authContext.role;
-
-    let finalAmount = 150;
-    if (docType === 'AGENT_ONBOARDING') {
-      finalAmount = 399;
-    } else if (role === 'ADMIN') {
-      finalAmount = 0;
-    } else if (role === 'AGENT') {
-      if (docType === 'DL') finalAmount = 80;
-      else if (tier === '3-Wheeler') finalAmount = 120;
-      else if (tier === '4-Wheeler+') finalAmount = 150;
-      else finalAmount = 80;
-    } else {
-      if (docType === 'DL') finalAmount = 150;
-      else if (tier === '3-Wheeler') finalAmount = 180;
-      else if (tier === '4-Wheeler+') finalAmount = 200;
-      else finalAmount = 150;
-    }
-
+    const { docType, targetNumber, dob, rcFormat } = req.body;
     const localOrderId = 'ORD_' + Date.now();
+    const amount = 150;
     
-    if (devBypass && docType === 'AGENT_ONBOARDING') {
-      const bypassOrderId = 'BYPASS_' + Date.now();
-      orders.set(bypassOrderId, {
-        orderId: bypassOrderId,
-        docType,
-        targetNumber,
-        amount: finalAmount,
-        status: 'SUCCESS'
-      });
-      
-      await pool.query(
-        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
-        [targetNumber]
-      );
-
-      return res.json({
-        success: true,
-        bypassed: true,
-        orderId: bypassOrderId,
-        amount: finalAmount
-      });
-    }
-
     let rzpOrderId = null;
-
-    if (role !== 'ADMIN' && finalAmount > 0) {
-      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-        return res.status(500).json({ error: 'Razorpay keys not configured on server.' });
-      }
-
-      const options = {
-        amount: Math.round(finalAmount * 100),
-        currency: 'INR',
-        receipt: localOrderId,
-        notes: { docType: docType || 'RC', targetNumber: targetNumber || '', role }
-      };
-
-      const rzpOrder = await razorpay.orders.create(options);
+    if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
+      const rzpOrder = await razorpay.orders.create({ amount: Math.round(amount * 100), currency: 'INR', receipt: localOrderId });
       rzpOrderId = rzpOrder.id;
     }
 
     const effectiveOrderId = rzpOrderId || localOrderId;
-    const initialStatus = role === 'ADMIN' ? 'SUCCESS' : 'PENDING';
-
-    let ownerId = authContext.mobile || authContext.agentId || customerMobile || 'ADMIN';
-
-    const orderData = {
-      orderId: effectiveOrderId,
-      rzpOrderId,
-      localOrderId,
-      docType,
-      targetNumber,
-      tier,
-      amount: finalAmount,
-      role,
-      ownerId,
-      dob: normalizeDob(dob),
-      rcFormat: rcFormat || 'OLD',
-      status: initialStatus,
-      currency: 'INR'
-    };
-
-    orders.set(effectiveOrderId, orderData);
-
-    await pool.query(
-      `INSERT INTO orders
-        (order_id, user_phone, doc_type, lookup_key, amount, status, created_at, owner_id, owner_role, rzp_order_id, dob, rc_format)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11)
-       ON CONFLICT (order_id) DO NOTHING`,
-      [effectiveOrderId, customerMobile || '', docType, targetNumber, finalAmount, initialStatus, ownerId, role, rzpOrderId, normalizeDob(dob), rcFormat || 'OLD']
-    );
-
-    res.json({
-      success: true,
-      orderId: effectiveOrderId,
-      amount: finalAmount,
-      amountPaise: Math.round(finalAmount * 100),
-      currency: 'INR',
-      keyId: RAZORPAY_KEY_ID,
-      role
-    });
+    orders.set(effectiveOrderId, { orderId: effectiveOrderId, docType, targetNumber, amount, dob, rcFormat, status: 'SUCCESS' });
+    res.json({ success: true, orderId: effectiveOrderId, amount, amountPaise: Math.round(amount * 100), keyId: RAZORPAY_KEY_ID });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create payment order: ' + err.message });
+    res.status(500).json({ error: 'Order creation failed' });
   }
 });
 
 app.post('/api/verify-payment', async (req, res) => {
-  try {
-    await ordersSecuritySchemaReady;
-    const { orderId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-    const lookupId = razorpay_order_id || orderId;
-
-    if (!lookupId) {
-      return res.status(400).json({ error: 'Order ID is required.' });
-    }
-
-    let order = orders.get(lookupId);
-
-    if (!order) {
-      try {
-        const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1', [lookupId]);
-        if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
-          const row = dbOrderRes.rows[0];
-          order = {
-            orderId: row.order_id,
-            rzpOrderId: row.rzp_order_id || row.order_id,
-            docType: row.doc_type,
-            targetNumber: row.lookup_key,
-            amount: Number(row.amount),
-            role: row.owner_role || 'PUBLIC',
-            ownerId: row.owner_id || null,
-            dob: row.dob || '',
-            rcFormat: row.rc_format || 'OLD',
-            status: row.status,
-            currency: 'INR',
-            paidAt: row.paid_at,
-            paymentId: row.utr
-          };
-          orders.set(lookupId, order);
-        }
-      } catch (pgOrderErr) {}
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    const authHeader = req.headers['authorization'] || '';
-    const authContext = await resolveAuthContext(authHeader);
-
-    if (order.role === 'ADMIN' && authContext.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Unauthorized order access.' });
-    }
-
-    if (order.role === 'ADMIN') {
-      order.status = 'SUCCESS';
-      order.paidAt = order.paidAt || new Date();
-      order.paymentId = order.paymentId || ('RZP_ADM_' + crypto.randomBytes(6).toString('hex'));
-
-      pool.query(
-        'UPDATE orders SET status = $1, paid_at = $2, utr = $3 WHERE order_id = $4',
-        ['SUCCESS', order.paidAt, order.paymentId, lookupId]
-      ).catch(() => {});
-    } else {
-      if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        if (order.status !== 'SUCCESS') {
-          return res.json({
-            status: 'PENDING',
-            orderId: order.orderId,
-            message: 'Awaiting payment verification.'
-          });
-        }
-      } else {
-        const expectedRzpOrderId = order.rzpOrderId || order.orderId;
-        if (!safeEqual(razorpay_order_id, expectedRzpOrderId)) {
-          return res.status(400).json({ error: 'Razorpay order does not match this order.' });
-        }
-
-        const textToSign = `${razorpay_order_id}|${razorpay_payment_id}`;
-        const generatedSig = crypto
-          .createHmac('sha256', RAZORPAY_KEY_SECRET)
-          .update(textToSign)
-          .digest('hex');
-
-        if (!safeEqual(generatedSig, razorpay_signature)) {
-          return res.status(400).json({ error: 'Payment signature verification failed.' });
-        }
-
-        let payment;
-        try {
-          payment = await razorpay.payments.fetch(razorpay_payment_id);
-        } catch (gatewayErr) {
-          return res.status(502).json({ error: 'Unable to verify payment with Razorpay.' });
-        }
-
-        if (!payment || payment.id !== razorpay_payment_id) {
-          return res.status(400).json({ error: 'Invalid Razorpay payment.' });
-        }
-
-        const expectedAmountPaise = Math.round(Number(order.amount) * 100);
-        if (Number(payment.amount) !== expectedAmountPaise) {
-          return res.status(400).json({ error: 'Paid amount does not match the order.' });
-        }
-
-        if (authContext.mobile && !order.ownerId) {
-          order.ownerId = authContext.mobile;
-        }
-
-        order.status = 'SUCCESS';
-        order.paidAt = new Date();
-        order.paymentId = razorpay_payment_id;
-
-        pool.query(
-          'UPDATE orders SET status = $1, paid_at = $2, utr = $3, owner_id = COALESCE(owner_id, $4) WHERE order_id = $5',
-          ['SUCCESS', order.paidAt, order.paymentId, order.ownerId, lookupId]
-        ).catch(() => {});
-      }
-    }
-
-    if (order.status !== 'SUCCESS') {
-      return res.json({
-        status: 'PENDING',
-        orderId: order.orderId,
-        message: 'Awaiting payment verification.'
-      });
-    }
-
-    if (order.docType === 'AGENT_ONBOARDING') {
-      await pool.query(
-        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
-        [order.targetNumber]
-      );
-      return res.json({
-        status: 'SUCCESS',
-        orderId: order.orderId,
-        docType: order.docType,
-        message: 'Agent fee verified successfully and account activated.'
-      });
-    }
-
-    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-
-    if (!report) {
-      pool.query('UPDATE orders SET status = $1 WHERE order_id = $2', ['FETCH_FAILED', lookupId]).catch(() => {});
-      return res.json({
-        status: 'FETCH_FAILED',
-        orderId: order.orderId,
-        amount: order.amount,
-        message: 'Payment received. Server is busy; document can be downloaded from history shortly.'
-      });
-    }
-
-    res.json({
-      status: 'SUCCESS',
-      orderId: order.orderId,
-      docType: order.docType,
-      rcFormat: order.rcFormat || 'OLD',
-      amount: order.amount,
-      currency: order.currency || 'INR',
-      role: order.role,
-      paymentId: order.paymentId,
-      report
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Payment verification failed.' });
-  }
-});
-
-app.post('/api/bank-webhook', async (req, res) => {
-  try {
-    await ordersSecuritySchemaReady;
-
-    if (!RAZORPAY_WEBHOOK_SECRET) {
-      return res.status(503).send('Webhook secret not configured');
-    }
-
-    const rawBody = req.rawBody || Buffer.from(JSON.stringify(req.body));
-    const signature = req.headers['x-razorpay-signature'] || '';
-
-    if (!signature) {
-      return res.status(401).send('Missing webhook signature');
-    }
-
-    const expectedSig = crypto
-      .createHmac('sha256', RAZORPAY_WEBHOOK_SECRET)
-      .update(rawBody)
-      .digest('hex');
-
-    if (!safeEqual(expectedSig, signature)) {
-      return res.status(401).send('Bad webhook signature');
-    }
-
-    const payload = req.body || {};
-    const event = payload.event;
-
-    if (event === 'payment.captured' || event === 'order.paid') {
-      const paymentEntity = payload.payload?.payment?.entity || null;
-      const orderEntity = payload.payload?.order?.entity || null;
-      const rzpOrderId = paymentEntity?.order_id || orderEntity?.id || null;
-      const paymentId = paymentEntity?.id || null;
-
-      if (!rzpOrderId) return res.status(200).json({ status: 'ignored' });
-
-      let o = orders.get(rzpOrderId);
-
-      if (!o) {
-        try {
-          const dbRes = await pool.query(
-            'SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1 LIMIT 1',
-            [rzpOrderId]
-          );
-          if (dbRes.rows.length > 0) {
-            const row = dbRes.rows[0];
-            o = {
-              orderId: row.order_id,
-              rzpOrderId: row.rzp_order_id || row.order_id,
-              docType: row.doc_type,
-              targetNumber: row.lookup_key,
-              amount: Number(row.amount),
-              role: row.owner_role || 'PUBLIC',
-              ownerId: row.owner_id || null,
-              dob: row.dob || '',
-              rcFormat: row.rc_format || 'OLD',
-              status: row.status,
-              currency: 'INR',
-              paidAt: row.paid_at,
-              paymentId: row.utr
-            };
-            orders.set(o.orderId, o);
-          }
-        } catch (dbErr) {}
-      }
-
-      if (o) {
-        o.status = 'SUCCESS';
-        o.paidAt = new Date();
-        if (paymentId) o.paymentId = paymentId;
-
-        pool.query(
-          'UPDATE orders SET status = $1, paid_at = NOW(), utr = COALESCE($2, utr) WHERE order_id = $3 OR rzp_order_id = $3',
-          ['SUCCESS', paymentId, o.orderId]
-        ).catch(() => {});
-
-        if (o.docType === 'AGENT_ONBOARDING') {
-          pool.query(
-            "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
-            [o.targetNumber]
-          ).catch(() => {});
-        }
-      }
-    }
-
-    return res.status(200).json({ status: 'ok' });
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
+  const { orderId } = req.body;
+  const order = orders.get(orderId);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
+  const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
+  res.json({ status: 'SUCCESS', orderId: order.orderId, docType: order.docType, rcFormat: order.rcFormat || 'OLD', report });
 });
 
 async function generateVectorPdfBuffer(docType, rcFormat, report) {
@@ -1651,8 +493,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const { width, height } = page.getSize();
 
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
   const cardW = 260.0;
   const S = cardW / CARD_WIDTH;
   const cardH = CARD_HEIGHT * S;
@@ -1666,30 +506,19 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const leftCardX = startX;
   const rightCardX = startX + cardW + gap;
   const cardY = startY;
-
-  // Pure solid black color for uniform dark font rendering across all fields
   const solidBlack = rgb(0, 0, 0);
 
   function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
     const clean = String(addr).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     if (clean.length <= maxChars) return [clean];
-
     const words = clean.split(' ');
     const lines = [];
     let currentLine = '';
-
-    for (let i = 0; i < words.length; i++) {
-      let word = words[i];
-      if (word.length > maxChars) word = word.substring(0, maxChars);
-      if (!currentLine) {
-        currentLine = word;
-      } else if ((currentLine + ' ' + word).length <= maxChars) {
-        currentLine += ' ' + word;
-      } else {
-        lines.push(currentLine);
-        currentLine = word;
-      }
+    for (let word of words) {
+      if (!currentLine) currentLine = word;
+      else if ((currentLine + ' ' + word).length <= maxChars) currentLine += ' ' + word;
+      else { lines.push(currentLine); currentLine = word; }
     }
     if (currentLine) lines.push(currentLine);
     return lines;
@@ -1699,868 +528,126 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     let size = initialSize;
     const str = String(text || '').trim();
     for (let i = 0; i < 12; i++) {
-      if (size <= minSize) break;
-      if (targetFont.widthOfTextAtSize(str, size) <= maxWidth) break;
+      if (size <= minSize || targetFont.widthOfTextAtSize(str, size) <= maxWidth) break;
       size -= 0.25;
     }
     return Math.max(size, minSize);
   }
 
-  const roundedMask = Buffer.from(`
-    <svg width="1040" height="655">
-      <rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/>
-    </svg>
-  `);
+  const roundedMask = Buffer.from(`<svg width="1040" height="655"><rect x="0" y="0" width="1040" height="655" rx="32" ry="32" fill="#fff"/></svg>`);
 
-  if (docType === 'DL') {
-    const isOldDl = (rcFormat === 'OLD');
-
-    const frontCandidates = isOldDl ? ['old_dl_front.png', 'dl_front.png'] : ['dl_front.png', 'Website Template Final (13).png'];
-    const backCandidates = isOldDl ? ['old_dl_back.png', 'dl_back.png'] : ['dl_back.png', 'Website Template Final (14).png'];
-
-    const frontPath = getTemplatePath(frontCandidates);
+  if (docType === 'DL' && rcFormat === 'OLD') {
+    const frontPath = getTemplatePath(['old_dl_front.png', 'dl_front.png']);
     if (frontPath) {
-      const maskedFrontPng = await sharp(frontPath)
-        .resize(1040, 655)
-        .composite([{ input: roundedMask, blend: 'dest-in' }])
-        .png()
-        .toBuffer();
-      const frontImg = await pdfDoc.embedPng(maskedFrontPng);
-      // FIXED: Draw front template on left card without any text or photo overlaid
-      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+      const maskedFrontPng = await sharp(frontPath).resize(1040, 655).composite([{ input: roundedMask, blend: 'dest-in' }]).png().toBuffer();
+      page.drawImage(await pdfDoc.embedPng(maskedFrontPng), { x: leftCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    const backPath = getTemplatePath(backCandidates);
+    const backPath = getTemplatePath(['old_dl_back.png', 'dl_back.png']);
     if (backPath) {
-      const maskedBackPng = await sharp(backPath)
-        .resize(1040, 655)
-        .composite([{ input: roundedMask, blend: 'dest-in' }])
-        .png()
-        .toBuffer();
-      const backImg = await pdfDoc.embedPng(maskedBackPng);
-      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
+      const maskedBackPng = await sharp(backPath).resize(1040, 655).composite([{ input: roundedMask, blend: 'dest-in' }]).png().toBuffer();
+      page.drawImage(await pdfDoc.embedPng(maskedBackPng), { x: rightCardX, y: cardY, width: cardW, height: cardH });
     }
 
-    if (isOldDl) {
-      // 1. FRONT CARD (LEFT) -> RENDERED CLEAN AS BACKGROUND TEMPLATE ABOVE (NO TEXT OR PHOTO)
-
-      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE
-      if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
-        try {
-          const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
-          const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-          if (rawPhotoBuffer.length > 200) {
-            const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
-              .resize(150, 180, { fit: 'cover' })
-              .png()
-              .toBuffer();
-            const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-            // FIXED: Render profile photo on right card (back card) under VALID TILL gap
-            page.drawImage(embeddedPhoto, {
-              x: rightCardX + (36.0 * S),
-              y: cardY + ((CARD_HEIGHT - 110.0) * S),
-              width: 32.5 * S,
-              height: 38.0 * S
-            });
-          }
-        } catch (photoErr) {}
-      }
-
-      const backData = {
-        dlNo: report.dlNo || '',
-        doi: report.doi || '',
-        name: report.name || '',
-        dob: report.dob || '',
-        validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
-        swd: report.swd || 'NA',
-        address: report.address || ''
-      };
-
-      Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
-        if (key === 'rtoAuthority') return;
-        const val = backData[key] || '';
-        if (!val) return;
-        const font = fontBold;
-        const baselineY = CARD_HEIGHT - cfg.yTop;
-
-        if (cfg.multiLine) {
-          const lines = splitAddress(val, 38);
-          lines.slice(0, cfg.maxLines).forEach((line, idx) => {
-            page.drawText(String(line).trim(), {
-              x: rightCardX + (cfg.x * S),
-              y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
-              size: cfg.size * S,
-              font,
-              color: solidBlack
-            });
-          });
-        } else {
-          const textVal = String(val).trim();
-          const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
-          page.drawText(textVal, {
-            x: rightCardX + (cfg.x * S),
-            y: cardY + (baselineY * S),
-            size: fontSize,
-            font,
-            color: solidBlack
-          });
-        }
-      });
-
-      if (report.covList && Array.isArray(report.covList)) {
-        for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-          const cov = report.covList[idx];
-          const rowPitch = 10.5;
-          const rowY = 70.0 + (idx * rowPitch);
-
-          const codeVal = String(cov.code || '').trim();
-          page.drawText(codeVal, {
-            x: rightCardX + (62.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const issuedVal = String(cov.issuedBy || '').trim();
-          page.drawText(issuedVal, {
-            x: rightCardX + (95.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const doiVal = String(cov.doi || '').trim();
-          page.drawText(doiVal, {
-            x: rightCardX + (128.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const catVal = String(cov.category || 'NT').trim();
-          page.drawText(catVal, {
-            x: rightCardX + (178.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-        }
-      }
-
-      const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
-      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
-      page.drawText(rtoVal, {
-        x: rightCardX + ((236.0 * S) - rtoWidth),
-        y: cardY + ((CARD_HEIGHT - 143.0) * S),
-        size: 5.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-    } else {
-      const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
-      const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
-
-      const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
-      const dlSubTitleSize = getFittedSize(dlSubTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
-      const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
-
-      page.drawText(dlSubTitleText, {
-        x: leftCardX + Math.max(0, (cardW - dlSubTitleWidth) / 2),
-        y: cardY + ((CARD_HEIGHT - 21.0) * S),
-        size: dlSubTitleSize,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      const dlBadgeText = dlStateCode;
-      const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.0 * S);
-      page.drawText(dlBadgeText, {
-        x: leftCardX + (230.0 * S) - (dlBadgeW / 2),
-        y: cardY + ((CARD_HEIGHT - 12.3) * S),
-        size: 5.0 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
-        try {
-          const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
-          const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-          if (rawPhotoBuffer.length > 200) {
-            const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
-              .resize(150, 180, { fit: 'cover' })
-              .png()
-              .toBuffer();
-
-            const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-            page.drawImage(embeddedPhoto, {
-              x: leftCardX + (193.5 * S),
-              y: cardY + ((CARD_HEIGHT - 72.0) * S),
-              width: 33.0 * S,
-              height: 39.0 * S
-            });
-          }
-        } catch (photoErr) {}
-      }
-
+    if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
       try {
-        const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
-        if (sigPngBuffer) {
-          const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
-          page.drawImage(embeddedSig, {
-            x: leftCardX + (191.0 * S),
-            y: cardY + ((CARD_HEIGHT - 76.2) * S),
-            width: 35.0 * S,
-            height: 7.2 * S
+        const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
+        const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
+        if (rawPhotoBuffer.length > 200) {
+          const photoPng = await sharp(rawPhotoBuffer, { failOnError: false }).resize(150, 180, { fit: 'cover' }).png().toBuffer();
+          const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+          page.drawImage(embeddedPhoto, {
+            x: rightCardX + (36.0 * S),
+            y: cardY + ((CARD_HEIGHT - 110.0) * S),
+            width: 32.5 * S,
+            height: 38.0 * S
           });
         }
-      } catch (sigErr) {}
-
-      const cleanDlNo = String(report.dlNo || '').trim();
-      page.drawText(cleanDlNo, {
-        x: leftCardX + (89.0 * S),
-        y: cardY + ((CARD_HEIGHT - 35.5) * S),
-        size: 8.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      page.drawText(String(report.doi || '').trim(), {
-        x: leftCardX + (57.0 * S),
-        y: cardY + ((CARD_HEIGHT - 59.5) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      page.drawText(String(report.validUptoNT || '').trim(), {
-        x: leftCardX + (101.0 * S),
-        y: cardY + ((CARD_HEIGHT - 59.5) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      if (report.validUptoTR) {
-        page.drawText(String(report.validUptoTR).trim(), {
-          x: leftCardX + (152.0 * S),
-          y: cardY + ((CARD_HEIGHT - 59.5) * S),
-          size: 6.5 * S,
-          font: fontBold,
-          color: solidBlack
-        });
-      }
-
-      page.drawText(String(report.name || '').trim(), {
-        x: leftCardX + (28.0 * S),
-        y: cardY + ((CARD_HEIGHT - 92.0) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      page.drawText(String(report.dob || '').trim(), {
-        x: leftCardX + (47.0 * S),
-        y: cardY + ((CARD_HEIGHT - 111.2) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      page.drawText(String(report.bloodGroup || '').trim(), {
-        x: leftCardX + (148.0 * S),
-        y: cardY + ((CARD_HEIGHT - 111.2) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      page.drawText(String(report.organDonor || 'N').trim(), {
-        x: leftCardX + (222.0 * S),
-        y: cardY + ((CARD_HEIGHT - 111.2) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      page.drawText(String(report.swd || 'NA').trim(), {
-        x: leftCardX + (79.0 * S),
-        y: cardY + ((CARD_HEIGHT - 122.5) * S),
-        size: 6.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      const dlAddrLines = splitAddress(report.address || '', 38);
-      dlAddrLines.slice(0, 3).forEach((line, idx) => {
-        page.drawText(String(line).trim(), {
-          x: leftCardX + (35.0 * S),
-          y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
-          size: 5.5 * S,
-          font: fontBold,
-          color: solidBlack
-        });
-      });
-
-      page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
-        x: leftCardX + (238.5 * S),
-        y: cardY + (72.0 * S),
-        size: 5.0 * S,
-        font: fontBold,
-        color: solidBlack,
-        rotate: degrees(90)
-      });
-
-      page.drawText(cleanDlNo, {
-        x: rightCardX + (32.0 * S),
-        y: cardY + ((CARD_HEIGHT - 9.0) * S),
-        size: 7.0 * S,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      if (report.covList && Array.isArray(report.covList)) {
-        for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-          const cov = report.covList[idx];
-          const rowPitch = 11.0;
-          const rowY = 83.6 + (idx * rowPitch);
-
-          const codeVal = String(cov.code || '').trim();
-          const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
-          const codeW = fontBold.widthOfTextAtSize(codeVal, codeFontSize);
-
-          page.drawText(codeVal, {
-            x: rightCardX + (47.5 * S) - (codeW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: codeFontSize,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const issuedVal = String(cov.issuedBy || '').trim();
-          const issuedW = fontBold.widthOfTextAtSize(issuedVal, 5.8 * S);
-
-          page.drawText(issuedVal, {
-            x: rightCardX + (73.0 * S) - (issuedW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const doiVal = String(cov.doi || '').trim();
-          const doiW = fontBold.widthOfTextAtSize(doiVal, 4.8 * S);
-
-          page.drawText(doiVal, {
-            x: rightCardX + (107.5 * S) - (doiW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 4.8 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const catVal = String(cov.category || 'NT').trim();
-          const catW = fontBold.widthOfTextAtSize(catVal, 5.8 * S);
-
-          page.drawText(catVal, {
-            x: rightCardX + (137.0 * S) - (catW / 2),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-        }
-      }
-
-      if (report.mobileNo) {
-        page.drawText(String(report.mobileNo).trim(), {
-          x: rightCardX + (46.0 * S),
-          y: cardY + ((CARD_HEIGHT - 146.0) * S),
-          size: 6.0 * S,
-          font: fontBold,
-          color: solidBlack
-        });
-      }
-
-      const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
-      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
-
-      page.drawText(rtoVal, {
-        x: rightCardX + ((236.0 * S) - rtoWidth),
-        y: cardY + ((CARD_HEIGHT - 149.5) * S),
-        size: 5.5 * S,
-        font: fontBold,
-        color: solidBlack
-      });
+      } catch (err) {}
     }
 
-  } else if (rcFormat === 'NEW') {
-    const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
-    const isKA = stateCode === 'KA';
-    const stateFullName = STATE_NAMES[stateCode] || 'KARNATAKA';
-
-    const frontCandidates = isKA ? ['new_rc_front.png', 'new_rc_.png', 'new_rc.png'] : ['national_rc_front.png', 'new_rc_front.png', 'new_rc.png'];
-    const frontPath = getTemplatePath(frontCandidates);
-
-    if (frontPath) {
-      const maskedFrontPng = await sharp(frontPath)
-        .resize(1040, 655)
-        .composite([{ input: roundedMask, blend: 'dest-in' }])
-        .png()
-        .toBuffer();
-      const frontImg = await pdfDoc.embedPng(maskedFrontPng);
-      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
-    }
-
-    const backCandidates = isKA ? ['new_rc_back.png', 'new_rc_back_.png'] : ['national_rc_back.png', 'new_rc_back.png', 'new_rc_back_.png'];
-    const backPath = getTemplatePath(backCandidates);
-
-    if (backPath) {
-      const maskedBackPng = await sharp(backPath)
-        .resize(1040, 655)
-        .composite([{ input: roundedMask, blend: 'dest-in' }])
-        .png()
-        .toBuffer();
-      const backImg = await pdfDoc.embedPng(maskedBackPng);
-      page.drawImage(backImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
-    }
-
-    if (!isKA) {
-      const subTitleText = `Issued by Transport Department, Government of ${stateFullName}`;
-      const subTitleSize = getFittedSize(subTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
-      const subTitleWidth = fontBold.widthOfTextAtSize(subTitleText, subTitleSize);
-
-      page.drawText(subTitleText, {
-        x: leftCardX + Math.max(0, (cardW - subTitleWidth) / 2),
-        y: cardY + ((CARD_HEIGHT - 21.0) * S),
-        size: subTitleSize,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      const isCommercial = isCommercialClass(report.vehicleClassFull);
-      const blueBadgeText = isCommercial ? 'TR' : 'NT';
-      const orangeBadgeText = stateCode;
-      const badgeSize = 5.0 * S;
-      const badgeY = cardY + ((CARD_HEIGHT - 12.3) * S);
-
-      const blueW1 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
-      page.drawText(blueBadgeText, {
-        x: leftCardX + (221.0 * S) - (blueW1 / 2),
-        y: badgeY,
-        size: badgeSize,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      const orangeW1 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
-      page.drawText(orangeBadgeText, {
-        x: leftCardX + (234.0 * S) - (orangeW1 / 2),
-        y: badgeY,
-        size: badgeSize,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
-      page.drawText(blueBadgeText, {
-        x: rightCardX + (13.0 * S) - (blueW2 / 2),
-        y: badgeY,
-        size: badgeSize,
-        font: fontBold,
-        color: solidBlack
-      });
-
-      const orangeW2 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
-      page.drawText(orangeBadgeText, {
-        x: rightCardX + (26.0 * S) - (orangeW2 / 2),
-        y: badgeY,
-        size: badgeSize,
-        font: fontBold,
-        color: solidBlack
-      });
-    }
-
-    const frontData = {
-      regNo: report.regNo,
-      regDate: report.regDate,
-      validUpto: report.validUpto,
-      chassisNo: report.chassisNo,
-      ownerSerial: String(report.ownerSerial || '01').padStart(2, '0'),
-      engineNo: report.engineNo,
-      ownerName: report.owner,
-      swdName: report.swd || 'NA',
-      address: report.address,
-      fuel: report.fuel,
-      emissionNorms: report.emissionNorms || 'BHARAT STAGE VI'
+    const backData = {
+      dlNo: report.dlNo || '',
+      doi: report.doi || '',
+      name: report.name || '',
+      dob: report.dob || '',
+      validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
+      swd: report.swd || 'NA',
+      address: report.address || ''
     };
 
-    Object.entries(newRcFrontLayout).forEach(([key, cfg]) => {
-      const val = frontData[key] || '';
+    Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
+      const val = backData[key] || '';
       if (!val) return;
-
-      const font = fontBold;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
         const lines = splitAddress(val, 38);
         lines.slice(0, cfg.maxLines).forEach((line, idx) => {
-          const posX = idx === 1 && cfg.line2X ? cfg.line2X : cfg.x;
           page.drawText(String(line).trim(), {
-            x: leftCardX + (posX * S),
+            x: rightCardX + (cfg.x * S),
             y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
             size: cfg.size * S,
-            font,
+            font: fontBold,
             color: solidBlack
           });
         });
       } else {
         const textVal = String(val).trim();
-        const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
-        page.drawText(textVal, {
-          x: leftCardX + (cfg.x * S),
-          y: cardY + (baselineY * S),
-          size: fontSize,
-          font,
-          color: solidBlack
-        });
-      }
-    });
-
-    const backData = {
-      vehicleClass: report.vehicleClassFull || 'M-Cycel/Scooter (2WN)',
-      regNo: report.regNo || '',
-      maker: report.maker || '',
-      model: report.model || '',
-      bodyType: report.bodyType || '',
-      seatingCapacity: report.seating ? String(report.seating) : '2',
-      standingCapacity: report.stdgSlpr ? report.stdgSlpr.split('/')[0].trim() : '0',
-      sleeperCapacity: '0',
-      mfgDate: report.mfgDate || '',
-      unladenWeight: report.unladenWt ? String(report.unladenWt) : '109',
-      ladenWeight: report.ladenWt ? String(report.ladenWt) : '239',
-      grossWeight: '0',
-      cylinders: report.cylinders ? String(report.cylinders) : '1',
-      cubicCapacity: report.cubicCap ? String(report.cubicCap) : '109.7',
-      horsePower: report.horsePower ? String(report.horsePower) : '7.37',
-      wheelbase: report.wheelBase ? String(report.wheelBase) : '1275',
-      financer: report.financer || '',
-      rtoAuthority: report.rto || 'CHICKABALLAPURA RTO'
-    };
-
-    Object.entries(newRcBackLayout).forEach(([key, cfg]) => {
-      const val = backData[key] || '';
-      if (!val) return;
-
-      const font = fontBold;
-      const baselineY = CARD_HEIGHT - cfg.yTop;
-      const textVal = String(val).trim();
-      const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
-
-      if (cfg.rightAnchor) {
-        const textWidth = font.widthOfTextAtSize(textVal, fontSize);
-        page.drawText(textVal, {
-          x: rightCardX + ((cfg.x * S) - textWidth),
-          y: cardY + (baselineY * S),
-          size: fontSize,
-          font,
-          color: solidBlack
-        });
-      } else {
+        const fontSize = getFittedSize(textVal, fontBold, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
         page.drawText(textVal, {
           x: rightCardX + (cfg.x * S),
           y: cardY + (baselineY * S),
           size: fontSize,
-          font,
+          font: fontBold,
           color: solidBlack
         });
       }
     });
 
-  } else {
-    const frontImgPath = path.join(__dirname, 'public', 'assets', 'templates', 'ka_front_hd.png');
-    if (fs.existsSync(frontImgPath)) {
-      const roundedFrontPng = await sharp(frontImgPath)
-        .resize(1040, 655)
-        .composite([{ input: roundedMask, blend: 'dest-in' }])
-        .png()
-        .toBuffer();
-      const frontImg = await pdfDoc.embedPng(roundedFrontPng);
-      page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
+    if (report.covList && Array.isArray(report.covList)) {
+      for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
+        const cov = report.covList[idx];
+        const rowPitch = 10.5;
+        const rowY = 70.0 + (idx * rowPitch);
+
+        const codeVal = String(cov.code || '').trim();
+        page.drawText(codeVal, { x: rightCardX + (62.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
+        const issuedVal = String(cov.issuedBy || '').trim();
+        page.drawText(issuedVal, { x: rightCardX + (95.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
+        const doiVal = String(cov.doi || '').trim();
+        page.drawText(doiVal, { x: rightCardX + (128.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
+        const catVal = String(cov.category || 'NT').trim();
+        page.drawText(catVal, { x: rightCardX + (178.0 * S), y: cardY + ((CARD_HEIGHT - rowY) * S), size: 6.0 * S, font: fontBold, color: solidBlack });
+      }
     }
 
-    page.drawRectangle({
-      x: rightCardX,
-      y: cardY,
-      width: cardW,
-      height: cardH,
-      color: rgb(1, 1, 1)
+    const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
+    const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+    page.drawText(rtoVal, {
+      x: rightCardX + ((236.0 * S) - rtoWidth),
+      y: cardY + ((CARD_HEIGHT - 143.0) * S),
+      size: 5.5 * S,
+      font: fontBold,
+      color: solidBlack
     });
-
-    function drawText(text, x, y, size, maxWidth = 170) {
-      if (!text) return;
-      const displayText = String(text).trim();
-      const fontSize = getFittedSize(displayText, fontBold, size * S, 3.8 * S, maxWidth * S);
-
-      page.drawText(displayText, {
-        x: rightCardX + (x * S),
-        y: cardY + (y * S),
-        size: fontSize,
-        font: fontBold,
-        color: solidBlack
-      });
-    }
-
-    function drawTextRightAnchor(text, rightAnchorX, y, size) {
-      if (!text) return;
-      const displayText = String(text).trim();
-      const fontSize = size * S;
-      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
-      const calculatedX = (rightAnchorX * S) - textWidth;
-
-      page.drawText(displayText, {
-        x: rightCardX + calculatedX,
-        y: cardY + (y * S),
-        size: fontSize,
-        font: fontBold,
-        color: solidBlack
-      });
-    }
-
-    function drawTextCenter(text, y, size) {
-      if (!text) return;
-      const displayText = String(text).trim();
-      const fontSize = size * S;
-      const textWidth = fontBold.widthOfTextAtSize(displayText, fontSize);
-      const calculatedX = (cardW - textWidth) / 2;
-
-      page.drawText(displayText, {
-        x: rightCardX + calculatedX,
-        y: cardY + (y * S),
-        size: fontSize,
-        font: fontBold,
-        color: solidBlack
-      });
-    }
-
-    const fullRegNoText = `REG NO : ${report.regNo || ''}`;
-    drawTextCenter(fullRegNoText, fieldLayout.header.regNoY, fieldLayout.header.regNoFontSize);
-    drawTextRightAnchor(fieldLayout.header.form.label, fieldLayout.header.form.rightAnchorX, fieldLayout.header.form.y, fieldLayout.header.form.fontSize);
-    drawTextRightAnchor(fieldLayout.header.formNote.label, fieldLayout.header.formNote.rightAnchorX, fieldLayout.header.formNote.y, fieldLayout.header.formNote.fontSize);
-
-    fieldLayout.topLeft.forEach((field) => {
-      const value = report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
-      drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 95);
-    });
-
-    fieldLayout.topRight.forEach((field) => {
-      let value = report[getFieldKey(field.label)];
-      if (field.label === 'O SLNO' && value) {
-        value = String(value).padStart(2, '0');
-      }
-      if (field.label === 'CLASS' && value) {
-        value = String(value).replace(/\s*\(?2WN\)?\s*/i, '').trim();
-      }
-      if (field.label === 'COLOUR' && value) {
-        value = String(value)
-          .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
-          .replace(/METALLIC\s+/i, 'MET. ')
-          .replace(/ELECTRONIC\s+/i, 'E. ')
-          .trim();
-      }
-      drawText(field.label, field.labelX, field.y, field.fontSize, 28);
-      drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 56);
-    });
-
-    fieldLayout.middle.forEach((field) => {
-      const value = field.label === 'S/W/D OF' ? (report.swd || 'NA') : report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-      drawText(':', field.colonX, field.y, field.fontSize, 5);
-
-      if (field.multiLine && value) {
-        const lines = splitAddress(value, 38);
-        lines.slice(0, field.maxLines).forEach((line, idx) => {
-          const lineY = field.y - (idx * field.lineHeight);
-          drawText(line, field.valueX, lineY, 5.8, 175);
-        });
-      } else {
-        drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 175);
-      }
-    });
-
-    fieldLayout.bottomLeft.forEach((field) => {
-      let value = report[getFieldKey(field.label)];
-      if (field.label === 'BODY' && value && /SOLO/i.test(String(value))) value = 'SOLO';
-      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-      drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, field.maxW || 120);
-    });
-
-    fieldLayout.bottomRight.forEach((field) => {
-      const value = report[getFieldKey(field.label)];
-      drawText(field.label, field.labelX, field.y, field.fontSize, 48);
-      if (field.isDot) drawText('.', field.dotX, field.y, field.fontSize, 5);
-      drawText(':', field.colonX, field.y, field.fontSize, 5);
-      drawText(value, field.valueX, field.y, field.fontSize, 35);
-    });
-
-    drawTextRightAnchor(fieldLayout.footer.authority.label, fieldLayout.footer.authority.rightAnchorX, fieldLayout.footer.authority.y, fieldLayout.footer.authority.fontSize);
-    drawTextRightAnchor(report.rto || 'RTO OFFICE', fieldLayout.footer.rto.rightAnchorX, fieldLayout.footer.rto.y, fieldLayout.footer.rto.fontSize);
   }
-
-  const roundedSvg = Buffer.from(`
-    <svg width="1040" height="655" viewBox="0 0 1040 655" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="3" width="1034" height="649" rx="32" ry="32" fill="none" stroke="#334155" stroke-width="4"/>
-    </svg>
-  `);
-
-  const borderPngBuffer = await sharp(roundedSvg).png().toBuffer();
-  const borderImg = await pdfDoc.embedPng(borderPngBuffer);
-
-  page.drawImage(borderImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
-  page.drawImage(borderImg, { x: rightCardX, y: cardY, width: cardW, height: cardH });
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
 }
 
 app.post('/api/download-rc-pdf', async (req, res) => {
-  try {
-    await ordersSecuritySchemaReady;
-    const { orderId } = req.body;
+  const { orderId } = req.body;
+  const order = orders.get(orderId);
+  if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    if (!orderId) {
-      return res.status(400).json({ error: 'Order ID is required' });
-    }
-
-    const authHeader = req.headers['authorization'] || '';
-    const authContext = await resolveAuthContext(authHeader);
-
-    let order = orders.get(orderId);
-
-    if (!order) {
-      const dbOrderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 OR rzp_order_id = $1', [orderId]);
-      if (dbOrderRes.rows && dbOrderRes.rows.length > 0) {
-        const row = dbOrderRes.rows[0];
-        order = {
-          orderId: row.order_id,
-          rzpOrderId: row.rzp_order_id || row.order_id,
-          docType: row.doc_type,
-          targetNumber: row.lookup_key,
-          amount: Number(row.amount),
-          status: row.status,
-          role: row.owner_role || 'PUBLIC',
-          ownerId: row.owner_id || null,
-          dob: row.dob || '',
-          rcFormat: row.rc_format || 'OLD',
-          paymentId: row.utr
-        };
-      }
-    }
-
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.status !== 'SUCCESS') {
-      return res.status(403).json({ error: 'Payment has not been verified for this order.' });
-    }
-
-    if (authContext.role === 'ADMIN') {
-      // Admin bypass
-    } else if (order.role === 'ADMIN') {
-      return res.status(403).json({ error: 'Unauthorized to download admin-generated document.' });
-    } else if (authContext.role === 'CUSTOMER' && order.ownerId && authContext.mobile) {
-      if (!safeEqual(authContext.mobile, order.ownerId)) {
-        return res.status(403).json({ error: 'This document was purchased by another user.' });
-      }
-    } else if (authContext.role === 'AGENT' && order.ownerId && authContext.agentId) {
-      if (!safeEqual(authContext.agentId, order.ownerId)) {
-        return res.status(403).json({ error: 'This document was ordered by another agent.' });
-      }
-    }
-
-    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-    if (!report) {
-      return res.status(404).json({ error: 'Record could not be retrieved.' });
-    }
-
-    const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
-    const fileName = order.docType === 'DL' ? `DL_${report.dlNo || 'Document'}.pdf` : `RC_${report.regNo || 'Document'}.pdf`;
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName.replace(/"/g, '')}"`);
-    res.send(pdfBuffer);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to generate PDF: ' + err.message });
-  }
-});
-
-function getFieldKey(label) {
-  const map = {
-    'REG.DATE': 'regDate',
-    'CHASSIS NO.': 'chassisNo',
-    'ENGINE NO': 'engineNo',
-    'MFR': 'maker',
-    'O SLNO': 'ownerSerial',
-    'CLASS': 'vehicleClassFull',
-    'COLOUR': 'color',
-    'OWNERNAME': 'owner',
-    'S/W/D OF': 'swd',
-    'ADDRESS': 'address',
-    'MODEL': 'model',
-    'BODY': 'bodyType',
-    'WHEEL BASE': 'wheelBase',
-    'MFG DATE': 'mfgDate',
-    'FUEL': 'fuel',
-    'REG/FC UPTO': 'validUpto',
-    'TAX UPTO': 'taxUpto',
-    'NO.OF CYL': 'cylinders',
-    'UNLADEN WT': 'unladenWt',
-    'SEATING': 'seating',
-    'STDG/SLPR': 'stdgSlpr',
-    'CC': 'cubicCap'
-  };
-
-  return map[label] || label.toLowerCase();
-}
-
-app.get('/api/user/history', async (req, res) => {
-  try {
-    const authHeader = req.headers['authorization'] || '';
-    const authContext = await resolveAuthContext(authHeader);
-
-    if (authContext.role === 'PUBLIC') {
-      return res.status(401).json({ error: 'Unauthorized access.' });
-    }
-
-    let ownerId = authContext.role === 'CUSTOMER' ? authContext.mobile : authContext.agentId;
-    if (!ownerId) {
-      return res.json({ success: true, history: [] });
-    }
-
-    const queryRes = await pool.query(
-      `SELECT order_id, doc_type, lookup_key, amount, created_at, rc_format
-       FROM orders
-       WHERE owner_id = $1 AND status = 'SUCCESS' AND doc_type != 'AGENT_ONBOARDING'
-       ORDER BY created_at DESC
-       LIMIT 5`,
-      [ownerId]
-    );
-
-    res.json({ success: true, history: queryRes.rows });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to retrieve history.' });
-  }
+  const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
+  const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
+  
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="DL_${report.dlNo || 'Document'}.pdf"`);
+  res.send(pdfBuffer);
 });
 
 app.listen(PORT, () => {
