@@ -1925,8 +1925,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         page.drawImage(embeddedPhoto, {
               x: rightCardX + (10* S), // Moved left
               y: cardY + ((CARD_HEIGHT - 90) * S), // Moved up from 105.0 to 98.0
-              width: 32.0 * S,
-              height: 38.0 * S
+              width: 36.0 * S,
+              height: 32.0 * S
             });
           }
         } catch (photoErr) {}
