@@ -967,6 +967,7 @@ const oldDlBackLayout = {
   address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
+
 function getTemplatePath(candidates) {
   for (const candidate of candidates) {
     const fullPath = path.join(__dirname, 'public', 'assets', 'templates', candidate);
