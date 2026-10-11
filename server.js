@@ -243,20 +243,6 @@ const STATE_NAMES = {
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
 };
 
-function loadIconBuffer(fileName) {
-  const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
-  if (fs.existsSync(p)) {
-    return fs.readFileSync(p);
-  }
-  return null;
-}
-
-const PNG_ICONS = {
-  BIKE: loadIconBuffer('I5_transparent.png'),
-  CAR: loadIconBuffer('I6_transparent.png'),
-  LORRY: loadIconBuffer('I7_transparent.png')
-};
-
 function maskEvenly(str) {
   if (!str) return '••••••••';
   const clean = String(str).trim();
@@ -1849,8 +1835,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const rightCardX = startX + cardW + gap;
   const cardY = startY;
 
-  const boldColor = rgb(0, 0, 0);
-  const softTextColor = rgb(0.08, 0.11, 0.17);
+  // Pure solid black color for dark, sharp font rendering
+  const solidBlack = rgb(0, 0, 0);
 
   function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
@@ -1923,9 +1909,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      // 1. FRONT CARD (LEFT) -> RENDER CLEAN TEMPLATE ONLY (NO PHOTO OR TEXT HERE)
+      // 1. FRONT CARD (LEFT) -> CLEAN TEMPLATE ONLY (NO TEXT OR PHOTO OVERLAID)
 
-      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE
+      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE IN SOLID BLACK
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1936,7 +1922,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .png()
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-            // Placed precisely on the right card (back) under VALID TILL gap
             page.drawImage(embeddedPhoto, {
               x: rightCardX + (36.0 * S),
               y: cardY + ((CARD_HEIGHT - 110.0) * S),
@@ -1972,7 +1957,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
               size: cfg.size * S,
               font,
-              color: softTextColor
+              color: solidBlack
             });
           });
         } else {
@@ -1983,42 +1968,17 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + (baselineY * S),
             size: fontSize,
             font,
-            color: softTextColor
+            color: solidBlack
           });
         }
       });
 
+      // COV Table (No icons needed for old template format)
       if (report.covList && Array.isArray(report.covList)) {
-        let carIconImg = null;
-        let bikeIconImg = null;
-        let lorryIconImg = null;
-
-        try {
-          if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
-          if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
-          if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
-        } catch (iconEmbedErr) {}
-
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
           const rowPitch = 10.5;
           const rowY = 70.0 + (idx * rowPitch);
-
-          const covCode = String(cov.code || '').toUpperCase();
-          let activeIcon = bikeIconImg;
-          if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) activeIcon = carIconImg;
-          else if (covCode.includes('TRANS') || covCode.includes('TR') || covCode.includes('HMV')) activeIcon = lorryIconImg || carIconImg;
-
-          if (activeIcon) {
-            try {
-              page.drawImage(activeIcon, {
-                x: rightCardX + (45.0 * S),
-                y: cardY + ((CARD_HEIGHT - (rowY + 1.0)) * S),
-                width: 9.0 * S,
-                height: 4.5 * S
-              });
-            } catch (err) {}
-          }
 
           const codeVal = String(cov.code || '').trim();
           page.drawText(codeVal, {
@@ -2026,7 +1986,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
-            color: boldColor
+            color: solidBlack
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
@@ -2035,7 +1995,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -2044,7 +2004,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const catVal = String(cov.category || 'NT').trim();
@@ -2053,7 +2013,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
         }
       }
@@ -2065,7 +2025,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 143.0) * S),
         size: 5.5 * S,
         font: fontBold,
-        color: softTextColor
+        color: solidBlack
       });
 
     } else {
@@ -2081,7 +2041,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
         size: dlSubTitleSize,
         font: fontBold,
-        color: rgb(0.05, 0.15, 0.3)
+        color: solidBlack
       });
 
       const dlBadgeText = dlStateCode;
@@ -2091,7 +2051,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 12.3) * S),
         size: 5.0 * S,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
@@ -2134,7 +2094,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 35.5) * S),
         size: 8.5 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
 
       page.drawText(String(report.doi || '').trim(), {
@@ -2142,7 +2102,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.validUptoNT || '').trim(), {
@@ -2150,7 +2110,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       if (report.validUptoTR) {
@@ -2159,7 +2119,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - 59.5) * S),
           size: 6.5 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       }
 
@@ -2168,7 +2128,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 92.0) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.dob || '').trim(), {
@@ -2176,7 +2136,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.bloodGroup || '').trim(), {
@@ -2184,7 +2144,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.organDonor || 'N').trim(), {
@@ -2192,7 +2152,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.swd || 'NA').trim(), {
@@ -2200,7 +2160,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 122.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       const dlAddrLines = splitAddress(report.address || '', 38);
@@ -2210,7 +2170,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
           size: 5.5 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       });
 
@@ -2219,7 +2179,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (72.0 * S),
         size: 5.0 * S,
         font: fontRegular,
-        color: softTextColor,
+        color: solidBlack,
         rotate: degrees(90)
       });
 
@@ -2228,7 +2188,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 9.0) * S),
         size: 7.0 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
 
       if (report.covList && Array.isArray(report.covList)) {
@@ -2285,7 +2245,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: codeFontSize,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
@@ -2296,7 +2256,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -2307,7 +2267,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 4.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const catVal = String(cov.category || 'NT').trim();
@@ -2318,7 +2278,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
         }
       }
@@ -2329,7 +2289,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - 146.0) * S),
           size: 6.0 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       }
 
@@ -2341,7 +2301,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 149.5) * S),
         size: 5.5 * S,
         font: fontBold,
-        color: softTextColor
+        color: solidBlack
       });
     }
 
@@ -2386,7 +2346,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
         size: subTitleSize,
         font: fontBold,
-        color: rgb(0.05, 0.15, 0.3)
+        color: solidBlack
       });
 
       const isCommercial = isCommercialClass(report.vehicleClassFull);
@@ -2401,7 +2361,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       const orangeW1 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
@@ -2410,7 +2370,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
@@ -2419,7 +2379,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       const orangeW2 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
@@ -2428,7 +2388,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2451,7 +2411,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       if (!val) return;
 
       const font = cfg.font === 'bold' ? fontBold : fontRegular;
-      const textColor = cfg.font === 'bold' ? boldColor : softTextColor;
+      const textColor = cfg.font === 'bold' ? solidBlack : solidBlack;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
@@ -2516,7 +2476,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + (baselineY * S),
           size: fontSize,
           font,
-          color: softTextColor
+          color: solidBlack
         });
       } else {
         page.drawText(textVal, {
@@ -2524,7 +2484,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + (baselineY * S),
           size: fontSize,
           font,
-          color: softTextColor
+          color: solidBlack
         });
       }
     });
@@ -2559,7 +2519,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2575,7 +2535,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2591,7 +2551,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
