@@ -971,18 +971,14 @@ const newRcBackLayout = {
   rtoAuthority: { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
 };
 
-const oldDlFrontLayout = {
+const oldDlBackLayout = {
   dlNo: { x: 62.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 120 },
   doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
   name: { x: 62.0, yTop: 42.0, size: 6.5, font: 'bold', maxW: 150 },
   dob: { x: 62.0, yTop: 56.5, size: 6.5, font: 'regular', maxW: 100 },
   validUptoNT: { x: 62.0, yTop: 71.0, size: 6.5, font: 'regular', maxW: 120 },
   swd: { x: 62.0, yTop: 120.0, size: 6.5, font: 'regular', maxW: 150 },
-  address: { x: 62.0, yTop: 132.5, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 175 }
-};
-
-const oldDlBackLayout = {
-  dlNo: { x: 62.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 120 },
+  address: { x: 62.0, yTop: 132.5, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 175 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
@@ -1927,17 +1923,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      // 1. FRONT CARD (LEFT) MAPPING
-      const frontData = {
-        dlNo: report.dlNo || '',
-        doi: report.doi || '',
-        name: report.name || '',
-        dob: report.dob || '',
-        validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
-        swd: report.swd || 'NA',
-        address: report.address || ''
-      };
-
+      // 1. FRONT CARD (LEFT) -> RENDER CLEAN TEMPLATE WITHOUT TEXT OVERLAY
+      // Profile Photo Placement on Left Card
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1949,17 +1936,29 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
             page.drawImage(embeddedPhoto, {
-              x: leftCardX + (17.5 * S),
-              y: cardY + ((CARD_HEIGHT - 118.0) * S),
-              width: 33.0 * S,
-              height: 40.0 * S
+              x: leftCardX + (20.5 * S),
+              y: cardY + ((CARD_HEIGHT - 110.0) * S),
+              width: 32.5 * S,
+              height: 38.0 * S
             });
           }
         } catch (photoErr) {}
       }
 
-      Object.entries(oldDlFrontLayout).forEach(([key, cfg]) => {
-        const val = frontData[key] || '';
+      // 2. BACK CARD (RIGHT) -> MAP ALL DETAILS HERE
+      const backData = {
+        dlNo: report.dlNo || '',
+        doi: report.doi || '',
+        name: report.name || '',
+        dob: report.dob || '',
+        validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
+        swd: report.swd || 'NA',
+        address: report.address || ''
+      };
+
+      Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
+        if (key === 'rtoAuthority') return;
+        const val = backData[key] || '';
         if (!val) return;
         const font = cfg.font === 'bold' ? fontBold : fontRegular;
         const baselineY = CARD_HEIGHT - cfg.yTop;
@@ -1968,7 +1967,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const lines = splitAddress(val, 38);
           lines.slice(0, cfg.maxLines).forEach((line, idx) => {
             page.drawText(String(line).trim(), {
-              x: leftCardX + (cfg.x * S),
+              x: rightCardX + (cfg.x * S),
               y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
               size: cfg.size * S,
               font,
@@ -1979,23 +1978,13 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const textVal = String(val).trim();
           const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
           page.drawText(textVal, {
-            x: leftCardX + (cfg.x * S),
+            x: rightCardX + (cfg.x * S),
             y: cardY + (baselineY * S),
             size: fontSize,
             font,
             color: softTextColor
           });
         }
-      });
-
-      // 2. BACK CARD (RIGHT) MAPPING
-      const cleanDlNo = String(report.dlNo || '').trim();
-      page.drawText(cleanDlNo, {
-        x: rightCardX + (62.0 * S),
-        y: cardY + ((CARD_HEIGHT - 28.5) * S),
-        size: 6.8 * S,
-        font: fontBold,
-        color: boldColor
       });
 
       if (report.covList && Array.isArray(report.covList)) {
