@@ -902,41 +902,6 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
   }
 });
 
-app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
-  const secretKey = String(req.body.secretKey || '').trim();
-  const masterSecret = String(ADMIN_MASTER_SECRET || '').trim();
-
-  if (masterSecret && secretKey && safeEqual(secretKey, masterSecret)) {
-    return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
-  }
-  return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
-});
-
-app.get('/api/admin/stats', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) return res.status(403).json({ error: 'Unauthorized' });
-
-  try {
-    const statsRes = await pool.query(`SELECT COUNT(*)::int AS total_downloads, COUNT(CASE WHEN doc_type = 'RC' THEN 1 END)::int AS rc_count, COUNT(CASE WHEN doc_type = 'DL' THEN 1 END)::int AS dl_count, COALESCE(SUM(amount), 0)::numeric AS total_revenue FROM orders WHERE status = 'SUCCESS';`);
-    const agentStatsRes = await pool.query(`SELECT COUNT(*)::int AS total_agents, COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END)::int AS active_agents, COUNT(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 END)::int AS pending_agents FROM agents;`);
-    res.json({ success: true, summary: statsRes.rows[0], agents: agentStatsRes.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch analytics' });
-  }
-});
-
-app.get('/api/admin/orders', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) return res.status(403).json({ error: 'Unauthorized' });
-
-  try {
-    const result = await pool.query(`SELECT order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at FROM orders ORDER BY created_at DESC LIMIT 100;`);
-    res.json({ success: true, orders: result.rows });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
-});
-
 app.post('/api/rc-preview', orderLimiter, async (req, res) => {
   try {
     const { regNo } = req.body;
@@ -1008,6 +973,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const { width, height } = page.getSize();
 
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
   const cardW = 260.0;
   const S = cardW / CARD_WIDTH;
   const cardH = CARD_HEIGHT * S;
