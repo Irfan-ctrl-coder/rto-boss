@@ -1923,7 +1923,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
         page.drawImage(embeddedPhoto, {
-              x: rightCardX + (25* S), // Moved left
+              x: rightCardX + (10* S), // Moved left
               y: cardY + ((CARD_HEIGHT - 90) * S), // Moved up from 105.0 to 98.0
               width: 32.0 * S,
               height: 38.0 * S
