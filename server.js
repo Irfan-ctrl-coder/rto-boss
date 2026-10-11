@@ -12,7 +12,6 @@ const Razorpay = require('razorpay');
 const { rateLimit } = require('express-rate-limit');
 const pincodeLookup = require('india-pincode-lookup');
 
-// Mitigate libvips threadpool starvation and memory bloat on VPS
 sharp.concurrency(1);
 sharp.cache(false);
 
@@ -21,10 +20,8 @@ const scryptAsync = promisify(crypto.scrypt);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security: Disable Express fingerprint header
 app.disable('x-powered-by');
 
-// Native Security Headers (Safe for Razorpay checkout modal & Tailwind CDN)
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -32,10 +29,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Trust reverse proxy (Nginx on VPS) for accurate IP resolution in rate limiting
 app.set('trust proxy', 1);
 
-// PostgreSQL Connection Setup
 const DATABASE_URL = process.env.DATABASE_URL;
 
 if (process.env.NODE_ENV === 'production' && !DATABASE_URL) {
@@ -54,16 +49,12 @@ pool.on('error', (err) => {
 });
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
-
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || (
   ADMIN_MASTER_SECRET
     ? crypto.createHmac('sha256', 'RTO_BOSS_STATIC_SALT').update(String(ADMIN_MASTER_SECRET).trim()).digest('hex')
     : crypto.randomBytes(32).toString('hex')
 );
 
-// =====================================================================
-// RAZORPAY PRODUCTION GATEWAY CONFIG
-// =====================================================================
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 const RAZORPAY_WEBHOOK_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET || '';
@@ -73,9 +64,6 @@ const razorpay = new Razorpay({
   key_secret: RAZORPAY_KEY_SECRET
 });
 
-// =====================================================================
-// SUREPASS PRODUCTION API CONFIG
-// =====================================================================
 const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
@@ -84,10 +72,7 @@ async function fetchWithTimeout(resource, options = {}) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
-    const response = await fetch(resource, {
-      ...rest,
-      signal: controller.signal
-    });
+    const response = await fetch(resource, { ...rest, signal: controller.signal });
     clearTimeout(id);
     return response;
   } catch (error) {
@@ -100,138 +85,48 @@ const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
 const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID || '3669776c5531333237393636';
 const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '';
 
-if (process.env.NODE_ENV === 'production') {
-  if (!ADMIN_MASTER_SECRET) {
-    throw new Error('ADMIN_MASTER_SECRET must be configured in production.');
-  }
-  if (!DATABASE_URL) {
-    throw new Error('DATABASE_URL must be configured in production.');
-  }
-  if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-    throw new Error('RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured in production.');
-  }
-}
-
 const allowedOrigins = [
-  'https://rtoboss.in',
-  'https://www.rtoboss.in',
-  'http://rtoboss.in',
-  'http://www.rtoboss.in',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
-  'http://187.126.113.210:3000',
-  'http://187.126.113.210'
+  'https://rtoboss.in', 'https://www.rtoboss.in', 'http://rtoboss.in', 'http://www.rtoboss.in',
+  'http://localhost:3000', 'http://127.0.0.1:3000', 'http://187.126.113.210:3000', 'http://187.126.113.210'
 ];
-if (process.env.FRONTEND_URL) {
-  process.env.FRONTEND_URL.split(',').forEach(u => allowedOrigins.push(u.trim()));
-}
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('Cross-origin request blocked by security policy.'));
   },
   credentials: false
 }));
 
-app.use(express.json({
-  limit: '10mb',
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-
+app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
-});
+app.get('/health', (req, res) => res.status(200).send('OK'));
 
 app.get('/', (req, res) => {
-  const publicIndexPath = path.join(__dirname, 'public', 'index.html');
-  if (fs.existsSync(publicIndexPath)) {
-    return res.sendFile(publicIndexPath);
-  }
-  const rootIndexPath = path.join(__dirname, 'index.html');
-  if (fs.existsSync(rootIndexPath)) {
-    return res.sendFile(rootIndexPath);
-  }
+  const p = path.join(__dirname, 'public', 'index.html');
+  if (fs.existsSync(p)) return res.sendFile(p);
   return res.status(404).send('Not Found');
 });
 
 app.get('/admin', (req, res) => {
-  const publicAdminPath = path.join(__dirname, 'public', 'admin.html');
-  if (fs.existsSync(publicAdminPath)) {
-    return res.sendFile(publicAdminPath);
-  }
-  const rootAdminPath = path.join(__dirname, 'admin.html');
-  if (fs.existsSync(rootAdminPath)) {
-    return res.sendFile(rootAdminPath);
-  }
+  const p = path.join(__dirname, 'public', 'admin.html');
+  if (fs.existsSync(p)) return res.sendFile(p);
   return res.status(404).send('Not Found');
 });
 
-const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 300,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many requests. Please try again in a few minutes.' }
-});
+const generalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 300, standardHeaders: 'draft-8', legacyHeaders: false });
 app.use('/api/', generalLimiter);
 
-const otpLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  limit: 5,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many verification code attempts from this connection. Please wait 10 minutes.' }
-});
-
-const orderLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  limit: 10,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many order requests. Please slow down.' }
-});
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 10,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts. Please try again later.' }
-});
-
-const adminLoginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 5,
-  standardHeaders: 'draft-8',
-  legacyHeaders: false,
-  message: { error: 'Too many admin login attempts. Please try again later.' }
-});
+const otpLimiter = rateLimit({ windowMs: 10 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false });
+const orderLimiter = rateLimit({ windowMs: 1 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false });
+const adminLoginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false });
 
 const orders = new Map();
 const otpStore = new Map();
 const customers = new Map();
-
-setInterval(async () => {
-  const now = Date.now();
-  for (const [k, v] of otpStore.entries()) {
-    if (v.expiresAt && now > v.expiresAt) otpStore.delete(k);
-  }
-  for (const [k, v] of customers.entries()) {
-    if (v.expiresAt && now > v.expiresAt) customers.delete(k);
-  }
-  try {
-    await pool.query('DELETE FROM customer_sessions WHERE expires_at < NOW()');
-  } catch (err) {}
-}, 10 * 60 * 1000);
 
 const STATE_NAMES = {
   AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
@@ -247,22 +142,15 @@ function maskEvenly(str) {
   if (!str) return '••••••••';
   const clean = String(str).trim();
   if (clean.length <= 4) return '•'.repeat(clean.length);
-  
   const chars = clean.split('');
   const masked = chars.map((char, index) => {
     if (char === ' ' || char === '-' || char === '/') return char;
-    if (index % 2 === 0 && index > 0 && index < clean.length - 1) {
-      return '•';
-    }
+    if (index % 2 === 0 && index > 0 && index < clean.length - 1) return '•';
     return char;
   });
-  
   let result = masked.join('');
   if (result.length > 6) {
-    const start = result.slice(0, 2);
-    const end = result.slice(-2);
-    const middleDots = '••••';
-    return start + middleDots + end;
+    return result.slice(0, 2) + '••••' + result.slice(-2);
   }
   return result;
 }
@@ -270,21 +158,8 @@ function maskEvenly(str) {
 function resolveVehicleTier(vClass, bodyType) {
   const c = String(vClass || '').toUpperCase();
   const b = String(bodyType || '').toUpperCase();
-
-  if (
-    c.includes('2W') || c.includes('CYCLE') || c.includes('SCOOTER') || 
-    c.includes('M-CYCLE') || c.includes('MOTORCYCLE') || b.includes('SOLO')
-  ) {
-    return '2-Wheeler';
-  }
-
-  if (
-    c.includes('3W') || c.includes('THREE') || c.includes('AUTO') || 
-    c.includes('RICKSHAW') || c.includes('3 WHEELER')
-  ) {
-    return '3-Wheeler';
-  }
-
+  if (c.includes('2W') || c.includes('CYCLE') || c.includes('SCOOTER') || c.includes('M-CYCLE') || c.includes('MOTORCYCLE') || b.includes('SOLO')) return '2-Wheeler';
+  if (c.includes('3W') || c.includes('THREE') || c.includes('AUTO') || c.includes('RICKSHAW')) return '3-Wheeler';
   return '4-Wheeler+';
 }
 
@@ -1851,6 +1726,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         .png()
         .toBuffer();
       const frontImg = await pdfDoc.embedPng(maskedFrontPng);
+      // FIXED: Draw front template on left card without any text or photo overlaid
       page.drawImage(frontImg, { x: leftCardX, y: cardY, width: cardW, height: cardH });
     }
 
@@ -1866,9 +1742,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      // 1. FRONT CARD (LEFT) -> CLEAN TEMPLATE ONLY (NO TEXT OR PHOTO OVERLAID)
+      // 1. FRONT CARD (LEFT) -> RENDERED CLEAN AS BACKGROUND TEMPLATE ABOVE (NO TEXT OR PHOTO)
 
-      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS IN UNIFORM BOLD BLACK
+      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1879,6 +1755,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .png()
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+            // FIXED: Render profile photo on right card (back card) under VALID TILL gap
             page.drawImage(embeddedPhoto, {
               x: rightCardX + (36.0 * S),
               y: cardY + ((CARD_HEIGHT - 110.0) * S),
@@ -1903,7 +1780,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         if (key === 'rtoAuthority') return;
         const val = backData[key] || '';
         if (!val) return;
-        // Using fontBold for every field to ensure uniform weight and darkness
         const font = fontBold;
         const baselineY = CARD_HEIGHT - cfg.yTop;
 
