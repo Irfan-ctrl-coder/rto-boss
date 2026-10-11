@@ -1923,7 +1923,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      // 1. FRONT CARD (LEFT) -> RENDER CLEAN TEMPLATE (PHOTO ONLY)
+      // 1. FRONT CARD (LEFT) -> RENDER CLEAN TEMPLATE ONLY (NO PHOTO OR TEXT HERE)
+
+      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1934,8 +1936,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .png()
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+            // Placed precisely on the right card (back) under VALID TILL gap
             page.drawImage(embeddedPhoto, {
-              x: leftCardX + (20.5 * S),
+              x: rightCardX + (36.0 * S),
               y: cardY + ((CARD_HEIGHT - 110.0) * S),
               width: 32.5 * S,
               height: 38.0 * S
@@ -1944,7 +1947,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         } catch (photoErr) {}
       }
 
-      // 2. BACK CARD (RIGHT) -> MAP ALL TEXT, COV TABLE, & SIGNATURES HERE
       const backData = {
         dlNo: report.dlNo || '',
         doi: report.doi || '',
