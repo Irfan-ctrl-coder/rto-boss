@@ -958,13 +958,13 @@ const newRcBackLayout = {
 };
 
 const oldDlBackLayout = {
-  dlNo: { x: 92.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 130 },
-  doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 92.0, yTop: 36.5, size: 6.5, font: 'bold', maxW: 140 },
-  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'regular', maxW: 120 },
-  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'regular', maxW: 130 },
-  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'regular', maxW: 140 },
-  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  dlNo: { x: 92.0, yTop: 18.0, size: 6.8, font: 'bold', maxW: 130 },
+  doi: { x: 198.0, yTop: 18.0, size: 6.5, font: 'bold', maxW: 65 },
+  name: { x: 92.0, yTop: 27.0, size: 6.5, font: 'bold', maxW: 140 },
+  dob: { x: 92.0, yTop: 36.0, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 92.0, yTop: 45.0, size: 6.5, font: 'bold', maxW: 130 },
+  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
+  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
@@ -1909,9 +1909,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      // 1. FRONT CARD (LEFT) -> CLEAN TEMPLATE ONLY (NO TEXT OR PHOTO OVERLAID)
+      // 1. FRONT CARD (LEFT) -> CLEAN BACKGROUND TEMPLATE ONLY (NO TEXT/PHOTO)
 
-      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE IN SOLID BLACK
+      // 2. BACK CARD (RIGHT) -> PROFILE PHOTO PLACEMENT
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1923,9 +1923,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
             page.drawImage(embeddedPhoto, {
-              x: rightCardX + (36.0 * S),
-              y: cardY + ((CARD_HEIGHT - 110.0) * S),
-              width: 32.5 * S,
+              x: rightCardX + (28.0 * S),
+              y: cardY + ((CARD_HEIGHT - 105.0) * S),
+              width: 32.0 * S,
               height: 38.0 * S
             });
           }
@@ -1946,7 +1946,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         if (key === 'rtoAuthority') return;
         const val = backData[key] || '';
         if (!val) return;
-        const font = cfg.font === 'bold' ? fontBold : fontRegular;
+        const font = fontBold;
         const baselineY = CARD_HEIGHT - cfg.yTop;
 
         if (cfg.multiLine) {
@@ -1973,16 +1973,16 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         }
       });
 
-      // COV Table (No icons needed for old template format)
+      // COV Table positioning under "VALID THROUGHOUT INDIA"
       if (report.covList && Array.isArray(report.covList)) {
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
           const rowPitch = 10.5;
-          const rowY = 70.0 + (idx * rowPitch);
+          const rowY = 74.0 + (idx * rowPitch);
 
           const codeVal = String(cov.code || '').trim();
           page.drawText(codeVal, {
-            x: rightCardX + (62.0 * S),
+            x: rightCardX + (100.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
@@ -1991,28 +1991,19 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const issuedVal = String(cov.issuedBy || '').trim();
           page.drawText(issuedVal, {
-            x: rightCardX + (95.0 * S),
+            x: rightCardX + (145.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
           page.drawText(doiVal, {
-            x: rightCardX + (128.0 * S),
+            x: rightCardX + (185.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
-            font: fontRegular,
-            color: solidBlack
-          });
-
-          const catVal = String(cov.category || 'NT').trim();
-          page.drawText(catVal, {
-            x: rightCardX + (178.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
         }
@@ -2027,8 +2018,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         font: fontBold,
         color: solidBlack
       });
+    }
 
-    } else {
+  else {
       const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
       const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
 
