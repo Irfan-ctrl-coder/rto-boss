@@ -958,13 +958,13 @@ const newRcBackLayout = {
 };
 
 const oldDlBackLayout = {
-  dlNo: { x: 78.0, yTop: 24.5, size: 6.8, font: 'bold', maxW: 130 },
-  doi: { x: 198.0, yTop: 24.5, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 78.0, yTop: 32.5, size: 6.5, font: 'bold', maxW: 140 },
-  dob: { x: 78.0, yTop: 40.5, size: 6.5, font: 'bold', maxW: 120 },
-  validUptoNT: { x: 78.0, yTop: 48.5, size: 6.5, font: 'bold', maxW: 130 },
+  dlNo: { x: 65.0, yTop: 15.0, size: 6.8, font: 'bold', maxW: 130 },
+  doi: { x: 198.0, yTop: 15.0, size: 6.5, font: 'bold', maxW: 65 },
+  name: { x: 65.0, yTop: 25.0, size: 6.5, font: 'bold', maxW: 140 },
+  dob: { x: 65.0, yTop: 30.0, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 78.0, yTop: 40.5, size: 6.5, font: 'bold', maxW: 130 },
   swd: { x: 78.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
-  address: { x: 78.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  address: { x: 65.0, yTop: 112.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
@@ -1923,7 +1923,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
         page.drawImage(embeddedPhoto, {
-              x: rightCardX + (22.0 * S), // Moved left
+              x: rightCardX + (125.0 * S), // Moved left
               y: cardY + ((CARD_HEIGHT - 98.0) * S), // Moved up from 105.0 to 98.0
               width: 32.0 * S,
               height: 38.0 * S
