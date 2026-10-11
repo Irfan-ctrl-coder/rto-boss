@@ -319,71 +319,28 @@ const mockDatabase = {
     emissionNorms: 'BHARAT STAGE VI',
     financer: ''
   },
-  'KA0120110006162': {
-    dlNo: 'KA01 20110006162',
-    doi: '10-06-2011',
-    validUptoNT: '09-06-2031',
+  'KA0320180012734': {
+    dlNo: 'KA03 20180012734',
+    doi: '06-06-2018',
+    validUptoNT: '05-06-2038',
     validUptoTR: '',
-    name: 'MAMATHA H S',
-    dob: '17-03-1992',
+    name: 'BASILEIA PAROUSIA M F',
+    dob: '31-05-1999',
     bloodGroup: '',
     organDonor: 'N',
-    swd: 'SIDDAIAH',
-    address: '# 197, CAR, POLICE QTRS, BANGALORE - 560018',
-    firstIssueDate: '10-06-2011',
+    swd: 'A M FRANCIS',
+    address: 'NO 2/2 1ST CROSS NEAR ASHA NURSING HOME VANNARPET VIVEKNAGAR BANGALORE NORTH,BANGALORE,KA, 560047',
+    firstIssueDate: '06-06-2018',
     adpVehNo: '',
     hazardousValidity: '',
     hillValidity: '',
     profileImage: '',
     covList: [
-      { covType: 'CAR', code: 'LMV', issuedBy: 'KA01', doi: '10-06-2011', category: 'NT' },
-      { covType: 'BIKE', code: 'MCWOG', issuedBy: 'KA01', doi: '10-06-2011', category: 'NT' }
+      { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA03', doi: '06-06-2018', category: 'NT' },
+      { covType: 'CAR', code: 'LMV', issuedBy: 'KA03', doi: '06-06-2018', category: 'NT' }
     ],
     mobileNo: '',
-    rtoAuthority: 'RTO BANGALORE (CENTRAL), HSR LAYOUT'
-  },
-  'KA1320170004921': {
-    dlNo: 'KA13 20170004921',
-    doi: '05-05-2017',
-    validUptoNT: '04-05-2037',
-    validUptoTR: '',
-    name: 'HARISHAKUMARA C',
-    dob: '24-04-1993',
-    bloodGroup: '',
-    organDonor: 'N',
-    swd: 'DHARMEGOWDA',
-    address: '#1 KOLAR ROAD, VIJAYAPURA, Bangalore Rural, KA - 562135',
-    firstIssueDate: '18-05-2013',
-    adpVehNo: '',
-    hazardousValidity: '',
-    hillValidity: '',
-    covList: [
-      { covType: 'CAR', code: 'LMV', issuedBy: 'KA51', doi: '18-05-2013', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
-    ],
-    mobileNo: '',
-    rtoAuthority: 'RTO, HASSAN'
-  },
-  'KA1120140002551': {
-    dlNo: 'KA11 20140002551',
-    doi: '23-08-2022',
-    validUptoNT: '08-06-2035',
-    validUptoTR: '',
-    name: 'PAVAN KUMAR K',
-    dob: '09-06-1995',
-    bloodGroup: 'B+VE',
-    organDonor: 'N',
-    swd: 'KALASAIAH',
-    address: 'Javarayyana Beedi Kurupete Kanakapura, Ramanagar, KA - 562117',
-    firstIssueDate: '12-04-2014',
-    adpVehNo: '',
-    hazardousValidity: '',
-    hillValidity: '',
-    covList: [
-      { covType: 'BIKE', code: 'MCWG', issuedBy: 'KA11', doi: '12-04-2014', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' },
-      { covType: 'CAR', code: 'LMV', issuedBy: 'KA42', doi: '23-08-2022', category: 'NT', badgeNo: '', badgeDoi: '', badgeBy: '' }
-    ],
-    mobileNo: '',
-    rtoAuthority: 'RAMANAGARA-(KA42)'
+    rtoAuthority: 'RTO BANGALORE (EAST), KASTURINAGAR'
   }
 };
 
@@ -961,10 +918,10 @@ const oldDlBackLayout = {
   dlNo: { x: 92.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 130 },
   doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
   name: { x: 92.0, yTop: 36.5, size: 6.5, font: 'bold', maxW: 140 },
-  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'regular', maxW: 120 },
-  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'regular', maxW: 130 },
-  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'regular', maxW: 140 },
-  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'bold', maxW: 130 },
+  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
+  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
@@ -1835,7 +1792,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const rightCardX = startX + cardW + gap;
   const cardY = startY;
 
-  // Pure solid black color for dark, sharp font rendering
+  // Pure solid black color for uniform dark font rendering across all fields
   const solidBlack = rgb(0, 0, 0);
 
   function splitAddress(addr, maxChars = 38) {
@@ -1911,7 +1868,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     if (isOldDl) {
       // 1. FRONT CARD (LEFT) -> CLEAN TEMPLATE ONLY (NO TEXT OR PHOTO OVERLAID)
 
-      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS HERE IN SOLID BLACK
+      // 2. BACK CARD (RIGHT) -> PLACE PROFILE PHOTO & ALL TEXT/COV DETAILS IN UNIFORM BOLD BLACK
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1946,7 +1903,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         if (key === 'rtoAuthority') return;
         const val = backData[key] || '';
         if (!val) return;
-        const font = cfg.font === 'bold' ? fontBold : fontRegular;
+        // Using fontBold for every field to ensure uniform weight and darkness
+        const font = fontBold;
         const baselineY = CARD_HEIGHT - cfg.yTop;
 
         if (cfg.multiLine) {
@@ -1973,7 +1931,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         }
       });
 
-      // COV Table (No icons needed for old template format)
       if (report.covList && Array.isArray(report.covList)) {
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
@@ -1994,7 +1951,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             x: rightCardX + (95.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
 
@@ -2003,7 +1960,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             x: rightCardX + (128.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
 
@@ -2012,7 +1969,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             x: rightCardX + (178.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
         }
@@ -2101,7 +2058,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (57.0 * S),
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2109,7 +2066,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (101.0 * S),
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2118,7 +2075,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           x: leftCardX + (152.0 * S),
           y: cardY + ((CARD_HEIGHT - 59.5) * S),
           size: 6.5 * S,
-          font: fontRegular,
+          font: fontBold,
           color: solidBlack
         });
       }
@@ -2127,7 +2084,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (28.0 * S),
         y: cardY + ((CARD_HEIGHT - 92.0) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2135,7 +2092,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (47.0 * S),
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2143,7 +2100,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (148.0 * S),
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2151,7 +2108,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (222.0 * S),
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2159,7 +2116,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (79.0 * S),
         y: cardY + ((CARD_HEIGHT - 122.5) * S),
         size: 6.5 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack
       });
 
@@ -2169,7 +2126,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           x: leftCardX + (35.0 * S),
           y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
           size: 5.5 * S,
-          font: fontRegular,
+          font: fontBold,
           color: solidBlack
         });
       });
@@ -2178,7 +2135,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         x: leftCardX + (238.5 * S),
         y: cardY + (72.0 * S),
         size: 5.0 * S,
-        font: fontRegular,
+        font: fontBold,
         color: solidBlack,
         rotate: degrees(90)
       });
@@ -2192,92 +2149,53 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       });
 
       if (report.covList && Array.isArray(report.covList)) {
-        let carIconImg = null;
-        let bikeIconImg = null;
-        let lorryIconImg = null;
-
-        try {
-          if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
-          if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
-          if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
-        } catch (iconEmbedErr) {}
-
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
           const rowPitch = 11.0;
           const rowY = 83.6 + (idx * rowPitch);
 
-          const covCode = String(cov.code || '').toUpperCase();
-          let activeIcon = bikeIconImg;
-
-          if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
-            activeIcon = carIconImg;
-          } else if (
-            covCode.includes('TRANS') ||
-            covCode.includes('TR') ||
-            covCode.includes('HMV') ||
-            covCode.includes('HGMV') ||
-            covCode.includes('HPV') ||
-            covCode.includes('LORRY')
-          ) {
-            activeIcon = lorryIconImg || carIconImg;
-          } else {
-            activeIcon = bikeIconImg;
-          }
-
-          if (activeIcon) {
-            try {
-              page.drawImage(activeIcon, {
-                x: rightCardX + (17.5 * S),
-                y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
-                width: 11.5 * S,
-                height: 5.8 * S
-              });
-            } catch (drawErr) {}
-          }
-
           const codeVal = String(cov.code || '').trim();
           const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
-          const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
+          const codeW = fontBold.widthOfTextAtSize(codeVal, codeFontSize);
 
           page.drawText(codeVal, {
             x: rightCardX + (47.5 * S) - (codeW / 2),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: codeFontSize,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
-          const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+          const issuedW = fontBold.widthOfTextAtSize(issuedVal, 5.8 * S);
 
           page.drawText(issuedVal, {
             x: rightCardX + (73.0 * S) - (issuedW / 2),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
-          const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+          const doiW = fontBold.widthOfTextAtSize(doiVal, 4.8 * S);
 
           page.drawText(doiVal, {
             x: rightCardX + (107.5 * S) - (doiW / 2),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 4.8 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
 
           const catVal = String(cov.category || 'NT').trim();
-          const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+          const catW = fontBold.widthOfTextAtSize(catVal, 5.8 * S);
 
           page.drawText(catVal, {
             x: rightCardX + (137.0 * S) - (catW / 2),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
-            font: fontRegular,
+            font: fontBold,
             color: solidBlack
           });
         }
@@ -2288,7 +2206,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           x: rightCardX + (46.0 * S),
           y: cardY + ((CARD_HEIGHT - 146.0) * S),
           size: 6.0 * S,
-          font: fontRegular,
+          font: fontBold,
           color: solidBlack
         });
       }
@@ -2410,8 +2328,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const val = frontData[key] || '';
       if (!val) return;
 
-      const font = cfg.font === 'bold' ? fontBold : fontRegular;
-      const textColor = cfg.font === 'bold' ? solidBlack : solidBlack;
+      const font = fontBold;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
@@ -2423,7 +2340,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
             size: cfg.size * S,
             font,
-            color: textColor
+            color: solidBlack
           });
         });
       } else {
@@ -2434,7 +2351,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + (baselineY * S),
           size: fontSize,
           font,
-          color: textColor
+          color: solidBlack
         });
       }
     });
@@ -2464,7 +2381,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const val = backData[key] || '';
       if (!val) return;
 
-      const font = cfg.font === 'bold' ? fontBold : fontRegular;
+      const font = fontBold;
       const baselineY = CARD_HEIGHT - cfg.yTop;
       const textVal = String(val).trim();
       const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
