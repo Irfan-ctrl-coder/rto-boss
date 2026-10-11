@@ -958,16 +958,15 @@ const newRcBackLayout = {
 };
 
 const oldDlBackLayout = {
-  dlNo: { x: 92.0, yTop: 18.0, size: 6.8, font: 'bold', maxW: 130 },
+  dlNo: { x: 84.0, yTop: 18.0, size: 6.8, font: 'bold', maxW: 130 },
   doi: { x: 198.0, yTop: 18.0, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 92.0, yTop: 27.0, size: 6.5, font: 'bold', maxW: 140 },
-  dob: { x: 92.0, yTop: 36.0, size: 6.5, font: 'bold', maxW: 120 },
-  validUptoNT: { x: 92.0, yTop: 45.0, size: 6.5, font: 'bold', maxW: 130 },
+  name: { x: 84.0, yTop: 27.0, size: 6.5, font: 'bold', maxW: 140 },
+  dob: { x: 84.0, yTop: 35.0, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 84.0, yTop: 43.0, size: 6.5, font: 'bold', maxW: 130 },
   swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
   address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
-
 function getTemplatePath(candidates) {
   for (const candidate of candidates) {
     const fullPath = path.join(__dirname, 'public', 'assets', 'templates', candidate);
@@ -1911,7 +1910,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     if (isOldDl) {
       // 1. FRONT CARD (LEFT) -> CLEAN BACKGROUND TEMPLATE ONLY (NO TEXT/PHOTO)
 
-      // 2. BACK CARD (RIGHT) -> PROFILE PHOTO PLACEMENT
+      // 2. BACK CARD (RIGHT) -> PROFILE PHOTO PLACEMENT (Shifted Left)
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1923,7 +1922,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
             page.drawImage(embeddedPhoto, {
-              x: rightCardX + (28.0 * S),
+              x: rightCardX + (24.0 * S), // Moved left from 28.0 to 24.0
               y: cardY + ((CARD_HEIGHT - 105.0) * S),
               width: 32.0 * S,
               height: 38.0 * S
@@ -1973,7 +1972,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         }
       });
 
-      // COV Table positioning under "VALID THROUGHOUT INDIA"
+      // COV Table positioning (Centered under VALID THROUGHOUT INDIA)
       if (report.covList && Array.isArray(report.covList)) {
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
@@ -1982,7 +1981,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const codeVal = String(cov.code || '').trim();
           page.drawText(codeVal, {
-            x: rightCardX + (100.0 * S),
+            x: rightCardX + (82.0 * S), // Centered nicely under COV section
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
@@ -1991,7 +1990,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const issuedVal = String(cov.issuedBy || '').trim();
           page.drawText(issuedVal, {
-            x: rightCardX + (145.0 * S),
+            x: rightCardX + (125.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
@@ -2000,7 +1999,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const doiVal = String(cov.doi || '').trim();
           page.drawText(doiVal, {
-            x: rightCardX + (185.0 * S),
+            x: rightCardX + (165.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
