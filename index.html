@@ -50,7 +50,7 @@
         </div>
       </div>
 
- <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2">
         <div id="roleBadgeContainer" class="hidden"></div>
         <button id="navHistoryBtn" onclick="openHistoryModal()" class="hidden text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-all flex items-center gap-1.5">
           <span>📂</span> History
@@ -62,6 +62,7 @@
           <span>🤝</span> Agent Portal
         </button>
       </div>
+    </div>
   </header>
 
   <!-- MAIN WRAPPER -->
@@ -176,7 +177,7 @@
       </div>
     </div>
 
-    <!-- STATE 1.5: RC PREVIEW MODAL (WITH OWNER NAME CARD) -->
+    <!-- STATE 1.5: RC PREVIEW MODAL -->
     <div id="view-rc-preview-modal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl space-y-5 text-left">
         <div class="flex items-center justify-between border-b pb-3">
@@ -187,7 +188,6 @@
           <button onclick="closePreviewModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
         </div>
 
-        <!-- Verification Detail Card -->
         <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
           <div>
             <div class="text-[10px] uppercase font-bold text-slate-400">Maker &amp; Model (Brand)</div>
@@ -219,7 +219,6 @@
           </div>
         </div>
 
-        <!-- Pricing Summary -->
         <div class="flex justify-between items-baseline pt-1">
           <div>
             <span class="text-xs font-bold text-slate-500 uppercase">Calculated Charge</span>
@@ -274,7 +273,7 @@
       </div>
     </div>
 
-    <!-- FORMAT CHOOSER MODAL -->
+    <!-- FORMAT CHOOSER MODAL (RC) -->
     <div id="formatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
         <div class="text-left">
@@ -301,6 +300,32 @@
       </div>
     </div>
 
+    <!-- DL FORMAT CHOOSER MODAL -->
+    <div id="dlFormatChooserModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl space-y-5">
+        <div class="text-left">
+          <span class="text-[10px] font-bold text-brand-primary uppercase tracking-widest bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">DRIVING LICENCE LAYOUT</span>
+          <h3 class="text-xl font-black text-brand-navy mt-2">Select Preferred DL Format</h3>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-left">
+          <button type="button" onclick="confirmDlFormatSelection('OLD')" class="p-4 rounded-2xl border-2 border-brand-primary bg-blue-50/60 transition-all flex flex-col justify-between space-y-3 group shadow-sm">
+            <div>
+              <div class="text-2xl">📜</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2 group-hover:text-brand-primary">Old DL Card</h4>
+            </div>
+            <span class="text-xs font-bold text-brand-primary">FORM-7 (KA)</span>
+          </button>
+          <button type="button" onclick="confirmDlFormatSelection('NEW')" class="p-4 rounded-2xl border-2 border-slate-200 hover:border-brand-primary bg-slate-50 transition-all flex flex-col justify-between space-y-3">
+            <div>
+              <div class="text-2xl">💳</div>
+              <h4 class="font-extrabold text-sm text-brand-navy mt-2">New DL Card</h4>
+            </div>
+            <span class="text-xs font-bold text-brand-primary">STANDARD</span>
+          </button>
+        </div>
+        <button onclick="closeDlFormatModal()" class="text-xs text-slate-400 hover:text-slate-600 block mx-auto">Cancel</button>
+      </div>
+    </div>
 
     <!-- PAST DOWNLOADS HISTORY MODAL -->
     <div id="historyModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
@@ -319,7 +344,7 @@
       </div>
     </div>
 
-    <!-- AGENT MODAL (WITH LOGIN, ₹399 INSTANT REGISTRATION & FORGOT PASSWORD FLOW) -->
+    <!-- AGENT MODAL -->
     <div id="agentModal" class="hidden fixed inset-0 z-50 bg-brand-navy/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div class="bg-white rounded-3xl max-w-md w-full p-6 text-left shadow-2xl space-y-4 max-h-[90vh] flex flex-col overflow-y-auto">
         <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -330,7 +355,6 @@
           <button onclick="closeAgentModal()" class="text-slate-400 hover:text-slate-600 text-lg font-bold">&times;</button>
         </div>
 
-        <!-- Agent Login View -->
         <div id="agentLoginView" class="space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Mobile or Email</label>
@@ -354,7 +378,6 @@
           </div>
         </div>
 
-        <!-- Agent Register View (₹399 Instant Activation) -->
         <div id="agentRegisterView" class="hidden space-y-3">
           <div>
             <label class="text-[11px] font-bold text-slate-500 uppercase block mb-1">Business Name</label>
@@ -392,7 +415,6 @@
           </div>
         </div>
 
-        <!-- Agent Forgot Password Recovery View (OTP + New Password + Confirm Password) -->
         <div id="agentForgotView" class="hidden space-y-3 text-left">
           <div id="forgotStep1" class="space-y-3">
             <div>
@@ -504,6 +526,7 @@
     let currentService = 'RC';
     let detectedState = 'KA';
     let chosenFormat = 'NEW';
+    let chosenDlFormat = 'NEW';
     let activeOrderId = null;
     let activeDocNum = null;
     let isCompleted = false;
@@ -539,6 +562,7 @@
       document.getElementById('view-success-state').classList.add('hidden');
       closePreviewModal();
       closeFormatModal();
+      closeDlFormatModal();
       closeAgentModal();
       closePolicyModal();
 
@@ -646,7 +670,7 @@
       }
     }
 
-function updatePriceUI() {
+    function updatePriceUI() {
       const badgeCont = document.getElementById('roleBadgeContainer');
       const historyBtn = document.getElementById('navHistoryBtn');
       const logoutBtn = document.getElementById('navLogoutBtn');
@@ -888,7 +912,16 @@ function updatePriceUI() {
         alert('Please enter a valid Driving Licence Number');
         return;
       }
-      chosenFormat = 'NEW';
+      document.getElementById('dlFormatChooserModal').classList.remove('hidden');
+    }
+
+    function closeDlFormatModal() {
+      document.getElementById('dlFormatChooserModal').classList.add('hidden');
+    }
+
+    function confirmDlFormatSelection(format) {
+      chosenDlFormat = format;
+      closeDlFormatModal();
       executeDlOrder();
     }
 
@@ -908,7 +941,7 @@ function updatePriceUI() {
             targetNumber,
             tier: '2-Wheeler',
             dob,
-            rcFormat: 'NEW',
+            rcFormat: chosenDlFormat,
             customerMobile: verifiedCustomerMobile,
             customerName: 'Customer'
           })
@@ -1054,7 +1087,7 @@ function updatePriceUI() {
       }
     }
 
-  async function handleAgentRegister() {
+    async function handleAgentRegister() {
       const name = document.getElementById('agentRegName').value.trim();
       const mobile = document.getElementById('agentRegMobile').value.trim();
       const email = document.getElementById('agentRegEmail').value.trim();
@@ -1071,7 +1104,6 @@ function updatePriceUI() {
         return;
       }
 
-      // DEV BYPASS PROMPT FOR TESTING
       const useDevBypass = confirm("⚡ DEV MODE: Click OK to bypass payment & activate instantly, or Cancel to pay via Razorpay.");
 
       try {
@@ -1085,7 +1117,6 @@ function updatePriceUI() {
         if (d.success) {
           closeAgentModal();
 
-          // If developer clicked OK to bypass payment
           if (useDevBypass) {
             const bypassRes = await fetch('/api/create-order', {
               method: 'POST',
@@ -1109,7 +1140,6 @@ function updatePriceUI() {
             }
           }
 
-          // Normal Live Razorpay Flow
           const orderRes = await fetch('/api/create-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
