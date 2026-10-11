@@ -958,11 +958,11 @@ const newRcBackLayout = {
 };
 
 const oldDlBackLayout = {
-  dlNo: { x: 65.0, yTop: 13.0, size: 6.8, font: 'bold', maxW: 130 },
+  dlNo: { x: 60.0, yTop: 13.0, size: 6.8, font: 'bold', maxW: 130 },
   doi: { x: 198.0, yTop: 15.0, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 65.0, yTop: 21.0, size: 6.5, font: 'bold', maxW: 135 },
-  dob: { x: 65.0, yTop: 28.0, size: 6.5, font: 'bold', maxW: 120 },
-  validUptoNT: { x: 65.0, yTop: 35.0 , size: 6.5, font: 'bold', maxW: 130 },
+  name: { x: 60.0, yTop: 21.0, size: 6.5, font: 'bold', maxW: 135 },
+  dob: { x: 60.0, yTop: 28.0, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 60.0, yTop: 35.0 , size: 6.5, font: 'bold', maxW: 130 },
   swd: { x: 78.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
   address: { x: 65.0, yTop: 112.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
