@@ -104,7 +104,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/health', (req, res) => res.status(200).send('OK'));
 
-// Restored Root Route to serve the frontend properly
 app.get('/', (req, res) => {
   const publicIndexPath = path.join(__dirname, 'public', 'index.html');
   if (fs.existsSync(publicIndexPath)) return res.sendFile(publicIndexPath);
@@ -249,12 +248,76 @@ function normalizeDob(dobStr) {
 function enrichAddress(rawAddress, rtoAuthority, regNo) {
   let addrStr = String(rawAddress || '').trim();
   addrStr = addrStr.replace(/^[\s,./-]+/, '').trim();
+
   const pinMatch = addrStr.match(/\b\d{6}\b/);
   const pin = pinMatch ? pinMatch[0] : '';
-  if (addrStr.length > 25) return addrStr;
+
+  const cleanChars = addrStr.replace(/[^A-Za-z0-9]/g, '');
+  const isOnlyPin = cleanChars === pin;
+  const isNearRtoArtifact = /NEAR\s+RTO/i.test(addrStr);
+  const lacksStreetDetails = !/(road|street|nagar|cross|layout|lane|colony|bldg|apart|flat|house|door|plot|sector|phase|bazaar|post|taluk|halli|pura|beedi|qtrs|opp|behind)/i.test(addrStr);
+
+  if (!isNearRtoArtifact && !isOnlyPin && !lacksStreetDetails && addrStr.length > 25) {
+    return addrStr;
+  }
+
   const cleanRto = String(rtoAuthority || 'TRANSPORT OFFICE').replace(/\s*RTO/i, '').trim();
   const stateCode = String(regNo || 'KA').substring(0, 2).toUpperCase();
-  return `#1, MAIN ROAD, ${cleanRto.toUpperCase()}, ${stateCode} - ${pin || '560001'}`;
+  const stateName = STATE_NAMES[stateCode] || 'KARNATAKA';
+
+  const seed = String(regNo || 'V01').split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const doorNo = (seed % 88) + 1;
+
+  if (pin) {
+    try {
+      const records = pincodeLookup.lookup(pin);
+      if (records && records.length > 0) {
+        const rec = records[seed % records.length] || records[0];
+        const office = String(rec.officeName || '')
+          .replace(/\s*(B\.O|S\.O|H\.O)\b/i, '')
+          .trim()
+          .toUpperCase();
+        const isRural = /B\.O\b/i.test(rec.officeName || '');
+        const district = String(rec.districtName || cleanRto).trim().toUpperCase();
+        const resolvedState = String(rec.stateName || stateName).trim().toUpperCase();
+        const shortState = Object.keys(STATE_NAMES).find(key => STATE_NAMES[key] === resolvedState) || stateCode;
+
+        let streetPrefix;
+        if (isRural) {
+          const ruralPatterns = [
+            `POST OFFICE ROAD, ${office}`,
+            `VILLAGE & POST ${office}`,
+            `MAIN ROAD, ${office}`,
+            `NEAR BUS STAND, ${office}`,
+            `TEMPLE STREET, ${office}`,
+            `MARKET ROAD, ${office}`,
+            `PANCHAYAT ROAD, ${office}`
+          ];
+          streetPrefix = ruralPatterns[seed % ruralPatterns.length];
+        } else {
+          const urbanPatterns = [
+            `#${doorNo}, 1ST CROSS, ${office}`,
+            `#${doorNo}, 2ND MAIN ROAD, ${office}`,
+            `#${doorNo}, BAZAAR STREET, ${office}`,
+            `#${doorNo}, STATION ROAD, ${office}`,
+            `#${doorNo}, GANDHI NAGAR, ${office}`,
+            `#${doorNo}, MARKET ROAD, ${office}`,
+            `#${doorNo}, 3RD BLOCK, ${office}`,
+            `#${doorNo}, TEMPLE STREET, ${office}`,
+            `#${doorNo}, 4TH CROSS, ${office}`,
+            `#${doorNo}, NEHRU STREET, ${office}`
+          ];
+          streetPrefix = urbanPatterns[seed % urbanPatterns.length];
+        }
+
+        return `${streetPrefix}, ${district}, ${shortState} - ${pin}`;
+      }
+    } catch (err) {
+      console.warn('[Pincode Lookup Exception]:', err.message);
+    }
+  }
+
+  return `#${doorNo}, MAIN ROAD, ${cleanRto.toUpperCase()}, ${stateCode} - ${pin || '560001'}`;
 }
 
 function safeEqual(a, b) {
@@ -291,6 +354,7 @@ async function verifyPassword(password, storedPassword) {
 
 async function findCustomerByToken(token) {
   if (!token) return null;
+  
   for (const customer of customers.values()) {
     if (!customer || !customer.sessionToken) continue;
     if (safeEqual(customer.sessionToken, token)) {
@@ -301,26 +365,43 @@ async function findCustomerByToken(token) {
       return customer;
     }
   }
+
   try {
-    const res = await pool.query('SELECT token, mobile, expires_at FROM customer_sessions WHERE token = $1 AND expires_at > NOW() LIMIT 1', [token]);
+    const res = await pool.query(
+      'SELECT token, mobile, expires_at FROM customer_sessions WHERE token = $1 AND expires_at > NOW() LIMIT 1',
+      [token]
+    );
     if (res.rows.length > 0) {
       const row = res.rows[0];
       const customerId = 'CUST_' + row.mobile;
-      const restored = { customerId, mobile: row.mobile, sessionToken: row.token, verifiedAt: new Date(), expiresAt: new Date(row.expires_at).getTime() };
+      const restored = {
+        customerId,
+        mobile: row.mobile,
+        sessionToken: row.token,
+        verifiedAt: new Date(),
+        expiresAt: new Date(row.expires_at).getTime()
+      };
       customers.set(customerId, restored);
       return restored;
     }
   } catch (err) {}
+
   return null;
 }
 
 async function resolveAuthContext(authHeader) {
   const header = String(authHeader || '');
-  if (!header.startsWith('Bearer ')) return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+  if (!header.startsWith('Bearer ')) {
+    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+  }
   const token = header.slice(7).trim();
-  if (!token) return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+  if (!token) {
+    return { role: 'PUBLIC', agentId: null, customerId: null, mobile: null };
+  }
 
-  if (ADMIN_SESSION_TOKEN && safeEqual(token, ADMIN_SESSION_TOKEN)) return { role: 'ADMIN', agentId: null, customerId: null, mobile: null };
+  if (ADMIN_SESSION_TOKEN && safeEqual(token, ADMIN_SESSION_TOKEN)) {
+    return { role: 'ADMIN', agentId: null, customerId: null, mobile: null };
+  }
 
   if (token.startsWith('TOK_AGT_')) {
     try {
@@ -329,12 +410,16 @@ async function resolveAuthContext(authHeader) {
         const agent = agt.rows[0];
         return { role: 'AGENT', agentId: agent.agent_id, customerId: null, mobile: agent.mobile || null, agent };
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error('[Agent Auth DB Error]:', err.message);
+    }
   }
 
   if (token.startsWith('TOK_CUST_')) {
     const customer = await findCustomerByToken(token);
-    if (customer) return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
+    if (customer) {
+      return { role: 'CUSTOMER', agentId: null, customerId: customer.customerId, mobile: customer.mobile || null, customer };
+    }
     return { role: 'CUSTOMER', agentId: null, customerId: null, mobile: null, customer: null };
   }
 
@@ -358,14 +443,29 @@ const ordersSecuritySchemaReady = (async () => {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
-  } catch (err) {}
+  } catch (err) {
+    console.error('[Security] Schema init warning:', err.message);
+  }
 })();
 
 async function generateSignaturePng(fullName) {
   const seedStr = String(fullName || 'Driver');
   const seed = seedStr.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const pathData = `M 22 28 C 25 15, 35 8, 42 18 C 50 28, 42 35, 52 24 C 60 16, 70 18, 78 22 C 86 26, 95 15, 105 22 C 115 29, 122 18, 132 20 C 142 22, 150 16, 165 22 M 26 31 C 70 35, 120 32, 172 28`;
+  const style = seed % 4;
+
+  let pathData = '';
+  if (style === 0) {
+    pathData = `M 22 28 C 25 15, 35 8, 42 18 C 50 28, 42 35, 52 24 C 60 16, 70 18, 78 22 C 86 26, 95 15, 105 22 C 115 29, 122 18, 132 20 C 142 22, 150 16, 165 22 M 26 31 C 70 35, 120 32, 172 28`;
+  } else if (style === 1) {
+    pathData = `M 20 25 C 28 8, 38 32, 45 15 C 52 2, 60 22, 70 20 C 85 18, 95 28, 110 21 C 125 14, 140 24, 168 21 M 25 33 C 75 36, 125 33, 170 30`;
+  } else if (style === 2) {
+    pathData = `M 22 22 L 35 12 L 48 26 L 62 15 L 75 28 L 92 18 C 110 15, 125 25, 145 20 C 155 18, 162 22, 172 21 M 24 32 C 70 35, 120 33, 170 29`;
+  } else {
+    pathData = `M 24 26 C 30 18, 38 15, 45 22 C 52 29, 60 18, 70 21 C 82 24, 92 17, 105 22 C 120 27, 135 19, 168 21 M 28 33 C 70 35, 120 32, 172 30`;
+  }
+
   const svg = `<svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg"><g transform="rotate(-2 110 22)"><path d="${pathData}" fill="none" stroke="#050c1a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
+
   try {
     return await sharp(Buffer.from(svg)).png().toBuffer();
   } catch (err) {
@@ -375,79 +475,333 @@ async function generateSignaturePng(fullName) {
 
 async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
   const lookupKey = String(rawTargetNumber || '').replace(/[^A-Z0-9]/g, '').toUpperCase();
-  if (mockDatabase[lookupKey]) return mockDatabase[lookupKey];
+
+  if (mockDatabase[lookupKey]) {
+    return mockDatabase[lookupKey];
+  }
 
   try {
-    const dbRes = await pool.query('SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2', [docType, lookupKey]);
+    const dbRes = await pool.query(
+      'SELECT raw_data FROM documents_cache WHERE doc_type = $1 AND lookup_key = $2',
+      [docType, lookupKey]
+    );
     if (dbRes.rows && dbRes.rows.length > 0) {
       const cached = dbRes.rows[0].raw_data;
-      if (cached && cached.address) cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
+      if (cached && cached.address) {
+        cached.address = enrichAddress(cached.address, cached.rto || cached.rtoAuthority, lookupKey);
+      }
       return cached;
     }
   } catch (dbErr) {}
 
-  if (!SUREPASS_BEARER_TOKEN) return null;
+  if (!SUREPASS_BEARER_TOKEN) {
+    return null;
+  }
 
   try {
-    if (docType === 'DL') {
-      const cleanDob = normalizeDob(dob);
-      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+   if (docType === 'RC') {
+      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}` },
-        body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+        },
+        body: JSON.stringify({ id_number: lookupKey }),
         timeout: 12000
       });
+
       let json = await resp.json();
-      if (!resp.ok || !json.success || !json.data) return null;
+
+      if (!resp.ok || !json.success || !json.data) {
+        return null;
+      }
 
       const d = json.data;
+      let normalizedBody = String(d.body_type || 'SEDAN').trim();
+      if (/SOLO/i.test(normalizedBody)) normalizedBody = 'SOLO';
+
+      let normalizedColor = String(d.color || '').trim()
+        .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
+        .replace(/METALLIC\s+/i, 'MET. ')
+        .replace(/ELECTRONIC\s+/i, 'E. ');
+
+      let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim();
+      rawSurepassAddr = rawSurepassAddr.replace(/^[\s,./-]+/, '').trim();
+
+      if (!rawSurepassAddr || /^\d{6}$/.test(rawSurepassAddr)) {
+        const split = d.split_address || {};
+        const parts = [
+          split.address_line,
+          split.city || split.district,
+          split.state,
+          split.pincode
+        ].filter(Boolean);
+        rawSurepassAddr = parts.join(', ').trim();
+      }
+
+      const formattedRc = {
+        regNo: d.rc_number || lookupKey,
+        regDate: formatDateDisplay(d.registration_date || ''),
+        chassisNo: d.vehicle_chasi_number || '',
+        engineNo: d.vehicle_engine_number || '',
+        maker: d.maker_description || d.maker_model || '',
+        model: d.maker_model || '',
+        bodyType: normalizedBody,
+        wheelBase: String(d.wheelbase || '0'),
+        mfgDate: d.manufacturing_date || '',
+        fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
+        validUpto: formatDateDisplay(d.fit_up_to || ''),
+        taxUpto: d.tax_upto || 'LTT',
+        owner: d.owner_name || '',
+        swd: d.father_name || 'NA',
+        address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
+        ownerSerial: String(d.owner_number || '01').padStart(2, '0'),
+        color: normalizedColor,
+        vehicleClassFull: d.vehicle_category_description || d.vehicle_category || 'Motor Car (LMV)',
+        cylinders: String(d.no_cylinders || '4'),
+        unladenWt: String(d.unladen_weight || '0'),
+        ladenWt: String(d.vehicle_gross_weight || '0'),
+        horsePower: String(d.horse_power || '0'),
+        seating: String(d.seat_capacity || '5'),
+        stdgSlpr: `${d.standing_capacity || 0} / ${d.sleeper_capacity || 0}`,
+        cubicCap: String(d.cubic_capacity || '0'),
+        rto: d.registered_at || 'TRANSPORT DEPARTMENT',
+        emissionNorms: d.norms_type || 'BHARAT STAGE VI',
+        financer: d.financer || ''
+      };
+
+      pool.query(
+        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (lookup_key)
+         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+        [docType, lookupKey, JSON.stringify(formattedRc)]
+      ).catch(() => {});
+
+      mockDatabase[lookupKey] = formattedRc;
+      return formattedRc;
+
+    } else if (docType === 'DL') {
+      const cleanDob = normalizeDob(dob);
+
+      let resp;
+      let json;
+
+      try {
+        resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+          },
+          body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
+          timeout: 12000
+        });
+        json = await resp.json();
+      } catch (fetchErr) {
+        return null;
+      }
+
+      if (json && json.status_code === 500 && json.message && json.message.includes('Timed Out')) {
+        await new Promise(res => setTimeout(res, 1200));
+        try {
+          resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/driving-license/driving-license`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+            },
+            body: JSON.stringify({ id_number: lookupKey, dob: cleanDob }),
+            timeout: 12000
+          });
+          json = await resp.json();
+        } catch (retryErr) {
+          return null;
+        }
+      }
+
+      if (!resp || !resp.ok || !json || !json.success || !json.data) {
+        return null;
+      }
+
+      const d = json.data;
+
+      let parsedCovList = [];
       const rawCov = d.vehicle_classes || d.cov_details || [];
+
       const issueDateClean = formatDateDisplay(d.doi || d.issue_date || d.initial_doi);
       const issuingOfficeCode = d.ola_code || (lookupKey.length >= 4 ? lookupKey.substring(0, 4) : 'RTO');
 
-      let parsedCovList = [];
       if (Array.isArray(rawCov)) {
         parsedCovList = rawCov.map(item => {
-          let codeName = typeof item === 'string' ? item : (item.class_of_vehicle || item.code || item.cov || 'LMV');
+          let codeName = '';
+          if (typeof item === 'string') {
+            codeName = item;
+          } else if (typeof item === 'object' && item !== null) {
+            codeName = item.class_of_vehicle || item.code || item.cov || 'LMV';
+          }
+          const str = String(codeName || '').trim().toUpperCase();
+
+          let assignedType = 'BIKE';
+          if (str.includes('LMV') || str.includes('CAR') || str.includes('MOTOR CAR')) {
+            assignedType = 'CAR';
+          } else if (str.includes('3W') || str.includes('3 W') || str.includes('AUTO') || str.includes('RICKSHAW') || str.includes('CAB')) {
+            assignedType = 'THREE_WHEELER';
+          }
+
           return {
-            code: String(codeName || '').trim().toUpperCase(),
+            covType: assignedType,
+            code: str || 'MCWG',
             issuedBy: issuingOfficeCode,
             doi: issueDateClean,
-            category: 'NT'
+            category: d.transport_doe && d.transport_doe !== '1800-01-01' ? 'TR' : 'NT',
+            badgeNo: '',
+            badgeDoi: '',
+            badgeBy: ''
           };
         });
       }
 
+      const fullAddress = [
+        d.permanent_address || d.temporary_address || (typeof d.address === 'string' ? d.address : ''),
+        d.permanent_zip || ''
+      ].filter(Boolean).join(', ');
+
+      const validPhoto = (d.has_image && typeof d.profile_image === 'string' && d.profile_image.length > 200)
+        ? d.profile_image
+        : '';
+
       const formattedDl = {
         dlNo: d.license_number || lookupKey,
         doi: issueDateClean,
-        validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to),
-        validUptoTR: '',
+        validUptoNT: formatDateDisplay(d.doe || d.nt_validity_to || (d.validity && d.validity.non_transport)),
+        validUptoTR: d.transport_doe && d.transport_doe !== '1800-01-01' ? formatDateDisplay(d.transport_doe) : '',
         name: String(d.name || '').replace(/[\r\n]+/g, ' ').trim(),
         dob: formatDateDisplay(d.dob || cleanDob),
+        bloodGroup: String(d.blood_group || '').trim(),
+        organDonor: 'N',
         swd: String(d.father_or_husband_name || 'NA').replace(/[\r\n]+/g, ' ').trim(),
-        address: enrichAddress(d.permanent_address || d.temporary_address || '', d.ola_name, lookupKey),
-        profileImage: (d.has_image && typeof d.profile_image === 'string') ? d.profile_image : '',
+        address: enrichAddress(fullAddress, d.ola_name || d.issuing_authority, lookupKey),
+        firstIssueDate: formatDateDisplay(d.initial_doi || d.doi || '10-06-2011'),
+        profileImage: validPhoto,
+        adpVehNo: '',
+        hazardousValidity: '',
+        hillValidity: '',
         covList: parsedCovList,
-        rtoAuthority: String(d.ola_name || 'RTO OFFICE').trim()
+        mobileNo: '',
+        rtoAuthority: String(d.ola_name || d.issuing_authority || 'RTO OFFICE').trim()
       };
+
+      pool.query(
+        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (lookup_key)
+         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+        [docType, lookupKey, JSON.stringify(formattedDl)]
+      ).catch(() => {});
+
+      mockDatabase[lookupKey] = formattedDl;
       return formattedDl;
     }
-  } catch (err) {}
+  } catch (err) {
+    return null;
+  }
+
   return null;
 }
 
 const CARD_WIDTH = 242.88;
 const CARD_HEIGHT = 153.0;
 
+const fieldLayout = {
+  header: {
+    regNoY: 140.5,
+    regNoFontSize: 9.5,
+    form: { label: 'FORM-23A', rightAnchorX: 236.0, y: 141.0, fontSize: 6.5 },
+    formNote: { label: '(See Rule 48)', rightAnchorX: 236.0, y: 135.0, fontSize: 5.5 }
+  },
+  topLeft: [
+    { label: 'REG.DATE', labelX: 6, dotX: 42, colonX: 57, valueX: 62, y: 126, fontSize: 6.8, isDot: true },
+    { label: 'CHASSIS NO.', labelX: 6, dotX: 46, colonX: 57, valueX: 62, y: 119, fontSize: 6.8, isDot: true },
+    { label: 'ENGINE NO', labelX: 6, dotX: 44, colonX: 57, valueX: 62, y: 112, fontSize: 6.8, isDot: true },
+    { label: 'MFR', labelX: 6, colonX: 57, valueX: 62, y: 105, fontSize: 6.8, isDot: false, maxW: 175 }
+  ],
+  topRight: [
+    { label: 'O SLNO', labelX: 148, colonX: 176, valueX: 181, y: 126, fontSize: 6.8, maxW: 44 },
+    { label: 'CLASS', labelX: 148, colonX: 176, valueX: 181, y: 119, fontSize: 6.8, maxW: 65 },
+    { label: 'COLOUR', labelX: 148, colonX: 176, valueX: 181, y: 112, fontSize: 6.8, maxW: 56 }
+  ],
+  middle: [
+    { label: 'OWNERNAME', labelX: 6, colonX: 57, valueX: 62, y: 93, fontSize: 6.8, maxW: 175 },
+    { label: 'S/W/D OF', labelX: 6, colonX: 57, valueX: 62, y: 86, fontSize: 6.8, maxW: 175 },
+    { label: 'ADDRESS', labelX: 6, colonX: 57, valueX: 62, y: 79, fontSize: 6.8, multiLine: true, maxLines: 3, lineHeight: 5.8, maxW: 175 }
+  ],
+  bottomLeft: [
+    { label: 'MODEL', labelX: 6, colonX: 57, valueX: 62, y: 56, fontSize: 6.8, maxW: 120 },
+    { label: 'BODY', labelX: 6, colonX: 57, valueX: 62, y: 49, fontSize: 6.8, maxW: 36 },
+    { label: 'WHEEL BASE', labelX: 6, colonX: 57, valueX: 62, y: 42, fontSize: 6.8, maxW: 36 },
+    { label: 'MFG DATE', labelX: 6, colonX: 57, valueX: 62, y: 35, fontSize: 6.8, maxW: 36 },
+    { label: 'FUEL', labelX: 6, colonX: 57, valueX: 62, y: 28, fontSize: 6.8, maxW: 36 },
+    { label: 'REG/FC UPTO', labelX: 6, colonX: 57, valueX: 62, y: 21, fontSize: 6.8, maxW: 36 },
+    { label: 'TAX UPTO', labelX: 6, colonX: 57, valueX: 62, y: 14, fontSize: 6.8, maxW: 36 }
+  ],
+  bottomRight: [
+    { label: 'NO.OF CYL', labelX: 98, dotX: 132, colonX: 146, valueX: 151, y: 49, fontSize: 6.8, isDot: true, maxW: 48 },
+    { label: 'UNLADEN WT', labelX: 98, colonX: 146, valueX: 151, y: 42, fontSize: 6.8, maxW: 48 },
+    { label: 'SEATING', labelX: 98, colonX: 146, valueX: 151, y: 35, fontSize: 6.8, maxW: 48 },
+    { label: 'STDG/SLPR', labelX: 98, colonX: 146, valueX: 151, y: 28, fontSize: 6.8, maxW: 48 },
+    { label: 'CC', labelX: 98, colonX: 146, valueX: 151, y: 21, fontSize: 6.8, maxW: 48 }
+  ],
+  footer: {
+    authority: { label: 'Registering Authority', rightAnchorX: 236.0, y: 11.5, fontSize: 6.5 },
+    rto: { rightAnchorX: 236.0, y: 4.0, fontSize: 6.8 }
+  }
+};
+
+const newRcFrontLayout = {
+  regNo: { x: 56.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 65 },
+  regDate: { x: 126.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
+  validUpto: { x: 186.0, yTop: 41.0, size: 6.5, font: 'bold', maxW: 55 },
+  chassisNo: { x: 56.7, yTop: 58.5, size: 6.5, font: 'regular', maxW: 140 },
+  ownerSerial: { x: 212.0, yTop: 56.0, size: 6.8, font: 'bold', maxW: 15 },
+  engineNo: { x: 56.7, yTop: 80.0, size: 6.5, font: 'regular', maxW: 140 },
+  ownerName: { x: 56.7, yTop: 96.0, size: 6.5, font: 'regular', maxW: 140 },
+  swdName: { x: 56.7, yTop: 114.5, size: 6.5, font: 'regular', maxW: 140 },
+  fuel: { x: 2.5, yTop: 115.5, size: 6.5, font: 'regular', maxW: 55 },
+  emissionNorms: { x: 1.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 52 },
+  address: { x: 56.7, line2X: 56.7, yTop: 132.5, size: 5.8, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.8, maxW: 180 }
+};
+
+const newRcBackLayout = {
+  vehicleClass: { x: 101.0, yTop: 13.5, size: 6.0, font: 'regular', maxW: 120 },
+  regNo: { x: 10.0, yTop: 32.5, size: 6.0, font: 'regular', maxW: 40 },
+  maker: { x: 58.0, yTop: 32.5, size: 6.0, font: 'regular', maxW: 175 },
+  model: { x: 58.0, yTop: 49.0, size: 6.0, font: 'regular', maxW: 175 },
+  bodyType: { x: 58.0, yTop: 66.0, size: 6.0, font: 'regular', maxW: 175 },
+  seatingCapacity: { x: 60.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
+  standingCapacity: { x: 104.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
+  sleeperCapacity: { x: 138.0, yTop: 83.5, size: 6.0, font: 'regular', maxW: 15 },
+  mfgDate: { x: 10.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 35 },
+  unladenWeight: { x: 64.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
+  ladenWeight: { x: 94.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
+  grossWeight: { x: 126.0, yTop: 101.5, size: 6.0, font: 'regular', maxW: 20 },
+  cylinders: { x: 18.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
+  cubicCapacity: { x: 64.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
+  horsePower: { x: 104.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 25 },
+  wheelbase: { x: 166.0, yTop: 119.5, size: 6.0, font: 'regular', maxW: 35 },
+  financer: { x: 58.0, yTop: 135.5, size: 5.5, font: 'regular', maxW: 110 },
+  rtoAuthority: { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
+};
+
 const oldDlBackLayout = {
-  dlNo: { x: 92.0, yTop: 28.5, size: 6.8, maxW: 130 },
-  doi: { x: 198.0, yTop: 28.5, size: 6.5, maxW: 65 },
-  name: { x: 92.0, yTop: 36.5, size: 6.5, maxW: 140 },
-  dob: { x: 92.0, yTop: 44.5, size: 6.5, maxW: 120 },
-  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, maxW: 130 },
-  swd: { x: 92.0, yTop: 102.0, size: 6.5, maxW: 140 },
-  address: { x: 92.0, yTop: 114.0, size: 5.5, multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 }
+  dlNo: { x: 92.0, yTop: 28.5, size: 6.8, font: 'bold', maxW: 130 },
+  doi: { x: 198.0, yTop: 28.5, size: 6.5, font: 'bold', maxW: 65 },
+  name: { x: 92.0, yTop: 36.5, size: 6.5, font: 'bold', maxW: 140 },
+  dob: { x: 92.0, yTop: 44.5, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 92.0, yTop: 52.5, size: 6.5, font: 'bold', maxW: 130 },
+  swd: { x: 92.0, yTop: 102.0, size: 6.5, font: 'bold', maxW: 140 },
+  address: { x: 92.0, yTop: 114.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
 function getTemplatePath(candidates) {
@@ -458,33 +812,194 @@ function getTemplatePath(candidates) {
   return null;
 }
 
+function isCommercialClass(vClass) {
+  if (!vClass) return false;
+  const str = String(vClass).toUpperCase();
+  return (
+    str.includes('CAB') || str.includes('TAXI') || str.includes('GOODS') ||
+    str.includes('BUS') || str.includes('MAXI') || str.includes('COMMERCIAL') ||
+    str.includes('CARRIAGE') || str.includes('STAGE')
+  );
+}
+
+app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
+  const { mobile } = req.body;
+  const cleanMobile = String(mobile || '').replace(/\D/g, '');
+
+  if (cleanMobile.length !== 10) {
+    return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number.' });
+  }
+
+  try {
+    if (!MSG91_AUTH_KEY || !MSG91_TOKEN_AUTH) {
+      return res.status(503).json({ error: 'SMS verification service is not configured.' });
+    }
+
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/sendOtp', {
+      method: 'POST',
+      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, identifier: `91${cleanMobile}` }),
+      timeout: 10000
+    });
+
+    const data = await response.json();
+
+    if (data.type === 'success' || data.message === 'OTP sent successfully' || data.reqId) {
+      otpStore.set(cleanMobile, { reqId: data.reqId || data.message, attempts: 0, expiresAt: Date.now() + 10 * 60 * 1000 });
+      return res.json({ success: true, message: 'Verification code sent via SMS.', mobile: cleanMobile });
+    }
+
+    return res.status(400).json({ error: data.message || 'Failed to dispatch SMS OTP.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'SMS service temporarily unavailable.' });
+  }
+});
+
+app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
+  const { mobile, otp } = req.body;
+  const cleanMobile = String(mobile || '').replace(/\D/g, '');
+  const enteredOtp = String(otp || '').trim();
+
+  if (cleanMobile.length !== 10) return res.status(400).json({ error: 'Invalid mobile number.' });
+
+  const record = otpStore.get(cleanMobile);
+  if (!record || !record.reqId) return res.status(400).json({ error: 'No OTP session found for this number.' });
+
+  if (!record.expiresAt || Date.now() > record.expiresAt) {
+    otpStore.delete(cleanMobile);
+    return res.status(400).json({ error: 'OTP session has expired.' });
+  }
+
+  try {
+    const response = await fetchWithTimeout('https://api.msg91.com/api/v5/widget/verifyOtp', {
+      method: 'POST',
+      headers: { 'authkey': MSG91_AUTH_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ widgetId: MSG91_WIDGET_ID, tokenAuth: MSG91_TOKEN_AUTH, reqId: record.reqId, otp: enteredOtp }),
+      timeout: 10000
+    });
+
+    const data = await response.json();
+
+    if (data.type === 'success' || data['access-token'] || data.message === 'OTP verified success') {
+      otpStore.delete(cleanMobile);
+      const token = 'TOK_CUST_' + crypto.randomBytes(24).toString('hex');
+      const customerId = 'CUST_' + cleanMobile;
+      const expiresAtDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      customers.set(customerId, { customerId, mobile: cleanMobile, sessionToken: token, verifiedAt: new Date(), expiresAt: expiresAtDate.getTime() });
+
+      pool.query(
+        `INSERT INTO customer_sessions (token, mobile, expires_at) VALUES ($1, $2, $3) ON CONFLICT (token) DO NOTHING`,
+        [token, cleanMobile, expiresAtDate]
+      ).catch(() => {});
+
+      return res.json({ success: true, token, mobile: cleanMobile, message: 'Mobile identity verified successfully.' });
+    }
+
+    return res.status(400).json({ error: data.message || 'Invalid or expired OTP code.' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Verification service error.' });
+  }
+});
+
+app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
+  const secretKey = String(req.body.secretKey || '').trim();
+  const masterSecret = String(ADMIN_MASTER_SECRET || '').trim();
+
+  if (masterSecret && secretKey && safeEqual(secretKey, masterSecret)) {
+    return res.json({ success: true, token: ADMIN_SESSION_TOKEN });
+  }
+  return res.status(401).json({ error: 'Invalid Admin Master Secret Key' });
+});
+
+app.get('/api/admin/stats', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) return res.status(403).json({ error: 'Unauthorized' });
+
+  try {
+    const statsRes = await pool.query(`SELECT COUNT(*)::int AS total_downloads, COUNT(CASE WHEN doc_type = 'RC' THEN 1 END)::int AS rc_count, COUNT(CASE WHEN doc_type = 'DL' THEN 1 END)::int AS dl_count, COALESCE(SUM(amount), 0)::numeric AS total_revenue FROM orders WHERE status = 'SUCCESS';`);
+    const agentStatsRes = await pool.query(`SELECT COUNT(*)::int AS total_agents, COUNT(CASE WHEN status = 'ACTIVE' THEN 1 END)::int AS active_agents, COUNT(CASE WHEN status = 'PENDING_APPROVAL' THEN 1 END)::int AS pending_agents FROM agents;`);
+    res.json({ success: true, summary: statsRes.rows[0], agents: agentStatsRes.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
+app.get('/api/admin/orders', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token || !safeEqual(token, `Bearer ${ADMIN_SESSION_TOKEN}`)) return res.status(403).json({ error: 'Unauthorized' });
+
+  try {
+    const result = await pool.query(`SELECT order_id, user_phone, doc_type, lookup_key, amount, status, utr, created_at, paid_at FROM orders ORDER BY created_at DESC LIMIT 100;`);
+    res.json({ success: true, orders: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+app.post('/api/rc-preview', orderLimiter, async (req, res) => {
+  try {
+    const { regNo } = req.body;
+    const authHeader = req.headers['authorization'] || '';
+    const authContext = await resolveAuthContext(authHeader);
+
+    if (authContext.role === 'PUBLIC') return res.status(401).json({ error: 'Please verify your mobile number.' });
+
+    const report = await getVehicleOrDlRecord('RC', regNo);
+    if (!report) return res.status(404).json({ error: 'Vehicle details could not be found.' });
+
+    const detectedTier = resolveVehicleTier(report.vehicleClassFull, report.bodyType);
+    let amount = detectedTier === '3-Wheeler' ? 180 : detectedTier === '4-Wheeler+' ? 200 : 150;
+
+    return res.json({
+      success: true,
+      regNo: report.regNo,
+      brandName: [report.maker, report.model].filter(Boolean).join(' — ') || 'AUTOMOBILE',
+      ownerMasked: maskEvenly(report.owner),
+      chassisMasked: maskEvenly(report.chassisNo),
+      engineMasked: maskEvenly(report.engineNo),
+      detectedTier,
+      amount,
+      isKA: (report.regNo || '').substring(0, 2).toUpperCase() === 'KA'
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Preview error' });
+  }
+});
+
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
-    const { docType, targetNumber, dob, rcFormat } = req.body;
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile } = req.body;
     const localOrderId = 'ORD_' + Date.now();
-    const amount = 150;
-    
+    const finalAmount = docType === 'DL' ? 150 : 150;
+
     let rzpOrderId = null;
     if (RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET) {
-      const rzpOrder = await razorpay.orders.create({ amount: Math.round(amount * 100), currency: 'INR', receipt: localOrderId });
+      const rzpOrder = await razorpay.orders.create({ amount: Math.round(finalAmount * 100), currency: 'INR', receipt: localOrderId });
       rzpOrderId = rzpOrder.id;
     }
 
     const effectiveOrderId = rzpOrderId || localOrderId;
-    orders.set(effectiveOrderId, { orderId: effectiveOrderId, docType, targetNumber, amount, dob, rcFormat, status: 'SUCCESS' });
-    res.json({ success: true, orderId: effectiveOrderId, amount, amountPaise: Math.round(amount * 100), keyId: RAZORPAY_KEY_ID });
+    orders.set(effectiveOrderId, { orderId: effectiveOrderId, docType, targetNumber, amount: finalAmount, dob, rcFormat: rcFormat || 'OLD', status: 'SUCCESS' });
+
+    res.json({ success: true, orderId: effectiveOrderId, amount: finalAmount, amountPaise: Math.round(finalAmount * 100), keyId: RAZORPAY_KEY_ID });
   } catch (err) {
     res.status(500).json({ error: 'Order creation failed' });
   }
 });
 
 app.post('/api/verify-payment', async (req, res) => {
-  const { orderId } = req.body;
-  const order = orders.get(orderId);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-  res.json({ status: 'SUCCESS', orderId: order.orderId, docType: order.docType, rcFormat: order.rcFormat || 'OLD', report });
+  try {
+    const { orderId } = req.body;
+    const order = orders.get(orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
+    res.json({ status: 'SUCCESS', orderId: order.orderId, docType: order.docType, rcFormat: order.rcFormat || 'OLD', report });
+  } catch (err) {
+    res.status(500).json({ error: 'Verification failed' });
+  }
 });
 
 async function generateVectorPdfBuffer(docType, rcFormat, report) {
@@ -638,16 +1153,24 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 }
 
 app.post('/api/download-rc-pdf', async (req, res) => {
-  const { orderId } = req.body;
-  const order = orders.get(orderId);
-  if (!order) return res.status(404).json({ error: 'Order not found' });
+  try {
+    const { orderId } = req.body;
+    const order = orders.get(orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
 
-  const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
-  const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
-  
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="DL_${report.dlNo || 'Document'}.pdf"`);
-  res.send(pdfBuffer);
+    const report = await getVehicleOrDlRecord(order.docType, order.targetNumber, order.dob);
+    const pdfBuffer = await generateVectorPdfBuffer(order.docType, order.rcFormat || 'OLD', report);
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="DL_${report.dlNo || 'Document'}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: 'PDF generation failed' });
+  }
+});
+
+app.get('/api/user/history', async (req, res) => {
+  res.json({ success: true, history: [] });
 });
 
 app.listen(PORT, () => {
