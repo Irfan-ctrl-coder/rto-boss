@@ -959,7 +959,7 @@ const newRcBackLayout = {
 
 const oldDlBackLayout = {
   dlNo: { x: 57.0, yTop: 13.0, size: 6.8, font: 'bold', maxW: 130 },
-  doi: { x: 150.0, yTop: 13.0, size: 6.5, font: 'bold', maxW: 65 },
+  doi: { x: 150.0, yTop: 11.0, size: 6.5, font: 'bold', maxW: 65 },
   name: { x: 57.0, yTop: 21.0, size: 6.5, font: 'bold', maxW: 135 },
   dob: { x: 57.0, yTop: 28.0, size: 6.5, font: 'bold', maxW: 120 },
   validUptoNT: { x: 57.0, yTop: 35.0 , size: 6.5, font: 'bold', maxW: 130 },
