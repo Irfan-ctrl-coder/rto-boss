@@ -2178,11 +2178,13 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         let bikeIconImg = null;
         let lorryIconImg = null;
 
-        try {
+      try {
           if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
           if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
           if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
-        } catch (iconEmbedErr) {}
+        } catch (iconEmbedErr) {
+          console.error('[Icon Embed Error]:', iconEmbedErr.message);
+        }
 
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
