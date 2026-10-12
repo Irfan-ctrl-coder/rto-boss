@@ -1973,7 +1973,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         }
       });
 
-    // COV Table updated for Old DL (Code, Date, Category - no issuing office code)
+   // COV Table updated for Old DL (Code & Date only - no category/NT)
       if (report.covList && Array.isArray(report.covList)) {
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
@@ -1991,16 +1991,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const doiVal = String(cov.doi || '').trim();
           page.drawText(doiVal, {
-            x: rightCardX + (125.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const catVal = String(cov.category || 'NT').trim();
-          page.drawText(catVal, {
-            x: rightCardX + (165.0 * S),
+            x: rightCardX + (135.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
@@ -2008,7 +1999,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           });
         }
       }
-
       const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
       const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
       page.drawText(rtoVal, {
