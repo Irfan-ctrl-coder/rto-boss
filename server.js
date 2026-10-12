@@ -2008,283 +2008,285 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         font: fontBold,
         color: solidBlack
       });
- 
-     } else {
-       const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
-       const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
- 
-       const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
-       const dlSubTitleSize = getFittedSize(dlSubTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
-       const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
- 
-       page.drawText(dlSubTitleText, {
-         x: leftCardX + Math.max(0, (cardW - dlSubTitleWidth) / 2),
-         y: cardY + ((CARD_HEIGHT - 21.0) * S),
-         size: dlSubTitleSize,
-         font: fontBold,
-         color: rgb(0.05, 0.15, 0.3)
-       });
- 
-       const dlBadgeText = dlStateCode;
-       const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.0 * S);
-       page.drawText(dlBadgeText, {
-         x: leftCardX + (230.0 * S) - (dlBadgeW / 2),
-         y: cardY + ((CARD_HEIGHT - 12.3) * S),
-         size: 5.0 * S,
-         font: fontBold,
-         color: rgb(0, 0, 0)
-       });
- 
-       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
-         try {
-           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
-           const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
-           if (rawPhotoBuffer.length > 200) {
-             const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
-               .resize(150, 180, { fit: 'cover' })
-               .png()
-               .toBuffer();
- 
-             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-             page.drawImage(embeddedPhoto, {
-               x: leftCardX + (193.5 * S),
-               y: cardY + ((CARD_HEIGHT - 72.0) * S),
-               width: 33.0 * S,
-               height: 39.0 * S
-             });
-           }
-         } catch (photoErr) {}
-       }
- 
-       try {
-         const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
-         if (sigPngBuffer) {
-           const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
-           page.drawImage(embeddedSig, {
-             x: leftCardX + (191.0 * S),
-             y: cardY + ((CARD_HEIGHT - 76.2) * S),
-             width: 35.0 * S,
-             height: 7.2 * S
-           });
-         }
-       } catch (sigErr) {}
- 
-       const cleanDlNo = String(report.dlNo || '').trim();
-       page.drawText(cleanDlNo, {
-         x: leftCardX + (89.0 * S),
-         y: cardY + ((CARD_HEIGHT - 35.5) * S),
-         size: 8.5 * S,
-         font: fontBold,
-         color: boldColor
-       });
- 
-       page.drawText(String(report.doi || '').trim(), {
-         x: leftCardX + (57.0 * S),
-         y: cardY + ((CARD_HEIGHT - 59.5) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       page.drawText(String(report.validUptoNT || '').trim(), {
-         x: leftCardX + (101.0 * S),
-         y: cardY + ((CARD_HEIGHT - 59.5) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       if (report.validUptoTR) {
-         page.drawText(String(report.validUptoTR).trim(), {
-           x: leftCardX + (152.0 * S),
-           y: cardY + ((CARD_HEIGHT - 59.5) * S),
-           size: 6.5 * S,
-           font: fontRegular,
-           color: softTextColor
-         });
-       }
- 
-       page.drawText(String(report.name || '').trim(), {
-         x: leftCardX + (28.0 * S),
-         y: cardY + ((CARD_HEIGHT - 92.0) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       page.drawText(String(report.dob || '').trim(), {
-         x: leftCardX + (47.0 * S),
-         y: cardY + ((CARD_HEIGHT - 111.2) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       page.drawText(String(report.bloodGroup || '').trim(), {
-         x: leftCardX + (148.0 * S),
-         y: cardY + ((CARD_HEIGHT - 111.2) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       page.drawText(String(report.organDonor || 'N').trim(), {
-         x: leftCardX + (222.0 * S),
-         y: cardY + ((CARD_HEIGHT - 111.2) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       page.drawText(String(report.swd || 'NA').trim(), {
-         x: leftCardX + (79.0 * S),
-         y: cardY + ((CARD_HEIGHT - 122.5) * S),
-         size: 6.5 * S,
-         font: fontRegular,
-         color: softTextColor
-       });
- 
-       const dlAddrLines = splitAddress(report.address || '', 38);
-       dlAddrLines.slice(0, 3).forEach((line, idx) => {
-         page.drawText(String(line).trim(), {
-           x: leftCardX + (35.0 * S),
-           y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
-           size: 5.5 * S,
-           font: fontRegular,
-           color: softTextColor
-         });
-       });
- 
-       page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
-         x: leftCardX + (238.5 * S),
-         y: cardY + (72.0 * S),
-         size: 5.0 * S,
-         font: fontRegular,
-         color: softTextColor,
-         rotate: degrees(90)
-       });
- 
-       page.drawText(cleanDlNo, {
-         x: rightCardX + (32.0 * S),
-         y: cardY + ((CARD_HEIGHT - 9.0) * S),
-         size: 7.0 * S,
-         font: fontBold,
-         color: boldColor
-       });
- 
-       if (report.covList && Array.isArray(report.covList)) {
-         let carIconImg = null;
-         let bikeIconImg = null;
-         let lorryIconImg = null;
- 
-         try {
-           if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
-           if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
-           if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
-         } catch (iconEmbedErr) {}
- 
-         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
-           const cov = report.covList[idx];
-           const rowPitch = 11.0;
-           const rowY = 83.6 + (idx * rowPitch);
- 
-           const covCode = String(cov.code || '').toUpperCase();
-           let activeIcon = bikeIconImg;
- 
-           if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
-             activeIcon = carIconImg;
-           } else if (
-             covCode.includes('TRANS') ||
-             covCode.includes('TR') ||
-             covCode.includes('HMV') ||
-             covCode.includes('HGMV') ||
-             covCode.includes('HPV') ||
-             covCode.includes('LORRY')
-           ) {
-             activeIcon = lorryIconImg || carIconImg;
-           } else {
-             activeIcon = bikeIconImg;
-           }
- 
-           if (activeIcon) {
-             try {
-               page.drawImage(activeIcon, {
-                 x: rightCardX + (17.5 * S),
-                 y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
-                 width: 11.5 * S,
-                 height: 5.8 * S
-               });
-             } catch (drawErr) {}
-           }
- 
-           const codeVal = String(cov.code || '').trim();
-           const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
-           const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
- 
-           page.drawText(codeVal, {
-             x: rightCardX + (47.5 * S) - (codeW / 2),
-             y: cardY + ((CARD_HEIGHT - rowY) * S),
-             size: codeFontSize,
-             font: fontRegular,
-             color: softTextColor
-           });
- 
-           const issuedVal = String(cov.issuedBy || '').trim();
-           const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
- 
-           page.drawText(issuedVal, {
-             x: rightCardX + (73.0 * S) - (issuedW / 2),
-             y: cardY + ((CARD_HEIGHT - rowY) * S),
-             size: 5.8 * S,
-             font: fontRegular,
-             color: softTextColor
-           });
- 
-           const doiVal = String(cov.doi || '').trim();
-           const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
- 
-           page.drawText(doiVal, {
-             x: rightCardX + (107.5 * S) - (doiW / 2),
-             y: cardY + ((CARD_HEIGHT - rowY) * S),
-             size: 4.8 * S,
-             font: fontRegular,
-             color: softTextColor
-           });
- 
-           const catVal = String(cov.category || 'NT').trim();
-           const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
- 
-           page.drawText(catVal, {
-             x: rightCardX + (137.0 * S) - (catW / 2),
-             y: cardY + ((CARD_HEIGHT - rowY) * S),
-             size: 5.8 * S,
-             font: fontRegular,
-             color: softTextColor
-           });
-         }
-       }
- 
-       if (report.mobileNo) {
-         page.drawText(String(report.mobileNo).trim(), {
-           x: rightCardX + (46.0 * S),
-           y: cardY + ((CARD_HEIGHT - 146.0) * S),
-           size: 6.0 * S,
-           font: fontRegular,
-           color: softTextColor
-         });
-       }
- 
-       const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
-       const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
- 
-       page.drawText(rtoVal, {
-         x: rightCardX + ((236.0 * S) - rtoWidth),
-         y: cardY + ((CARD_HEIGHT - 149.5) * S),
-         size: 5.5 * S,
-         font: fontBold,
-         color: softTextColor
-       });
-     }
+    }
+
+  else {
+      const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
+      const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
+
+      const dlSubTitleText = `Issued by Transport Department, Government of ${dlStateFullName}`;
+      const dlSubTitleSize = getFittedSize(dlSubTitleText, fontBold, 5.6 * S, 3.8 * S, 170.0 * S);
+      const dlSubTitleWidth = fontBold.widthOfTextAtSize(dlSubTitleText, dlSubTitleSize);
+
+      page.drawText(dlSubTitleText, {
+        x: leftCardX + Math.max(0, (cardW - dlSubTitleWidth) / 2),
+        y: cardY + ((CARD_HEIGHT - 21.0) * S),
+        size: dlSubTitleSize,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      const dlBadgeText = dlStateCode;
+      const dlBadgeW = fontBold.widthOfTextAtSize(dlBadgeText, 5.0 * S);
+      page.drawText(dlBadgeText, {
+        x: leftCardX + (230.0 * S) - (dlBadgeW / 2),
+        y: cardY + ((CARD_HEIGHT - 12.3) * S),
+        size: 5.0 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
+        try {
+          const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
+          const rawPhotoBuffer = Buffer.from(cleanBase64, 'base64');
+          if (rawPhotoBuffer.length > 200) {
+            const photoPng = await sharp(rawPhotoBuffer, { failOnError: false })
+              .resize(150, 180, { fit: 'cover' })
+              .png()
+              .toBuffer();
+
+            const embeddedPhoto = await pdfDoc.embedPng(photoPng);
+            page.drawImage(embeddedPhoto, {
+              x: leftCardX + (193.5 * S),
+              y: cardY + ((CARD_HEIGHT - 72.0) * S),
+              width: 33.0 * S,
+              height: 39.0 * S
+            });
+          }
+        } catch (photoErr) {}
+      }
+
+      try {
+        const sigPngBuffer = await generateSignaturePng(report.name || 'Driver');
+        if (sigPngBuffer) {
+          const embeddedSig = await pdfDoc.embedPng(sigPngBuffer);
+          page.drawImage(embeddedSig, {
+            x: leftCardX + (191.0 * S),
+            y: cardY + ((CARD_HEIGHT - 76.2) * S),
+            width: 35.0 * S,
+            height: 7.2 * S
+          });
+        }
+      } catch (sigErr) {}
+
+      const cleanDlNo = String(report.dlNo || '').trim();
+      page.drawText(cleanDlNo, {
+        x: leftCardX + (89.0 * S),
+        y: cardY + ((CARD_HEIGHT - 35.5) * S),
+        size: 8.5 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.doi || '').trim(), {
+        x: leftCardX + (57.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.validUptoNT || '').trim(), {
+        x: leftCardX + (101.0 * S),
+        y: cardY + ((CARD_HEIGHT - 59.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      if (report.validUptoTR) {
+        page.drawText(String(report.validUptoTR).trim(), {
+          x: leftCardX + (152.0 * S),
+          y: cardY + ((CARD_HEIGHT - 59.5) * S),
+          size: 6.5 * S,
+          font: fontRegular,
+          color: solidBlack
+        });
+      }
+
+      page.drawText(String(report.name || '').trim(), {
+        x: leftCardX + (28.0 * S),
+        y: cardY + ((CARD_HEIGHT - 92.0) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.dob || '').trim(), {
+        x: leftCardX + (47.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.bloodGroup || '').trim(), {
+        x: leftCardX + (148.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.organDonor || 'N').trim(), {
+        x: leftCardX + (222.0 * S),
+        y: cardY + ((CARD_HEIGHT - 111.2) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      page.drawText(String(report.swd || 'NA').trim(), {
+        x: leftCardX + (79.0 * S),
+        y: cardY + ((CARD_HEIGHT - 122.5) * S),
+        size: 6.5 * S,
+        font: fontRegular,
+        color: solidBlack
+      });
+
+      const dlAddrLines = splitAddress(report.address || '', 38);
+      dlAddrLines.slice(0, 3).forEach((line, idx) => {
+        page.drawText(String(line).trim(), {
+          x: leftCardX + (35.0 * S),
+          y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
+          size: 5.5 * S,
+          font: fontRegular,
+          color: solidBlack
+        });
+      });
+
+      page.drawText(`( ${report.firstIssueDate || report.doi || '10-06-2011'} )`, {
+        x: leftCardX + (238.5 * S),
+        y: cardY + (72.0 * S),
+        size: 5.0 * S,
+        font: fontRegular,
+        color: solidBlack,
+        rotate: degrees(90)
+      });
+
+      page.drawText(cleanDlNo, {
+        x: rightCardX + (32.0 * S),
+        y: cardY + ((CARD_HEIGHT - 9.0) * S),
+        size: 7.0 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+
+      if (report.covList && Array.isArray(report.covList)) {
+        let carIconImg = null;
+        let bikeIconImg = null;
+        let lorryIconImg = null;
+
+        try {
+          if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
+          if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
+          if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
+        } catch (iconEmbedErr) {}
+
+        for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
+          const cov = report.covList[idx];
+          const rowPitch = 11.0;
+          const rowY = 83.6 + (idx * rowPitch);
+
+          const covCode = String(cov.code || '').toUpperCase();
+          let activeIcon = bikeIconImg;
+
+          if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
+            activeIcon = carIconImg;
+          } else if (
+            covCode.includes('TRANS') ||
+            covCode.includes('TR') ||
+            covCode.includes('HMV') ||
+            covCode.includes('HGMV') ||
+            covCode.includes('HPV') ||
+            covCode.includes('LORRY')
+          ) {
+            activeIcon = lorryIconImg || carIconImg;
+          } else {
+            activeIcon = bikeIconImg;
+          }
+
+          if (activeIcon) {
+            try {
+              page.drawImage(activeIcon, {
+                x: rightCardX + (17.5 * S),
+                y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
+                width: 11.5 * S,
+                height: 5.8 * S
+              });
+            } catch (drawErr) {}
+          }
+
+          const codeVal = String(cov.code || '').trim();
+          const codeFontSize = codeVal.length > 4 ? 4.7 * S : 5.8 * S;
+          const codeW = fontRegular.widthOfTextAtSize(codeVal, codeFontSize);
+
+          page.drawText(codeVal, {
+            x: rightCardX + (47.5 * S) - (codeW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: codeFontSize,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const issuedVal = String(cov.issuedBy || '').trim();
+          const issuedW = fontRegular.widthOfTextAtSize(issuedVal, 5.8 * S);
+
+          page.drawText(issuedVal, {
+            x: rightCardX + (73.0 * S) - (issuedW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const doiVal = String(cov.doi || '').trim();
+          const doiW = fontRegular.widthOfTextAtSize(doiVal, 4.8 * S);
+
+          page.drawText(doiVal, {
+            x: rightCardX + (107.5 * S) - (doiW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 4.8 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+
+          const catVal = String(cov.category || 'NT').trim();
+          const catW = fontRegular.widthOfTextAtSize(catVal, 5.8 * S);
+
+          page.drawText(catVal, {
+            x: rightCardX + (137.0 * S) - (catW / 2),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 5.8 * S,
+            font: fontRegular,
+            color: solidBlack
+          });
+        }
+      }
+
+      if (report.mobileNo) {
+        page.drawText(String(report.mobileNo).trim(), {
+          x: rightCardX + (46.0 * S),
+          y: cardY + ((CARD_HEIGHT - 146.0) * S),
+          size: 6.0 * S,
+          font: fontRegular,
+          color: solidBlack
+        });
+      }
+
+      const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
+      const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
+
+      page.drawText(rtoVal, {
+        x: rightCardX + ((236.0 * S) - rtoWidth),
+        y: cardY + ((CARD_HEIGHT - 149.5) * S),
+        size: 5.5 * S,
+        font: fontBold,
+        color: solidBlack
+      });
+    }
+
   } else if (rcFormat === 'NEW') {
     const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
     const isKA = stateCode === 'KA';
