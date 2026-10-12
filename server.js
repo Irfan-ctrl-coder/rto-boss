@@ -2876,4 +2876,3 @@ app.get('/api/user/history', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`⚡ RTO Boss Backend Running at: http://localhost:${PORT}`);
 });
-
