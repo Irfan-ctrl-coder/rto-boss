@@ -245,7 +245,9 @@ function loadIconBuffer(fileName) {
 const PNG_ICONS = {
   BIKE: loadIconBuffer('I5_transparent.png'),
   CAR: loadIconBuffer('I6_transparent.png'),
-  LORRY: loadIconBuffer('I7_transparent.png')
+  LORRY: loadIconBuffer('I7_transparent.png'),
+  AUTO: loadIconBuffer('I8_transparent.png'),
+  BUS: loadIconBuffer('I9_transparent.png')
 };
 
 const STATE_NAMES = {
@@ -679,86 +681,86 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
 
   try {
    if (docType === 'RC') {
-      let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
-        },
-        body: JSON.stringify({ id_number: lookupKey }),
-        timeout: 12000
-      });
+     let resp = await fetchWithTimeout(`${SUREPASS_BASE_URL}/api/v1/rc/rc-full`, {
+       method: 'POST',
+       headers: {
+         'Content-Type': 'application/json',
+         'Authorization': `Bearer ${SUREPASS_BEARER_TOKEN}`
+       },
+       body: JSON.stringify({ id_number: lookupKey }),
+       timeout: 12000
+     });
 
-      let json = await resp.json();
+     let json = await resp.json();
 
-      if (!resp.ok || !json.success || !json.data) {
-        return null;
-      }
+     if (!resp.ok || !json.success || !json.data) {
+       return null;
+     }
 
-      const d = json.data;
-      let normalizedBody = String(d.body_type || 'SEDAN').trim();
-      if (/SOLO/i.test(normalizedBody)) normalizedBody = 'SOLO';
+     const d = json.data;
+     let normalizedBody = String(d.body_type || 'SEDAN').trim();
+     if (/SOLO/i.test(normalizedBody)) normalizedBody = 'SOLO';
 
-      let normalizedColor = String(d.color || '').trim()
-        .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
-        .replace(/METALLIC\s+/i, 'MET. ')
-        .replace(/ELECTRONIC\s+/i, 'E. ');
+     let normalizedColor = String(d.color || '').trim()
+       .replace(/ELECTRONIC\s+ORANGE/i, 'E. ORANGE')
+       .replace(/METALLIC\s+/i, 'MET. ')
+       .replace(/ELECTRONIC\s+/i, 'E. ');
 
-      let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim();
-      rawSurepassAddr = rawSurepassAddr.replace(/^[\s,./-]+/, '').trim();
+     let rawSurepassAddr = String(d.present_address || d.permanent_address || '').trim();
+     rawSurepassAddr = rawSurepassAddr.replace(/^[\s,./-]+/, '').trim();
 
-      if (!rawSurepassAddr || /^\d{6}$/.test(rawSurepassAddr)) {
-        const split = d.split_address || {};
-        const parts = [
-          split.address_line,
-          split.city || split.district,
-          split.state,
-          split.pincode
-        ].filter(Boolean);
-        rawSurepassAddr = parts.join(', ').trim();
-      }
+     if (!rawSurepassAddr || /^\d{6}$/.test(rawSurepassAddr)) {
+       const split = d.split_address || {};
+       const parts = [
+         split.address_line,
+         split.city || split.district,
+         split.state,
+         split.pincode
+       ].filter(Boolean);
+       rawSurepassAddr = parts.join(', ').trim();
+     }
 
-      const formattedRc = {
-        regNo: d.rc_number || lookupKey,
-        regDate: formatDateDisplay(d.registration_date || ''),
-        chassisNo: d.vehicle_chasi_number || '',
-        engineNo: d.vehicle_engine_number || '',
-        maker: d.maker_description || d.maker_model || '',
-        model: d.maker_model || '',
-        bodyType: normalizedBody,
-        wheelBase: String(d.wheelbase || '0'),
-        mfgDate: d.manufacturing_date || '',
-        fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
-        validUpto: formatDateDisplay(d.fit_up_to || ''),
-        taxUpto: d.tax_upto || 'LTT',
-        owner: d.owner_name || '',
-        swd: d.father_name || 'NA',
-        address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
-        ownerSerial: String(d.owner_number || '01').padStart(2, '0'),
-        color: normalizedColor,
-        vehicleClassFull: d.vehicle_category_description || d.vehicle_category || 'Motor Car (LMV)',
-        cylinders: String(d.no_cylinders || '4'),
-        unladenWt: String(d.unladen_weight || '0'),
-        ladenWt: String(d.vehicle_gross_weight || '0'),
-        horsePower: String(d.horse_power || '0'),
-        seating: String(d.seat_capacity || '5'),
-        stdgSlpr: `${d.standing_capacity || 0} / ${d.sleeper_capacity || 0}`,
-        cubicCap: String(d.cubic_capacity || '0'),
-        rto: d.registered_at || 'TRANSPORT DEPARTMENT',
-        emissionNorms: d.norms_type || 'BHARAT STAGE VI',
-        financer: d.financer || ''
-      };
+     const formattedRc = {
+       regNo: d.rc_number || lookupKey,
+       regDate: formatDateDisplay(d.registration_date || ''),
+       chassisNo: d.vehicle_chasi_number || '',
+       engineNo: d.vehicle_engine_number || '',
+       maker: d.maker_description || d.maker_model || '',
+       model: d.maker_model || '',
+       bodyType: normalizedBody,
+       wheelBase: String(d.wheelbase || '0'),
+       mfgDate: d.manufacturing_date || '',
+       fuel: String(d.fuel_type || 'PETROL').toUpperCase(),
+       validUpto: formatDateDisplay(d.fit_up_to || ''),
+       taxUpto: d.tax_upto || 'LTT',
+       owner: d.owner_name || '',
+       swd: d.father_name || 'NA',
+       address: enrichAddress(rawSurepassAddr, d.registered_at, lookupKey),
+       ownerSerial: String(d.owner_number || '01').padStart(2, '0'),
+       color: normalizedColor,
+       vehicleClassFull: d.vehicle_category_description || d.vehicle_category || 'Motor Car (LMV)',
+       cylinders: String(d.no_cylinders || '4'),
+       unladenWt: String(d.unladen_weight || '0'),
+       ladenWt: String(d.vehicle_gross_weight || '0'),
+       horsePower: String(d.horse_power || '0'),
+       seating: String(d.seat_capacity || '5'),
+       stdgSlpr: `${d.standing_capacity || 0} / ${d.sleeper_capacity || 0}`,
+       cubicCap: String(d.cubic_capacity || '0'),
+       rto: d.registered_at || 'TRANSPORT DEPARTMENT',
+       emissionNorms: d.norms_type || 'BHARAT STAGE VI',
+       financer: d.financer || ''
+     };
 
-      pool.query(
-        `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
-         VALUES ($1, $2, $3, NOW())
-         ON CONFLICT (lookup_key)
-         DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
-        [docType, lookupKey, JSON.stringify(formattedRc)]
-      ).catch(() => {});
+     pool.query(
+       `INSERT INTO documents_cache (doc_type, lookup_key, raw_data, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (lookup_key)
+        DO UPDATE SET raw_data = EXCLUDED.raw_data, updated_at = NOW()`,
+       [docType, lookupKey, JSON.stringify(formattedRc)]
+     ).catch(() => {});
 
-      mockDatabase[lookupKey] = formattedRc;
-      return formattedRc;
+     mockDatabase[lookupKey] = formattedRc;
+     return formattedRc;
 
     } else if (docType === 'DL') {
       const cleanDob = normalizeDob(dob);
@@ -2169,11 +2171,15 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         let carIconImg = null;
         let bikeIconImg = null;
         let lorryIconImg = null;
+        let autoIconImg = null;
+        let busIconImg = null;
 
       try {
           if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
           if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
           if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
+          if (PNG_ICONS.AUTO) autoIconImg = await pdfDoc.embedPng(PNG_ICONS.AUTO);
+          if (PNG_ICONS.BUS) busIconImg = await pdfDoc.embedPng(PNG_ICONS.BUS);
         } catch (iconEmbedErr) {
           console.error('[Icon Embed Error]:', iconEmbedErr.message);
         }
@@ -2186,7 +2192,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           const covCode = String(cov.code || '').toUpperCase();
           let activeIcon = bikeIconImg;
 
-          if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
+          if (covCode.includes('PSVBUS') || covCode.includes('BUS')) {
+            activeIcon = busIconImg || carIconImg;
+          } else if (covCode.includes('3W') || covCode.includes('AUTO') || covCode.includes('RICKSHAW')) {
+            activeIcon = autoIconImg || bikeIconImg;
+          } else if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) {
             activeIcon = carIconImg;
           } else if (
             covCode.includes('TRANS') ||
