@@ -2227,7 +2227,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: codeFontSize,
             font: fontRegular,
-            color: solidBlack
+            color: softTextColor
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
@@ -2238,7 +2238,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: solidBlack
+            color: softTextColor
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -2249,7 +2249,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 4.8 * S,
             font: fontRegular,
-            color: solidBlack
+            color: softTextColor
           });
 
           const catVal = String(cov.category || 'NT').trim();
@@ -2260,11 +2260,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: solidBlack
+            color: softTextColor
           });
         }
       }
-
+      
       if (report.mobileNo) {
         page.drawText(String(report.mobileNo).trim(), {
           x: rightCardX + (46.0 * S),
