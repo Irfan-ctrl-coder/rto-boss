@@ -2294,8 +2294,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         color: softTextColor
       });
     }
-
-  } else if (rcFormat === 'NEW') {
     // ... RC formatting logic ...
 
   } else if (rcFormat === 'NEW') {
