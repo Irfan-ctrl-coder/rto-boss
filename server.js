@@ -963,8 +963,8 @@ const oldDlBackLayout = {
   name: { x: 57.0, yTop: 21.0, size: 6.5, font: 'bold', maxW: 135 },
   dob: { x: 57.0, yTop: 28.0, size: 6.5, font: 'bold', maxW: 120 },
   validUptoNT: { x: 57.0, yTop: 35.0 , size: 6.5, font: 'bold', maxW: 130 },
-  swd: { x: 63.0, yTop: 105.0, size: 6.5, font: 'bold', maxW: 140 },
-  address: { x: 65.0, yTop: 112.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  swd: { x: 62.0, yTop: 104.0, size: 6.5, font: 'bold', maxW: 140 },
+  address: { x: 62.0, yTop: 112.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
   rtoAuthority: { x: 236.0, yTop: 143.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
