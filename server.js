@@ -1982,7 +1982,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const codeVal = String(cov.code || '').trim();
           page.drawText(codeVal, {
-            x: rightCardX + (100.0 * S),
+            x: rightCardX + (110.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
@@ -1991,7 +1991,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const doiVal = String(cov.doi || '').trim();
           page.drawText(doiVal, {
-            x: rightCardX + (155.0 * S),
+            x: rightCardX + (165.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
