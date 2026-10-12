@@ -55,7 +55,6 @@ pool.on('error', (err) => {
 
 const ADMIN_MASTER_SECRET = process.env.ADMIN_MASTER_SECRET;
 
-// Deterministic Admin Token (Survives PM2 restarts without regenerating random hex)
 const ADMIN_SESSION_TOKEN = process.env.ADMIN_SESSION_TOKEN || (
   ADMIN_MASTER_SECRET
     ? crypto.createHmac('sha256', 'RTO_BOSS_STATIC_SALT').update(String(ADMIN_MASTER_SECRET).trim()).digest('hex')
@@ -80,7 +79,6 @@ const razorpay = new Razorpay({
 const SUREPASS_BASE_URL = process.env.SUREPASS_BASE_URL || 'https://kyc-api.surepass.app';
 const SUREPASS_BEARER_TOKEN = process.env.SUREPASS_BEARER_TOKEN || '';
 
-// Resilient upstream fetch with hard timeout to prevent socket deadlocks
 async function fetchWithTimeout(resource, options = {}) {
   const { timeout = 12000, ...rest } = options;
   const controller = new AbortController();
@@ -98,9 +96,6 @@ async function fetchWithTimeout(resource, options = {}) {
   }
 }
 
-// =====================================================================
-// MSG91 HEADLESS OTP WIDGET CONFIG
-// =====================================================================
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || '';
 const MSG91_WIDGET_ID = process.env.MSG91_WIDGET_ID || '3669776c5531333237393636';
 const MSG91_TOKEN_AUTH = process.env.MSG91_TOKEN_AUTH || '';
@@ -117,7 +112,6 @@ if (process.env.NODE_ENV === 'production') {
   }
 }
 
-// Production CORS Whitelist (Supporting HTTP, HTTPS, and Server IP)
 const allowedOrigins = [
   'https://rtoboss.in',
   'https://www.rtoboss.in',
@@ -151,10 +145,8 @@ app.use(express.json({
 
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve static assets from public folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Health & Root Navigation with safe file fallbacks
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
@@ -171,7 +163,6 @@ app.get('/', (req, res) => {
   return res.status(404).send('Not Found');
 });
 
-// Admin Route
 app.get('/admin', (req, res) => {
   const publicAdminPath = path.join(__dirname, 'public', 'admin.html');
   if (fs.existsSync(publicAdminPath)) {
@@ -184,9 +175,6 @@ app.get('/admin', (req, res) => {
   return res.status(404).send('Not Found');
 });
 
-// =====================================================================
-// RATE LIMITING PROTECTION TIERS
-// =====================================================================
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 300,
@@ -228,9 +216,6 @@ const adminLoginLimiter = rateLimit({
   message: { error: 'Too many admin login attempts. Please try again later.' }
 });
 
-// =====================================================================
-// IN-MEMORY STORES WITH TTL CLEANUP WORKER
-// =====================================================================
 const orders = new Map();
 const otpStore = new Map();
 const customers = new Map();
@@ -248,9 +233,6 @@ setInterval(async () => {
   } catch (err) {}
 }, 10 * 60 * 1000);
 
-// =====================================================================
-// ALL-INDIA STATE MASTER MAPPING
-// =====================================================================
 const STATE_NAMES = {
   AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
   BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
@@ -259,20 +241,6 @@ const STATE_NAMES = {
   LD: 'LAKSHADWEEP', MH: 'MAHARASHTRA', ML: 'MEGHALAYA', MN: 'MANIPUR', MP: 'MADHYA PRADESH',
   MZ: 'MIZORAM', NL: 'NAGALAND', OD: 'ODISHA', PB: 'PUNJAB', PY: 'PUDUCHERRY', RJ: 'RAJASTHAN',
   SK: 'SIKKIM', TN: 'TAMIL NADU', TR: 'TRIPURA', TS: 'TELANGANA', UK: 'UTTARAKHAND', UP: 'UTTAR PRADESH', WB: 'WEST BENGAL'
-};
-
-function loadIconBuffer(fileName) {
-  const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
-  if (fs.existsSync(p)) {
-    return fs.readFileSync(p);
-  }
-  return null;
-}
-
-const PNG_ICONS = {
-  BIKE: loadIconBuffer('I5_transparent.png'),
-  CAR: loadIconBuffer('I6_transparent.png'),
-  LORRY: loadIconBuffer('I7_transparent.png')
 };
 
 function maskEvenly(str) {
@@ -709,7 +677,6 @@ async function getVehicleOrDlRecord(docType, rawTargetNumber, dob) {
       let json = await resp.json();
 
       if (!resp.ok || !json.success || !json.data) {
-        console.error('[Surepass RC Full Error Response]:', JSON.stringify(json, null, 2));
         return null;
       }
 
@@ -990,19 +957,15 @@ const newRcBackLayout = {
   rtoAuthority: { x: 236.0, yTop: 149.5, size: 5.5, font: 'regular', maxW: 100, rightAnchor: true }
 };
 
-const oldDlFrontLayout = {
-  dlNo: { x: 58.0, yTop: 31.0, size: 7.0, font: 'bold', maxW: 120 },
-  doi: { x: 198.0, yTop: 31.0, size: 6.5, font: 'bold', maxW: 65 },
-  name: { x: 58.0, yTop: 45.0, size: 6.5, font: 'bold', maxW: 150 },
-  dob: { x: 58.0, yTop: 60.0, size: 6.5, font: 'regular', maxW: 100 },
-  validUptoNT: { x: 58.0, yTop: 74.5, size: 6.5, font: 'regular', maxW: 120 },
-  swd: { x: 58.0, yTop: 121.0, size: 6.5, font: 'regular', maxW: 150 },
-  address: { x: 58.0, yTop: 133.5, size: 5.8, font: 'regular', multiLine: true, maxLines: 3, lineHeight: 5.5, maxW: 180 }
-};
-
 const oldDlBackLayout = {
-  dlNo: { x: 32.0, yTop: 9.0, size: 7.0, font: 'bold', maxW: 120 },
-  rtoAuthority: { x: 236.0, yTop: 149.5, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
+  dlNo: { x: 57.0, yTop: 13.0, size: 6.8, font: 'bold', maxW: 130 },
+  doi: { x: 150.0, yTop: 11.0, size: 6.5, font: 'bold', maxW: 65 },
+  name: { x: 57.0, yTop: 21.0, size: 6.5, font: 'bold', maxW: 135 },
+  dob: { x: 57.0, yTop: 28.0, size: 6.5, font: 'bold', maxW: 120 },
+  validUptoNT: { x: 57.0, yTop: 35.0 , size: 6.5, font: 'bold', maxW: 130 },
+  swd: { x: 62.0, yTop: 104.0, size: 6.5, font: 'bold', maxW: 140 },
+  address: { x: 62.0, yTop: 112.0, size: 5.5, font: 'bold', multiLine: true, maxLines: 3, lineHeight: 5.2, maxW: 150 },
+  rtoAuthority: { x: 225.0, yTop: 155.0, size: 5.5, font: 'bold', maxW: 100, rightAnchor: true }
 };
 
 function getTemplatePath(candidates) {
@@ -1023,9 +986,6 @@ function isCommercialClass(vClass) {
   );
 }
 
-// =====================================================================
-// CUSTOMER AUTHENTICATION VIA MSG91 OTP WIDGET
-// =====================================================================
 app.post('/api/customer/send-otp', otpLimiter, async (req, res) => {
   const { mobile } = req.body;
   const cleanMobile = String(mobile || '').replace(/\D/g, '');
@@ -1147,9 +1107,6 @@ app.post('/api/customer/verify-otp', otpLimiter, async (req, res) => {
   }
 });
 
-// =====================================================================
-// AGENT ROUTES & PASSWORD RECOVERY
-// =====================================================================
 app.post('/api/agent/register', async (req, res) => {
   try {
     const { name, mobile, email, password, address } = req.body;
@@ -1276,9 +1233,6 @@ app.post('/api/agent/forgot-password/reset', otpLimiter, async (req, res) => {
   }
 });
 
-// =====================================================================
-// PRE-PAYMENT RC PREVIEW
-// =====================================================================
 app.post('/api/rc-preview', orderLimiter, async (req, res) => {
   try {
     const { regNo } = req.body;
@@ -1331,9 +1285,6 @@ app.post('/api/rc-preview', orderLimiter, async (req, res) => {
   }
 });
 
-// =====================================================================
-// ADMIN ROUTES
-// =====================================================================
 app.post('/api/admin/login', adminLoginLimiter, (req, res) => {
   const secretKey = String(req.body.secretKey || '').trim();
   const masterSecret = String(ADMIN_MASTER_SECRET || '').trim();
@@ -1497,9 +1448,6 @@ app.post('/api/admin/clear-data', (req, res) => {
   res.json({ success: true, message: 'Expired sessions cleaned successfully.' });
 });
 
-// =====================================================================
-// ORDER PROCESSING & PAYMENT
-// =====================================================================
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
@@ -1613,9 +1561,6 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
   }
 });
 
-// =====================================================================
-// PAYMENT VERIFICATION
-// =====================================================================
 app.post('/api/verify-payment', async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
@@ -1778,9 +1723,6 @@ app.post('/api/verify-payment', async (req, res) => {
   }
 });
 
-// =====================================================================
-// RAZORPAY WEBHOOK
-// =====================================================================
 app.post('/api/bank-webhook', async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
@@ -1871,9 +1813,6 @@ app.post('/api/bank-webhook', async (req, res) => {
   }
 });
 
-// =====================================================================
-// VECTOR PDF BUILDER FUNCTION
-// =====================================================================
 async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595.28, 841.89]);
@@ -1896,8 +1835,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const rightCardX = startX + cardW + gap;
   const cardY = startY;
 
-  const boldColor = rgb(0, 0, 0);
-  const softTextColor = rgb(0.08, 0.11, 0.17);
+  // Pure solid black color for dark, sharp font rendering
+  const solidBlack = rgb(0, 0, 0);
 
   function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
@@ -1970,16 +1909,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      const frontData = {
-        dlNo: report.dlNo || '',
-        doi: report.doi || '',
-        name: report.name || '',
-        dob: report.dob || '',
-        validUptoNT: `${report.validUptoNT || ''} (${report.validUptoTR ? 'TR' : 'NT'})`,
-        swd: report.swd || 'NA',
-        address: report.address || ''
-      };
+      // 1. FRONT CARD (LEFT) -> CLEAN BACKGROUND TEMPLATE ONLY (NO TEXT/PHOTO)
 
+      // 2. BACK CARD (RIGHT) -> PROFILE PHOTO PLACEMENT (Shifted Left)
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1990,136 +1922,95 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .png()
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-            page.drawImage(embeddedPhoto, {
-              x: leftCardX + (19.0 * S),
-              y: cardY + ((CARD_HEIGHT - 110.0) * S),
-              width: 33.0 * S,
-              height: 40.0 * S
+        page.drawImage(embeddedPhoto, {
+              x: rightCardX + (5* S), // Moved left
+              y: cardY + ((CARD_HEIGHT - 90) * S), // Moved up from 105.0 to 98.0
+              width: 36.0 * S,
+              height: 50.0 * S
             });
           }
         } catch (photoErr) {}
       }
 
-      Object.entries(oldDlFrontLayout).forEach(([key, cfg]) => {
-        const val = frontData[key] || '';
+      const backData = {
+        dlNo: report.dlNo || '',
+        doi: report.doi || '',
+        name: report.name || '',
+        dob: report.dob || '',
+        validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
+        swd: report.swd || 'NA',
+        address: report.address || ''
+      };
+
+      Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
+        if (key === 'rtoAuthority') return;
+        const val = backData[key] || '';
         if (!val) return;
-        const font = cfg.font === 'bold' ? fontBold : fontRegular;
+        const font = fontBold;
         const baselineY = CARD_HEIGHT - cfg.yTop;
 
         if (cfg.multiLine) {
           const lines = splitAddress(val, 38);
           lines.slice(0, cfg.maxLines).forEach((line, idx) => {
             page.drawText(String(line).trim(), {
-              x: leftCardX + (cfg.x * S),
+              x: rightCardX + (cfg.x * S),
               y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
               size: cfg.size * S,
               font,
-              color: softTextColor
+              color: solidBlack
             });
           });
         } else {
           const textVal = String(val).trim();
           const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
           page.drawText(textVal, {
-            x: leftCardX + (cfg.x * S),
+            x: rightCardX + (cfg.x * S),
             y: cardY + (baselineY * S),
             size: fontSize,
             font,
-            color: softTextColor
+            color: solidBlack
           });
         }
       });
 
-      const cleanDlNo = String(report.dlNo || '').trim();
-      page.drawText(cleanDlNo, {
-        x: rightCardX + (32.0 * S),
-        y: cardY + ((CARD_HEIGHT - 9.0) * S),
-        size: 7.0 * S,
-        font: fontBold,
-        color: boldColor
-      });
-
+   // COV Table updated for Old DL (Code & Date only - no category/NT)
       if (report.covList && Array.isArray(report.covList)) {
-        let carIconImg = null;
-        let bikeIconImg = null;
-        let lorryIconImg = null;
-
-        try {
-          if (PNG_ICONS.CAR) carIconImg = await pdfDoc.embedPng(PNG_ICONS.CAR);
-          if (PNG_ICONS.BIKE) bikeIconImg = await pdfDoc.embedPng(PNG_ICONS.BIKE);
-          if (PNG_ICONS.LORRY) lorryIconImg = await pdfDoc.embedPng(PNG_ICONS.LORRY);
-        } catch (iconEmbedErr) {}
-
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
-          const rowPitch = 11.0;
-          const rowY = 83.6 + (idx * rowPitch);
-
-          const covCode = String(cov.code || '').toUpperCase();
-          let activeIcon = bikeIconImg;
-          if (covCode.includes('LMV') || covCode.includes('MOTOR CAR')) activeIcon = carIconImg;
-          else if (covCode.includes('TRANS') || covCode.includes('TR') || covCode.includes('HMV')) activeIcon = lorryIconImg || carIconImg;
-
-          if (activeIcon) {
-            try {
-              page.drawImage(activeIcon, {
-                x: rightCardX + (17.5 * S),
-                y: cardY + ((CARD_HEIGHT - (rowY + 2.0)) * S),
-                width: 11.5 * S,
-                height: 5.8 * S
-              });
-            } catch (err) {}
-          }
+          const rowPitch = 10.5;
+          const rowY = 66.0 + (idx * rowPitch);
 
           const codeVal = String(cov.code || '').trim();
           page.drawText(codeVal, {
-            x: rightCardX + (47.5 * S),
+            x: rightCardX + (110.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontRegular,
-            color: softTextColor
-          });
-
-          const issuedVal = String(cov.issuedBy || '').trim();
-          page.drawText(issuedVal, {
-            x: rightCardX + (73.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontRegular,
-            color: softTextColor
+            size: 6.0 * S,
+            font: fontBold,
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
           page.drawText(doiVal, {
-            x: rightCardX + (107.5 * S),
+            x: rightCardX + (143.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 4.8 * S,
-            font: fontRegular,
-            color: softTextColor
-          });
-
-          const catVal = String(cov.category || 'NT').trim();
-          page.drawText(catVal, {
-            x: rightCardX + (137.0 * S),
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 5.8 * S,
-            font: fontRegular,
-            color: softTextColor
+            size: 6.0 * S,
+            font: fontBold,
+            color: solidBlack
           });
         }
       }
-
       const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
       const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
       page.drawText(rtoVal, {
-        x: rightCardX + ((236.0 * S) - rtoWidth),
-        y: cardY + ((CARD_HEIGHT - 149.5) * S),
+        x: rightCardX + ((233.0 * S) - rtoWidth),
+        y: cardY + ((CARD_HEIGHT - 150.0) * S),
         size: 5.5 * S,
         font: fontBold,
-        color: softTextColor
+        color: solidBlack
       });
+    }
 
-    } else {
+  else {
       const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
       const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
 
@@ -2132,7 +2023,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
         size: dlSubTitleSize,
         font: fontBold,
-        color: rgb(0.05, 0.15, 0.3)
+        color: solidBlack
       });
 
       const dlBadgeText = dlStateCode;
@@ -2142,7 +2033,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 12.3) * S),
         size: 5.0 * S,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
@@ -2185,7 +2076,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 35.5) * S),
         size: 8.5 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
 
       page.drawText(String(report.doi || '').trim(), {
@@ -2193,7 +2084,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.validUptoNT || '').trim(), {
@@ -2201,7 +2092,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       if (report.validUptoTR) {
@@ -2210,7 +2101,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - 59.5) * S),
           size: 6.5 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       }
 
@@ -2219,7 +2110,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 92.0) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.dob || '').trim(), {
@@ -2227,7 +2118,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.bloodGroup || '').trim(), {
@@ -2235,7 +2126,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.organDonor || 'N').trim(), {
@@ -2243,7 +2134,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.swd || 'NA').trim(), {
@@ -2251,7 +2142,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 122.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       const dlAddrLines = splitAddress(report.address || '', 38);
@@ -2261,7 +2152,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
           size: 5.5 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       });
 
@@ -2270,7 +2161,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (72.0 * S),
         size: 5.0 * S,
         font: fontRegular,
-        color: softTextColor,
+        color: solidBlack,
         rotate: degrees(90)
       });
 
@@ -2279,7 +2170,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 9.0) * S),
         size: 7.0 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
 
       if (report.covList && Array.isArray(report.covList)) {
@@ -2336,7 +2227,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: codeFontSize,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
@@ -2347,7 +2238,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -2358,7 +2249,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 4.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const catVal = String(cov.category || 'NT').trim();
@@ -2369,7 +2260,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
         }
       }
@@ -2380,7 +2271,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - 146.0) * S),
           size: 6.0 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       }
 
@@ -2392,7 +2283,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 149.5) * S),
         size: 5.5 * S,
         font: fontBold,
-        color: softTextColor
+        color: solidBlack
       });
     }
 
@@ -2437,7 +2328,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
         size: subTitleSize,
         font: fontBold,
-        color: rgb(0.05, 0.15, 0.3)
+        color: solidBlack
       });
 
       const isCommercial = isCommercialClass(report.vehicleClassFull);
@@ -2452,7 +2343,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       const orangeW1 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
@@ -2461,7 +2352,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       const blueW2 = fontBold.widthOfTextAtSize(blueBadgeText, badgeSize);
@@ -2470,7 +2361,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       const orangeW2 = fontBold.widthOfTextAtSize(orangeBadgeText, badgeSize);
@@ -2479,7 +2370,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: badgeY,
         size: badgeSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2502,7 +2393,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       if (!val) return;
 
       const font = cfg.font === 'bold' ? fontBold : fontRegular;
-      const textColor = cfg.font === 'bold' ? boldColor : softTextColor;
+      const textColor = cfg.font === 'bold' ? solidBlack : solidBlack;
       const baselineY = CARD_HEIGHT - cfg.yTop;
 
       if (cfg.multiLine) {
@@ -2567,7 +2458,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + (baselineY * S),
           size: fontSize,
           font,
-          color: softTextColor
+          color: solidBlack
         });
       } else {
         page.drawText(textVal, {
@@ -2575,7 +2466,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + (baselineY * S),
           size: fontSize,
           font,
-          color: softTextColor
+          color: solidBlack
         });
       }
     });
@@ -2610,7 +2501,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2626,7 +2517,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2642,7 +2533,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (y * S),
         size: fontSize,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
     }
 
@@ -2731,9 +2622,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   return Buffer.from(pdfBytes);
 }
 
-// =====================================================================
-// SECURE PDF DOWNLOAD ROUTE
-// =====================================================================
 app.post('/api/download-rc-pdf', async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
@@ -2806,9 +2694,6 @@ app.post('/api/download-rc-pdf', async (req, res) => {
   }
 });
 
-// =====================================================================
-// FIELD MAPPING
-// =====================================================================
 function getFieldKey(label) {
   const map = {
     'REG.DATE': 'regDate',
@@ -2838,9 +2723,6 @@ function getFieldKey(label) {
   return map[label] || label.toLowerCase();
 }
 
-// =====================================================================
-// PAST DOWNLOADS HISTORY
-// =====================================================================
 app.get('/api/user/history', async (req, res) => {
   try {
     const authHeader = req.headers['authorization'] || '';
@@ -2870,10 +2752,6 @@ app.get('/api/user/history', async (req, res) => {
   }
 });
 
-// =====================================================================
-// SERVER START
-// =====================================================================
 app.listen(PORT, () => {
   console.log(`⚡ RTO Boss Backend Running at: http://localhost:${PORT}`);
 });
-
