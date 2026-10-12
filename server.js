@@ -1466,7 +1466,7 @@ app.post('/api/admin/clear-data', (req, res) => {
 app.post('/api/create-order', orderLimiter, async (req, res) => {
   try {
     await ordersSecuritySchemaReady;
-    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName, devBypass } = req.body;
+    const { docType, targetNumber, tier, dob, rcFormat, customerMobile, customerEmail, customerName } = req.body;
     const authHeader = req.headers['authorization'] || '';
     const authContext = await resolveAuthContext(authHeader);
     const role = authContext.role;
@@ -1489,29 +1489,6 @@ app.post('/api/create-order', orderLimiter, async (req, res) => {
     }
 
     const localOrderId = 'ORD_' + Date.now();
-    
-    if (devBypass && docType === 'AGENT_ONBOARDING') {
-      const bypassOrderId = 'BYPASS_' + Date.now();
-      orders.set(bypassOrderId, {
-        orderId: bypassOrderId,
-        docType,
-        targetNumber,
-        amount: finalAmount,
-        status: 'SUCCESS'
-      });
-      
-      await pool.query(
-        "UPDATE agents SET status = 'ACTIVE', updated_at = NOW() WHERE agent_id = $1",
-        [targetNumber]
-      );
-
-      return res.json({
-        success: true,
-        bypassed: true,
-        orderId: bypassOrderId,
-        amount: finalAmount
-      });
-    }
 
     let rzpOrderId = null;
 
