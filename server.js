@@ -233,6 +233,21 @@ setInterval(async () => {
   } catch (err) {}
 }, 10 * 60 * 1000);
 
+
+function loadIconBuffer(fileName) {
+  const p = path.join(__dirname, 'public', 'assets', 'templates', fileName);
+  if (fs.existsSync(p)) {
+    return fs.readFileSync(p);
+  }
+  return null;
+}
+
+const PNG_ICONS = {
+  BIKE: loadIconBuffer('I5_transparent.png'),
+  CAR: loadIconBuffer('I6_transparent.png'),
+  LORRY: loadIconBuffer('I7_transparent.png')
+};
+
 const STATE_NAMES = {
   AN: 'ANDAMAN AND NICOBAR', AP: 'ANDHRA PRADESH', AR: 'ARUNACHAL PRADESH', AS: 'ASSAM',
   BR: 'BIHAR', CG: 'CHHATTISGARH', CH: 'CHANDIGARH', DD: 'DAMAN AND DIU', DL: 'DELHI',
