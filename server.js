@@ -2008,9 +2008,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         font: fontBold,
         color: solidBlack
       });
-    }
-
-  else {
+   } else {
       const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
       const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
 
@@ -2227,7 +2225,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: codeFontSize,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
@@ -2238,7 +2236,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -2249,7 +2247,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 4.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const catVal = String(cov.category || 'NT').trim();
@@ -2260,11 +2258,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
         }
       }
-      
+
       if (report.mobileNo) {
         page.drawText(String(report.mobileNo).trim(), {
           x: rightCardX + (46.0 * S),
