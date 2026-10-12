@@ -1973,7 +1973,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         }
       });
 
-      // COV Table positioning (Centered under VALID THROUGHOUT INDIA)
+    // COV Table updated for Old DL (Code, Date, Category - no issuing office code)
       if (report.covList && Array.isArray(report.covList)) {
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
@@ -1982,16 +1982,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const codeVal = String(cov.code || '').trim();
           page.drawText(codeVal, {
-            x: rightCardX + (82.0 * S), // Centered nicely under COV section
-            y: cardY + ((CARD_HEIGHT - rowY) * S),
-            size: 6.0 * S,
-            font: fontBold,
-            color: solidBlack
-          });
-
-          const issuedVal = String(cov.issuedBy || '').trim();
-          page.drawText(issuedVal, {
-            x: rightCardX + (125.0 * S),
+            x: rightCardX + (82.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
@@ -2000,6 +1991,15 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
 
           const doiVal = String(cov.doi || '').trim();
           page.drawText(doiVal, {
+            x: rightCardX + (125.0 * S),
+            y: cardY + ((CARD_HEIGHT - rowY) * S),
+            size: 6.0 * S,
+            font: fontBold,
+            color: solidBlack
+          });
+
+          const catVal = String(cov.category || 'NT').trim();
+          page.drawText(catVal, {
             x: rightCardX + (165.0 * S),
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
