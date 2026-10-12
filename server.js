@@ -1835,8 +1835,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
   const rightCardX = startX + cardW + gap;
   const cardY = startY;
 
-  const boldColor = rgb(0, 0, 0);
-  const softTextColor = rgb(0.08, 0.11, 0.17);
+  // Pure solid black color for dark, sharp font rendering
+  const solidBlack = rgb(0, 0, 0);
 
   function splitAddress(addr, maxChars = 38) {
     if (!addr) return [''];
@@ -1909,16 +1909,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
     }
 
     if (isOldDl) {
-      const frontData = {
-        dlNo: report.dlNo || '',
-        doi: report.doi || '',
-        name: report.name || '',
-        dob: report.dob || '',
-        validUptoNT: `${report.validUptoNT || ''} (${report.validUptoTR ? 'TR' : 'NT'})`,
-        swd: report.swd || 'NA',
-        address: report.address || ''
-      };
+      // 1. FRONT CARD (LEFT) -> CLEAN BACKGROUND TEMPLATE ONLY (NO TEXT/PHOTO)
 
+      // 2. BACK CARD (RIGHT) -> PROFILE PHOTO PLACEMENT (Shifted Left)
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
         try {
           const cleanBase64 = report.profileImage.replace(/^data:image\/\w+;base64,/, '').trim();
@@ -1929,55 +1922,58 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
               .png()
               .toBuffer();
             const embeddedPhoto = await pdfDoc.embedPng(photoPng);
-            page.drawImage(embeddedPhoto, {
-              x: leftCardX + (19.0 * S),
-              y: cardY + ((CARD_HEIGHT - 110.0) * S),
-              width: 33.0 * S,
-              height: 40.0 * S
+        page.drawImage(embeddedPhoto, {
+              x: rightCardX + (5* S), // Moved left
+              y: cardY + ((CARD_HEIGHT - 90) * S), // Moved up from 105.0 to 98.0
+              width: 36.0 * S,
+              height: 50.0 * S
             });
           }
         } catch (photoErr) {}
       }
 
-      Object.entries(oldDlFrontLayout).forEach(([key, cfg]) => {
-        const val = frontData[key] || '';
+      const backData = {
+        dlNo: report.dlNo || '',
+        doi: report.doi || '',
+        name: report.name || '',
+        dob: report.dob || '',
+        validUptoNT: `${report.validUptoNT || ''} ${report.validUptoTR ? '(TR)' : '(NT)'}`.trim(),
+        swd: report.swd || 'NA',
+        address: report.address || ''
+      };
+
+      Object.entries(oldDlBackLayout).forEach(([key, cfg]) => {
+        if (key === 'rtoAuthority') return;
+        const val = backData[key] || '';
         if (!val) return;
-        const font = cfg.font === 'bold' ? fontBold : fontRegular;
+        const font = fontBold;
         const baselineY = CARD_HEIGHT - cfg.yTop;
 
         if (cfg.multiLine) {
           const lines = splitAddress(val, 38);
           lines.slice(0, cfg.maxLines).forEach((line, idx) => {
             page.drawText(String(line).trim(), {
-              x: leftCardX + (cfg.x * S),
+              x: rightCardX + (cfg.x * S),
               y: cardY + ((baselineY - (idx * cfg.lineHeight)) * S),
               size: cfg.size * S,
               font,
-              color: softTextColor
+              color: solidBlack
             });
           });
         } else {
           const textVal = String(val).trim();
           const fontSize = getFittedSize(textVal, font, cfg.size * S, 3.8 * S, (cfg.maxW || 100) * S);
           page.drawText(textVal, {
-            x: leftCardX + (cfg.x * S),
+            x: rightCardX + (cfg.x * S),
             y: cardY + (baselineY * S),
             size: fontSize,
             font,
-            color: softTextColor
+            color: solidBlack
           });
         }
       });
 
-      const cleanDlNo = String(report.dlNo || '').trim();
-      page.drawText(cleanDlNo, {
-        x: rightCardX + (32.0 * S),
-        y: cardY + ((CARD_HEIGHT - 9.0) * S),
-        size: 7.0 * S,
-        font: fontBold,
-        color: boldColor
-      });
-
+   // COV Table updated for Old DL (Code & Date only - no category/NT)
       if (report.covList && Array.isArray(report.covList)) {
         for (let idx = 0; idx < Math.min(report.covList.length, 5); idx++) {
           const cov = report.covList[idx];
@@ -1990,7 +1986,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
-            color: boldColor
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -1999,11 +1995,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 6.0 * S,
             font: fontBold,
-            color: boldColor
+            color: solidBlack
           });
         }
       }
-
       const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
       const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
       page.drawText(rtoVal, {
@@ -2011,10 +2006,11 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 150.0) * S),
         size: 5.5 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
+    }
 
-    } else {
+  else {
       const dlStateCode = String(report.dlNo || 'KA').replace(/[^A-Z]/g, '').substring(0, 2).toUpperCase() || 'KA';
       const dlStateFullName = STATE_NAMES[dlStateCode] || 'KARNATAKA';
 
@@ -2027,7 +2023,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 21.0) * S),
         size: dlSubTitleSize,
         font: fontBold,
-        color: rgb(0.05, 0.15, 0.3)
+        color: solidBlack
       });
 
       const dlBadgeText = dlStateCode;
@@ -2037,7 +2033,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 12.3) * S),
         size: 5.0 * S,
         font: fontBold,
-        color: rgb(0, 0, 0)
+        color: solidBlack
       });
 
       if (report.profileImage && typeof report.profileImage === 'string' && report.profileImage.length > 200) {
@@ -2080,7 +2076,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 35.5) * S),
         size: 8.5 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
 
       page.drawText(String(report.doi || '').trim(), {
@@ -2088,7 +2084,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.validUptoNT || '').trim(), {
@@ -2096,7 +2092,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 59.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       if (report.validUptoTR) {
@@ -2105,7 +2101,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - 59.5) * S),
           size: 6.5 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       }
 
@@ -2114,7 +2110,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 92.0) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.dob || '').trim(), {
@@ -2122,7 +2118,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.bloodGroup || '').trim(), {
@@ -2130,7 +2126,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.organDonor || 'N').trim(), {
@@ -2138,7 +2134,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 111.2) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       page.drawText(String(report.swd || 'NA').trim(), {
@@ -2146,7 +2142,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 122.5) * S),
         size: 6.5 * S,
         font: fontRegular,
-        color: softTextColor
+        color: solidBlack
       });
 
       const dlAddrLines = splitAddress(report.address || '', 38);
@@ -2156,7 +2152,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - (134.0 + (idx * 5.8))) * S),
           size: 5.5 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       });
 
@@ -2165,7 +2161,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + (72.0 * S),
         size: 5.0 * S,
         font: fontRegular,
-        color: softTextColor,
+        color: solidBlack,
         rotate: degrees(90)
       });
 
@@ -2174,12 +2170,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 9.0) * S),
         size: 7.0 * S,
         font: fontBold,
-        color: boldColor
+        color: solidBlack
       });
 
-      // =====================================================================
-      // NEW DL COV ICONS RENDERING BLOCK (RESTORED HERE IN NEW DL BRANCH)
-      // =====================================================================
       if (report.covList && Array.isArray(report.covList)) {
         let carIconImg = null;
         let bikeIconImg = null;
@@ -2234,7 +2227,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: codeFontSize,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const issuedVal = String(cov.issuedBy || '').trim();
@@ -2245,7 +2238,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const doiVal = String(cov.doi || '').trim();
@@ -2256,7 +2249,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 4.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
 
           const catVal = String(cov.category || 'NT').trim();
@@ -2267,11 +2260,10 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
             y: cardY + ((CARD_HEIGHT - rowY) * S),
             size: 5.8 * S,
             font: fontRegular,
-            color: softTextColor
+            color: solidBlack
           });
         }
       }
-      // =====================================================================
 
       if (report.mobileNo) {
         page.drawText(String(report.mobileNo).trim(), {
@@ -2279,7 +2271,7 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           y: cardY + ((CARD_HEIGHT - 146.0) * S),
           size: 6.0 * S,
           font: fontRegular,
-          color: softTextColor
+          color: solidBlack
         });
       }
 
@@ -2291,10 +2283,9 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         y: cardY + ((CARD_HEIGHT - 149.5) * S),
         size: 5.5 * S,
         font: fontBold,
-        color: softTextColor
+        color: solidBlack
       });
     }
-    // ... RC formatting logic ...
 
   } else if (rcFormat === 'NEW') {
     const stateCode = (report.regNo || 'KA').substring(0, 2).toUpperCase();
