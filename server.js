@@ -245,7 +245,7 @@ function loadIconBuffer(fileName) {
 const PNG_ICONS = {
   BIKE: loadIconBuffer('I5_transparent.png'),
   CAR: loadIconBuffer('I6_transparent.png'),
-  LORRY: loadIconBuffer('i7_transparent.png'),
+  LORRY: loadIconBuffer('I7_transparent.png'),
   AUTO: loadIconBuffer('i8_transparent.png'),
   BUS: loadIconBuffer('i9_transparent.png')
 };
