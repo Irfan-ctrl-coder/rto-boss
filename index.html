@@ -1104,8 +1104,6 @@
         return;
       }
 
-      const useDevBypass = confirm("⚡ DEV MODE: Click OK to bypass payment & activate instantly, or Cancel to pay via Razorpay.");
-
       try {
         const res = await fetch('/api/agent/register', {
           method: 'POST',
@@ -1116,29 +1114,6 @@
         
         if (d.success) {
           closeAgentModal();
-
-          if (useDevBypass) {
-            const bypassRes = await fetch('/api/create-order', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                docType: 'AGENT_ONBOARDING',
-                targetNumber: d.agentId,
-                tier: '2-Wheeler',
-                customerMobile: mobile,
-                customerEmail: email,
-                customerName: name,
-                devBypass: true
-              })
-            });
-            const bypassData = await bypassRes.json();
-            if (bypassData.success) {
-              alert('⚡ Dev Bypass Successful! Agent account is now ACTIVE. You can log in.');
-              openAgentModal();
-              toggleAgentAuthView('login');
-              return;
-            }
-          }
 
           const orderRes = await fetch('/api/create-order', {
             method: 'POST',
