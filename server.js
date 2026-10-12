@@ -2012,8 +2012,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
       const rtoVal = String(report.rtoAuthority || 'RTO OFFICE').trim();
       const rtoWidth = fontBold.widthOfTextAtSize(rtoVal, 5.5 * S);
       page.drawText(rtoVal, {
-        x: rightCardX + ((236.0 * S) - rtoWidth),
-        y: cardY + ((CARD_HEIGHT - 143.0) * S),
+        x: rightCardX + ((233.0 * S) - rtoWidth),
+        y: cardY + ((CARD_HEIGHT - 150.0) * S),
         size: 5.5 * S,
         font: fontBold,
         color: solidBlack
