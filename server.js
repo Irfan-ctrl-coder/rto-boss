@@ -2171,7 +2171,8 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
         color: solidBlack
       });
 
-      if (report.covList && Array.isArray(report.covList)) {
+      
+if (report.covList && Array.isArray(report.covList)) {
         let carIconImg = null;
         let bikeIconImg = null;
         let lorryIconImg = null;
@@ -2262,7 +2263,6 @@ async function generateVectorPdfBuffer(docType, rcFormat, report) {
           });
         }
       }
-
       if (report.mobileNo) {
         page.drawText(String(report.mobileNo).trim(), {
           x: rightCardX + (46.0 * S),
